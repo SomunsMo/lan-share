@@ -25,7 +25,7 @@ function App() {
                 </div>
             </main>
 
-            <div className="content">
+            <div className={"content"}>
                 <TextSharing/>
                 <FileSharing/>
             </div>

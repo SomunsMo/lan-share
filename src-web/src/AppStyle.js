@@ -1,14 +1,15 @@
 import styled from "styled-components";
 
 const AppStyle = styled.div`
-    //width: 100vw;
-    width: 100dvw;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
 
     text-align: center;
     justify-items: center;
 
-
     main {
+        width: 100%;
         margin: 40px auto 70px auto;
     }
 
@@ -48,6 +49,7 @@ const AppStyle = styled.div`
         display: flex;
         max-width: 1400px;
         padding: 10px;
+        margin: 0 auto;
         flex-wrap: wrap;
 
         justify-content: center;
