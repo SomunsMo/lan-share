@@ -9,4 +9,8 @@ export default defineConfig({
         // 允许局域网访问
         host: true
     },
+    build: {
+        // 将打包的单html文件输出到rust下的静态资源目录中
+        outDir: "../src-tauri/static/front"
+    }
 })
