@@ -1,0 +1,91 @@
+// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+use colored::Colorize;
+use directories::BaseDirs;
+use env_logger::{Builder, Env};
+use lan_share_lib::config::config::{get_config_dir, CONFIG_DIR, FILE_SHARING_ROOT_DIR};
+use lan_share_lib::db::dao::config_dao::get_config;
+use lan_share_lib::db::sqlite;
+use lan_share_lib::http_server;
+use log::Level;
+use std::fs;
+use std::io::Write;
+use std::path::PathBuf;
+use tokio::spawn;
+
+#[tokio::main]
+async fn main() {
+    // 软件初始化
+    init().await;
+
+    // 异步启动HttpServer
+    spawn(async move {
+        http_server::http_server::start_server(3000)
+            .await
+            .expect("HTTP Server startup failed");
+    });
+
+    // 初始化UI
+    lan_share_lib::run();
+}
+
+// 软件初始化
+async fn init() {
+    // 初始化日志系统
+    init_logger();
+
+    // 软件配置目录
+    let proj_dir = BaseDirs::new()
+        .unwrap()
+        .config_dir()
+        .join("Somunsm")
+        .join("LanShare");
+    CONFIG_DIR.set(proj_dir).unwrap();
+
+    // 创建项目目录
+    fs::create_dir_all(get_config_dir()).expect("project dir creation failed");
+
+    // 初始化DB
+    sqlite::init().await;
+
+    // ====================【↓DB初始化后才能执行的代码】====================
+
+    //TODO 文件共享根目录
+    let fs_rd = get_config("file_sharing_root_dir")
+        .await
+        .map(|cfg| PathBuf::from(cfg.cfg_value)) // 直接转换
+        .unwrap_or_else(|e| {
+            log::error!("cannot get config：{}", e);
+            PathBuf::from("./uploads") // 默认 PathBuf
+        });
+    FILE_SHARING_ROOT_DIR.set(fs_rd).unwrap();
+}
+
+// 初始化日志系统
+fn init_logger() {
+    let env = Env::default().default_filter_or("info");
+    Builder::from_env(env)
+        .format(|buf, record| {
+            let timestamp = chrono::Local::now().format("%H:%M:%S%.3f");
+
+            // 使用 colored 添加颜色
+            let colored_level = match record.level() {
+                Level::Error => record.level().to_string().red().bold(),
+                Level::Warn => record.level().to_string().yellow().bold(),
+                Level::Info => record.level().to_string().green().bold(),
+                Level::Debug => record.level().to_string().blue(),
+                Level::Trace => record.level().to_string().cyan(),
+            };
+
+            writeln!(
+                buf,
+                "{} {:<5} [{}] - {}",
+                timestamp,
+                colored_level,
+                record.target(),
+                record.args()
+            )
+        })
+        .init();
+}

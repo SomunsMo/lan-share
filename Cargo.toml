@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "src-tauri",
+    "crates/http-macros"
+]
+
+[workspace.dependencies]
+lan-share-http-macros = { path = "crates/http-macros" }

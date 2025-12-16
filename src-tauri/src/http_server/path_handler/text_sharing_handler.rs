@@ -1,0 +1,120 @@
+//! # 文本共享处理器
+
+use crate::db::entity::UploadRecord;
+use crate::db::sqlite::get_pool;
+use crate::http_server::responses::{error, success};
+use http_body_util::BodyExt;
+use hyper::body::Incoming;
+use hyper::{Request, Response, StatusCode};
+use lan_share_http_macros::{get, post};
+use serde_json::Value::Null;
+use sqlx::Row;
+use std::collections::HashMap;
+use std::net::SocketAddr;
+
+/// 上传共享的文本接口
+#[post("/upload/text")]
+pub async fn upload_text(
+    _req: Request<Incoming>,
+) -> Result<Response<String>, std::convert::Infallible> {
+    // 从 extensions 中获取客户端地址
+    let client_ip = _req
+        .extensions()
+        .get::<SocketAddr>()
+        .map(|addr| addr.ip().to_string())
+        .unwrap_or_else(|| "Unknown IP".to_string());
+
+    let collected_body = match _req.into_body().collect().await {
+        Ok(collected) => collected,
+        Err(e) => {
+            // 处理读取 body 时的错误
+            let body = format!("Error reading body: {}", e);
+            return error(StatusCode::BAD_REQUEST, &body.to_string());
+        }
+    };
+
+    let body_bytes = collected_body.to_bytes();
+    let body_str = match String::from_utf8(body_bytes.to_vec()) {
+        Ok(str) => str,
+        Err(e) => {
+            log::error!("Error converting body to UTF-8 string: {}", e);
+            return error(
+                StatusCode::BAD_REQUEST,
+                "Invalid UTF-8 in request body".into(),
+            );
+        }
+    };
+
+    // 解析 JSON 格式
+    let req_params: HashMap<String, String> = match serde_json::from_str(&body_str) {
+        Ok(params) => params,
+        Err(e) => {
+            log::error!("Error parsing JSON data: {}", e);
+            return error(StatusCode::BAD_REQUEST, "Invalid JSON format".into());
+        }
+    };
+
+    let upload_content = req_params.get("textData").cloned().unwrap();
+
+    log::info!("来自[{}]的文本：{}", client_ip, upload_content);
+
+    //TODO 判断文本是否被存储过，被存储过则更新时间即可。
+
+    sqlx::query("INSERT INTO upload_record (upload_type,content,ip) VALUES (?,?,?)")
+        .bind(1)
+        .bind(upload_content)
+        .bind(client_ip)
+        .execute(get_pool())
+        .await
+        .unwrap();
+
+    // 响应接收成功
+    success(Null)
+}
+
+/// 获取已被记录的共享文本
+#[get("/upload/text")]
+pub async fn text_history(
+    _req: Request<Incoming>,
+) -> Result<Response<String>, std::convert::Infallible> {
+    let records = sqlx::query(
+        "
+    SELECT 
+        id,
+        upload_type,
+        content,
+        ip,
+        created_at 
+    FROM
+        upload_record
+    ORDER BY created_at DESC
+        ",
+    )
+    .fetch_all(get_pool())
+    .await
+    .unwrap();
+
+    // log::info!("查询结果:");
+    // for record in &records {
+    //     let id: i64 = record.get("id");
+    //     let f_d: Option<String> = record.get("f_d");
+    //     let created_at: Option<String> = record.get("created_at");
+    //
+    //     log::info!("ID: {:?}, f_d: {:?}, 创建时间: {:?}", id, f_d, created_at);
+    // }
+
+    // 手动映射到结构体
+    let record_obj: Vec<UploadRecord> = records
+        .iter()
+        .map(|row| UploadRecord {
+            id: row.get("id"),
+            upload_type: row.get("upload_type"),
+            content: row.get("content"),
+            ip: row.get("ip"),
+            created_at: row.get("created_at"),
+        })
+        .collect();
+
+    // 这里响应历史记录
+    success(record_obj)
+}

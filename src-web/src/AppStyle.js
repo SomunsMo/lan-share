@@ -1,0 +1,58 @@
+import styled from "styled-components";
+
+const AppStyle = styled.div`
+    //width: 100vw;
+    width: 100dvw;
+
+    text-align: center;
+    justify-items: center;
+
+
+    main {
+        margin: 40px auto 70px auto;
+    }
+
+    .subtitle {
+        margin-top: 0;
+    }
+
+    .codeArea {
+        box-sizing: border-box;
+        display: flex;
+        width: 180px;
+        height: 180px;
+        margin: 0 auto;
+        flex-direction: column;
+
+        justify-content: center;
+        align-items: center;
+
+        background-color: white;
+        border-radius: 6px;
+        overflow: hidden;
+        user-select: none;
+
+        .qrcode {
+            margin-top: 10px;
+        }
+
+        .qrcodeTips {
+            margin: 6px auto;
+            color: dimgrey;
+            font-size: small;
+        }
+    }
+
+
+    .content {
+        display: flex;
+        max-width: 1400px;
+        padding: 10px;
+        flex-wrap: wrap;
+
+        justify-content: center;
+    }
+
+
+`
+export default AppStyle;
