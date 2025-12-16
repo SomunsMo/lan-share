@@ -21,7 +21,7 @@ pub async fn web_handler(
 
     // 从文件读取HTML
     match STATIC_DIR
-        .get_file("front/web.html")
+        .get_file("frontend/index.html")
         .and_then(File::contents_utf8)
         .map(|s| s.to_string())
     {
