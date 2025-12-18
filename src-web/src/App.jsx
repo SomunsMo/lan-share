@@ -6,7 +6,6 @@ import {useEffect} from "react";
 
 function App() {
 
-
     useEffect(() => {
         // 全局禁用默认的右键菜单
         document.addEventListener('contextmenu', function (e) {
@@ -21,7 +20,7 @@ function App() {
                 <p className={"subtitle"}>基于Rust的局域网文件传输工具</p>
                 <div className={"codeArea"}>
                     <QRCodeSVG className={"qrcode"} value={window.location.href} fgColor={"#213547"}/>
-                    <p className={"qrcodeTips"}>访问地址</p>
+                    <p className={"qrcodeTips"}>{window.location.href}</p>
                 </div>
             </main>
 
