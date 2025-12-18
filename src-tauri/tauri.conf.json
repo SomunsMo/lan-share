@@ -13,8 +13,10 @@
     "windows": [
       {
         "title": "LAN Share",
-        "width": 800,
-        "height": 600
+        "width": 1000,
+        "height": 600,
+        "minWidth": 650,
+        "minHeight": 350
       }
     ],
     "security": {
