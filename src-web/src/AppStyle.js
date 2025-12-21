@@ -20,8 +20,8 @@ const AppStyle = styled.div`
     .codeArea {
         box-sizing: border-box;
         display: flex;
-        width: 180px;
-        height: 180px;
+        width: 200px;
+        height: 200px;
         margin: 0 auto;
         flex-direction: column;
 
@@ -41,6 +41,9 @@ const AppStyle = styled.div`
             margin: 6px auto;
             color: dimgrey;
             font-size: small;
+
+            // 确保网页URL可选中
+            user-select: auto;
         }
     }
 
