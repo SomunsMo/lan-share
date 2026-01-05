@@ -1,7 +1,10 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-
 pub mod config {
     pub mod config;
+}
+
+pub mod cmd {
+    pub mod _cmd_handler;
+    pub mod system;
 }
 
 pub mod db {
@@ -9,6 +12,7 @@ pub mod db {
     pub mod sqlite;
     pub mod dao {
         pub mod config_dao;
+        pub mod upload_dao;
     }
 }
 
@@ -29,6 +33,10 @@ pub mod normalizer {
     pub mod path_normalizer;
 }
 
+pub mod utils {
+    pub mod datetime;
+}
+
 // 导出宏
 pub use lan_share_http_macros::{delete, get, post, put, request};
 
@@ -40,18 +48,14 @@ use include_dir::{include_dir, Dir};
 // 打包静态资源到可执行文件
 pub static STATIC_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/static");
 
-
-
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
+use cmd::_cmd_handler::get_cmd_handler;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        // .invoke_handler(tauri::generate_handler![get_local_ip])
+        .invoke_handler(get_cmd_handler())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

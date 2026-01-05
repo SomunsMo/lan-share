@@ -54,9 +54,11 @@ pub async fn get_file_list(
                 // 获取修改时间
                 if let Ok(modified) = metadata.modified() {
                     if let Ok(duration) = modified.duration_since(UNIX_EPOCH) {
+                        let timestamp = duration.as_secs();
+                        let formatted_time = crate::utils::datetime::format_datetime(timestamp);
                         file_info.insert(
                             "modified".to_string(),
-                            FileInfo::String(duration.as_secs().to_string()),
+                            FileInfo::String(formatted_time),
                         );
                     }
                 }

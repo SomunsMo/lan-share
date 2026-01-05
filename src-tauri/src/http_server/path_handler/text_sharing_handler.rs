@@ -1,5 +1,6 @@
 //! # 文本共享处理器
 
+use crate::db::dao::upload_dao;
 use crate::db::entity::UploadRecord;
 use crate::db::sqlite::get_pool;
 use crate::http_server::responses::{error, success};
@@ -60,11 +61,7 @@ pub async fn upload_text(
 
     //TODO 判断文本是否被存储过，被存储过则更新时间即可。
 
-    sqlx::query("INSERT INTO upload_record (upload_type,content,ip) VALUES (?,?,?)")
-        .bind(1)
-        .bind(upload_content)
-        .bind(client_ip)
-        .execute(get_pool())
+    upload_dao::add(1, &upload_content, &client_ip)
         .await
         .unwrap();
 
@@ -77,44 +74,40 @@ pub async fn upload_text(
 pub async fn text_history(
     _req: Request<Incoming>,
 ) -> Result<Response<String>, std::convert::Infallible> {
-    let records = sqlx::query(
-        "
-    SELECT 
-        id,
-        upload_type,
-        content,
-        ip,
-        created_at 
-    FROM
-        upload_record
-    ORDER BY created_at DESC
-        ",
-    )
-    .fetch_all(get_pool())
-    .await
-    .unwrap();
+    let records = upload_dao::list_by_type(1)
+        .await
+        .unwrap();
 
-    // log::info!("查询结果:");
-    // for record in &records {
-    //     let id: i64 = record.get("id");
-    //     let f_d: Option<String> = record.get("f_d");
-    //     let created_at: Option<String> = record.get("created_at");
+    // let records = sqlx::query(
+    //     "
+    // SELECT
+    //     id,
+    //     upload_type,
+    //     content,
+    //     ip,
+    //     created_at
+    // FROM
+    //     upload_record
+    // ORDER BY created_at DESC
+    //     ",
+    // )
+    // .fetch_all(get_pool())
+    // .await
+    // .unwrap();
     //
-    //     log::info!("ID: {:?}, f_d: {:?}, 创建时间: {:?}", id, f_d, created_at);
-    // }
-
-    // 手动映射到结构体
-    let record_obj: Vec<UploadRecord> = records
-        .iter()
-        .map(|row| UploadRecord {
-            id: row.get("id"),
-            upload_type: row.get("upload_type"),
-            content: row.get("content"),
-            ip: row.get("ip"),
-            created_at: row.get("created_at"),
-        })
-        .collect();
+    //
+    // // 手动映射到结构体
+    // let record_obj: Vec<UploadRecord> = records
+    //     .iter()
+    //     .map(|row| UploadRecord {
+    //         id: row.get("id"),
+    //         upload_type: row.get("upload_type"),
+    //         content: row.get("content"),
+    //         ip: row.get("ip"),
+    //         created_at: row.get("created_at"),
+    //     })
+    //     .collect();
 
     // 这里响应历史记录
-    success(record_obj)
+    success(records)
 }
