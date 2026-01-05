@@ -2,15 +2,25 @@ import React from 'react';
 import NavbarStyle from "./style.js";
 import {Link, useNavigate} from "react-router";
 
-// 导航栏选项
-const items = [
+// 顶部导航栏选项
+const topItems = [
     {
         name: "主页",
-        path: "/home"
+        path: "/home",
+        icon: "/src/assets/icon/home.webp",
     },
     {
+        name: "测试页",
+        path: "/test",
+    }
+];
+
+// 底部导航栏选项
+const bottomItems = [
+    {
         name: "设置",
-        path: "/settings"
+        path: "/settings",
+        icon: "/src/assets/icon/setting.webp",
     }
 ];
 
@@ -20,13 +30,30 @@ function Navbar() {
     return (
         <NavbarStyle>
             <ul className={"top"}>
-                <li><a onClick={() => navigate(-1)}>返回</a></li>
+                <li>
+                    <a onClick={() => navigate(-1)}>
+                        <img src={"/src/assets/icon/vArrowLeft.webp"} alt={null}/>
+                        返回
+                    </a>
+                </li>
+
+                {topItems.map((item, index) => (
+                    <li key={index}>
+                        <Link to={item.path}>
+                            <img src={item.icon} alt={null}/>
+                            {item.name}
+                        </Link>
+                    </li>
+                ))}
             </ul>
 
             <ul className={"bottom"}>
-                {items.map((item, index) => (
+                {bottomItems.map((item, index) => (
                     <li key={index}>
-                        <Link to={item.path}>{item.name}</Link>
+                        <Link to={item.path}>
+                            <img src={item.icon} alt={null}/>
+                            {item.name}
+                        </Link>
                     </li>
                 ))}
             </ul>

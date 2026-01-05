@@ -1,0 +1,143 @@
+:root {
+    font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 400;
+
+    color: #0f0f0f;
+    background-color: #e8eaef;
+
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    padding: 0;
+    margin: 0;
+    /*overflow: hidden;*/
+}
+
+iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+a {
+    font-weight: 500;
+    color: black;
+    text-decoration: inherit;
+}
+
+h1 {
+    text-align: center;
+}
+
+input,
+button {
+    box-sizing: border-box;
+    border-radius: 4px;
+    border: 1px solid lightgrey;
+    padding: 0.41em 1.2em;
+    font-size: 1em;
+    font-weight: 500;
+    font-family: inherit;
+    color: dimgrey;
+    background-color: #ffffff;
+    transition: border-color 0.25s;
+}
+
+input:hover {
+    color: black;
+    border-color: darkgrey;
+}
+
+button {
+    cursor: pointer;
+}
+
+button:hover {
+    color: #252525;
+}
+
+button:active {
+    background-color: #e8e8e8;
+}
+
+input,
+button {
+    outline: none;
+}
+
+#greet-input {
+    margin-right: 5px;
+}
+
+.container {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+}
+
+.content {
+    flex-grow: 1;
+}
+
+/*用于在视觉上划分区块*/
+.block {
+    box-sizing: border-box;
+    padding: 10px 15px;
+    margin: 10px;
+    background-color: white;
+    border-radius: 5px;
+}
+
+
+/* 更改Checkbox为开关的样式 */
+
+/* 适配无 label 的 checkbox（仅现代浏览器） */
+input[type="checkbox"] {
+    -webkit-appearance: none; /* 清除原生样式 */
+    appearance: none;
+    width: 50px;
+    height: 26px;
+    border-radius: 13px;
+    background-color: #e6e6e6;
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.3s;
+}
+
+/* 开关按钮 */
+input[type="checkbox"]::after {
+    content: '';
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    top: 50%;
+    left: 1px;
+    transform: translateY(-50%);
+    transition: all 0.3s;
+}
+
+/* 选中状态 */
+input[type="checkbox"]:checked {
+    background-color: mediumseagreen;
+}
+
+input[type="checkbox"]:checked::after {
+    left: 25px;
+}
+
+/* 禁用状态 */
+input[type="checkbox"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

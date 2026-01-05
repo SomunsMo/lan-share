@@ -8,7 +8,7 @@ import Test from "./test/index.jsx";
 export const routes = [
     {
         path: "/",
-        element: <Test/>,
+        element: <Home/>,
     }, {
         path: "/home",
         element: <Home/>,
@@ -16,5 +16,8 @@ export const routes = [
     {
         path: "/settings",
         element: <Settings/>,
+    }, {
+        path: "/test",
+        element: <Test/>,
     }
 ];
