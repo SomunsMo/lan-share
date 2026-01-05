@@ -1,6 +1,6 @@
 # LAN Share web页面
 
-React + Vite
+React + Vite 编写，是其他设备访问的web页面。
 
 ## 注意试项
 
