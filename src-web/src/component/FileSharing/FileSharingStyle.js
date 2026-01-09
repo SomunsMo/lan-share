@@ -19,6 +19,7 @@ const FileSharingStyle = styled.div`
         width: 100%;
         text-align: left;
         border-spacing: 0;
+        table-layout: fixed; /* 固定表格布局，使列宽设置生效 */
     }
 
     thead {
@@ -65,13 +66,13 @@ const FileSharingStyle = styled.div`
 
     .fileName {
         display: inline-block;
-        //width: 200px;
-        //width: 80%;
+        max-width: calc(100% - 32px); /* 减去图标宽度，确保留有空间 */
         white-space: nowrap; /* 禁止换行 */
         overflow: hidden; /* 溢出隐藏 */
         text-overflow: ellipsis; /* 溢出显示省略号 */
+        vertical-align: top;
+        box-sizing: border-box;
     }
-
 
     .fileActions {
         display: none;

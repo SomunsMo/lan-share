@@ -67,7 +67,7 @@ const fileTypeMap = new Map([
     [FILE_TYPE.img, new Set(["bmp", "png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "tiff", "psd", "ai", "eps", "raw"])],
     [FILE_TYPE.audio, new Set(["ogg", "mp3", "wav", "flac", "aac", "m4a", "wma", "ape", "opus"])],
     [FILE_TYPE.video, new Set(["mp4", "mkv", "wmv", "avi", "mov", "flv", "webm", "mpg", "mpeg", "m4v", "m2v", "m4p", "m4b", "m4r", "3gp", "3g2", "f4v", "f4p", "f4a", "f4b"])],
-    [FILE_TYPE.doc, new Set(["txt", "doc", "docx", "pdf", "rtf", "odt", "xls", "xlsx", "ppt", "pptx", "csv", "md", "html", "htm", "xml", "json", "yaml", "yml"])],
+    [FILE_TYPE.doc, new Set(["txt", "doc", "docx", "rtf", "odt", "xls", "xlsx", "ppt", "pptx", "csv", "md", "html", "htm", "xml", "json", "yaml", "yml"])],
     [FILE_TYPE.pdf, new Set(["pdf"])],
     [FILE_TYPE.zip, new Set(["zip", "rar", "7z", "tar", "gz", "bz2", "xz", "z", "jar", "war", "rar4", "iso", "dmg"])],
     [FILE_TYPE.exe, new Set(["exe", "msi", "app", "deb", "rpm", "apk", "ipa", "bat", "sh", "cmd", "ps1"])],
@@ -75,35 +75,30 @@ const fileTypeMap = new Map([
     [FILE_TYPE.config, new Set(["ini", "cfg", "conf", "config", "env", "log", "toml", "lock"])],
 ]);
 
+// 根据文件后缀返回对应的图标
+const getFileIcon = (suffix) => {
+    let fileType = null;
+    for (let entry of fileTypeMap.entries()) {
+        const [type, suffixSet] = entry;
+        if (suffixSet.has(suffix)) {
+            fileType = type;
+        }
+    }
+
+    return getTypeIcon(fileType);
+};
+
 function FileSharing() {
     // 文件选择器元素
     const fileSelectorRef = useRef(null);
     // 被共享的文件列表
     const [sharedFileList, setSharedFileList] = useState([
-        {
-            is_dir: true,
-            modified: "1729437814",
-            name: "TestFolder",
-            size: 0
-        },
+        {is_dir: true, modified: "1729437814", name: "TestFolder", size: 0},
         {is_dir: false, modified: "1658150371", name: "test.txt", size: 1},
     ]);
 
     // 将要上传的文件列表
     const [filesToUpload, setFilesToUpload] = useState([]);
-
-    // 根据文件后缀返回对应的图标
-    const getFileIcon = (suffix) => {
-        let fileType = null;
-        for (let entry of fileTypeMap.entries()) {
-            const [type, suffixSet] = entry;
-            if (suffixSet.has(suffix)) {
-                fileType = type;
-            }
-        }
-
-        return getTypeIcon(fileType);
-    };
 
     const preprocessSharedFileList = (sfl) => {
         sfl.forEach(v => {
@@ -135,21 +130,43 @@ function FileSharing() {
         setSharedFileList(rl);
     }
 
-    useEffect(() => {
-        // 调接口取文件列表
-        getFileSharingAPI().then(res => {
+    // 获取当前在哪个文件夹
+    const getCurrentDir = () => {
+        //从url param中获取
+        return new URLSearchParams(window.location.search).get("dir");
+    }
+
+    // 调用接口，获取并更新文件列表
+    const flushSharedFileList = async (dir) => {
+        try {
+            const res = await getFileSharingAPI(dir);
             if (res.code !== 200) {
-                console.error("文件列表接口异常")
-                return;
+                console.error("获取文件列表异常");
+                return false;
             }
 
-            // 文件列表
             let data = res.data;
             preprocessSharedFileList(data);
-        })
+            return true;
+        } catch (error) {
+            console.error("获取文件列表异常", error);
+            return false;
+        }
+    }
+
+    useEffect(() => {
+
+        let currentDir = getCurrentDir();
+        // 调接口取文件列表
+        flushSharedFileList(currentDir ? currentDir : "");
 
         preprocessSharedFileList([
-            {is_dir: false, modified: "2025/01/01 00:00:00", name: "bootTel_00000000000000000000000000000000000000000000000000000000000000000000000.dat", size: 1},
+            {
+                is_dir: false,
+                modified: "2025/01/01 00:00:00",
+                name: "bootTel_0000000000000000000000000000000000.dat",
+                size: 1
+            },
             {is_dir: false, modified: "2025/01/01 00:00:00", name: "BuildTools.exe", size: 6197565},
             {is_dir: true, modified: "2025/01/01 00:00:00", name: "APK", size: 0},
             {is_dir: false, modified: "2025/01/01 00:00:00", name: "测试.exe", size: 6197565}
@@ -184,6 +201,31 @@ function FileSharing() {
 
     }
 
+    const itemDoubleClickHandler = async (item) => {
+        console.log(item);
+        if (!item || !item.is_dir) {
+            return;
+        }
+
+        // 说明要打开该文件夹
+        const currentDir = getCurrentDir();
+        console.log("当前路径", currentDir)
+
+        // 当前文件夹路径 + 要访问的文件夹
+        const newDir = currentDir ? `${currentDir}/${item.name}` : item.name;
+        console.log("新路径：", newDir);
+
+        // 请求要访问的文件夹路径，若请求成功。则更新url的dir
+        if (await flushSharedFileList(newDir)) {
+            console.log("写入新路径");
+            // 向url写入参数，但不刷新页面
+            window.history.pushState(null, null, `?dir=${newDir}`);
+        } else {
+            console.error("请求新文件夹失败");
+        }
+    }
+
+
     return (
         <Card>
             <FileSharingStyle>
@@ -191,7 +233,7 @@ function FileSharing() {
                     <table className={"fileTable"}>
                         <colgroup>
                             <col width={"40px"}/>
-                            <col/>
+                            <col width="45%"/>
                             {/*操作时间*/}
                             <col width={"15%"}/>
                             {/*大小*/}
@@ -211,7 +253,8 @@ function FileSharing() {
                         <tbody>
                         {sharedFileList.map((v, i) => {
                             return (
-                                <tr className={"fileItem"} key={v.name + i}>
+                                <tr className={"fileItem"} key={v.name + i}
+                                    onDoubleClick={() => itemDoubleClickHandler(v)}>
                                     <td>
                                         <div className={"checkbox"}>{!v.is_dir && <input type={"checkbox"}/>}</div>
                                     </td>

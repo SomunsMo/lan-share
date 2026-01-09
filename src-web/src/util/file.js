@@ -1,7 +1,6 @@
 // 格式化文件大小
 export const formatFileSize = (originBytes, decimals = 2) => {
     const bytes = Number(originBytes);
-    console.log(originBytes, bytes)
     if (isNaN(bytes)) return "-";
     if (bytes === 0) return "0B";
 

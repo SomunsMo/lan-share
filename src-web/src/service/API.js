@@ -20,10 +20,10 @@ export const uploadTextAPI = (text) => {
 }
 
 // 获取共享文件列表
-export const getFileSharingAPI = () => {
+export const getFileSharingAPI = (dir) => {
     return request({
         method: "GET",
-        url: "/upload/file"
+        url: `/upload/file?dir=${dir ? dir : ""}`
     });
 }
 
