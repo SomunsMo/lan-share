@@ -6,7 +6,6 @@ const Card = styled.div`
     min-width: 200px;
     //height: calc(30vw * 0.45);
     min-height: 240px;
-    max-height: 61.8dvh;
     padding: 15px;
     margin: 10px;
     flex-grow: 1;
@@ -15,8 +14,7 @@ const Card = styled.div`
     background-color: whitesmoke;
 
     border-radius: 10px;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: hidden;
 
     & > h1, & > h2, & > h3, & > h4, & > h5, & > h6 {
         margin: 4px auto;

@@ -70,10 +70,10 @@ button, input[type="file"]::file-selector-button, input[type="submit"] {
 
 input[type="checkbox"] {
     appearance: none;
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
     margin-right: 5px;
-    border: 2px solid #1890ff;
+    border: 1px solid lightgrey;
     background: white;
     border-radius: 2px;
     cursor: pointer;
@@ -89,7 +89,7 @@ input[type="checkbox"]:checked::before {
     content: "✓";
     position: absolute;
     color: white;
-    font-size: 14px;
+    font-size: 12px;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
