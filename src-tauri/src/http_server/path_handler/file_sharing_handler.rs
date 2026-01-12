@@ -2,6 +2,7 @@
 
 use crate::config::config::get_sharing_root;
 use crate::http_server::responses::{error, success};
+use form_urlencoded;
 use futures_util::stream::TryStreamExt;
 use http_body_util::{BodyExt, StreamBody};
 use hyper::body::{Body, Incoming};
@@ -31,10 +32,40 @@ enum FileInfo {
 pub async fn get_file_list(
     _req: Request<Incoming>,
 ) -> Result<Response<String>, std::convert::Infallible> {
-    let tmp_dir = "F:/";
+    // 解析查询参数
+    let query = _req.uri().query().unwrap_or("");
+    let params: HashMap<_, _> = form_urlencoded::parse(query.as_bytes())
+        .into_owned()
+        .collect();
+
+    // 获取 dir 参数，默认为根目录
+    let dir_param = params.get("dir").map(|s| s.as_str()).unwrap_or("");
+
+    // let sharing_root = get_sharing_root();
+    let sharing_root = &PathBuf::from("F:/");
+    let target_dir = if dir_param.is_empty() {
+        sharing_root.clone()
+    } else {
+        // TODO 这里要防止访问到上级目录！！！
+        // 如 ../ / ~ 
+
+        sharing_root.join(dir_param)
+    };
+
+    // 验证目录是否存在且是目录
+    if !target_dir.exists() || !target_dir.is_dir() {
+        return error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            &format!(
+                "Directory '{}' does not exist or is not a directory",
+                target_dir.display()
+            ),
+        );
+    }
+
     let mut file_list: Vec<HashMap<String, FileInfo>> = Vec::new();
 
-    if let Ok(entries) = fs::read_dir(tmp_dir) {
+    if let Ok(entries) = fs::read_dir(&target_dir) {
         for entry in entries {
             if let Ok(entry) = entry {
                 let path = entry.path();
@@ -56,10 +87,7 @@ pub async fn get_file_list(
                     if let Ok(duration) = modified.duration_since(UNIX_EPOCH) {
                         let timestamp = duration.as_secs();
                         let formatted_time = crate::utils::datetime::format_datetime(timestamp);
-                        file_info.insert(
-                            "modified".to_string(),
-                            FileInfo::String(formatted_time),
-                        );
+                        file_info.insert("modified".to_string(), FileInfo::String(formatted_time));
                     }
                 }
 
@@ -84,6 +112,15 @@ pub async fn get_file_list(
 pub async fn upload_file(
     _req: Request<Incoming>,
 ) -> Result<Response<String>, std::convert::Infallible> {
+    // 解析查询参数
+    let query = _req.uri().query().unwrap_or("");
+    let params: HashMap<_, _> = form_urlencoded::parse(query.as_bytes())
+        .into_owned()
+        .collect();
+
+    // 获取 dir 参数，默认为根目录
+    let dir_param = params.get("dir").map(|s| s.as_str()).unwrap_or("");
+
     let headers = _req.headers().clone();
 
     // 1. 检查 Content-Type
@@ -119,14 +156,30 @@ pub async fn upload_file(
 
     let mut multipart = Multipart::new(body_stream, boundary);
 
-    // 4. 定义变量（默认上传到根目录）
+    // 4. 定义变量
     let root_dir = get_sharing_root();
-    let mut write_dir: PathBuf = root_dir.clone(); // 默认根目录
-    let mut sub_dir: Option<String> = None; // 存储用户传递的子目录（可选）
-    let mut uploaded: Vec<String> = Vec::new();
-    let mut dir_verified = false; // 标记目录是否已验证
+    let target_dir = if dir_param.is_empty() {
+        root_dir.clone()
+    } else {
+        root_dir.join(dir_param)
+    };
 
-    // 5. 核心逻辑：支持任意字段顺序，dir可选，边解析边上传
+    // 验证目标目录是否存在且是目录
+    if !target_dir.exists() || !target_dir.is_dir() {
+        return error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            &format!(
+                "Directory '{}' does not exist or is not a directory",
+                target_dir.display()
+            ),
+        );
+    }
+
+    let mut write_dir: PathBuf = target_dir;
+    let mut uploaded: Vec<String> = Vec::new();
+    let mut dir_verified = true; // 目标目录已验证
+
+    // 5. 核心逻辑：支持任意字段顺序，边解析边上传
     loop {
         let mut field = match multipart.next_field().await {
             Ok(Some(f)) => f,
@@ -145,63 +198,7 @@ pub async fn upload_file(
         };
 
         match field_name {
-            "sub_dir" => {
-                // 读取 dir 参数（可选），更新写入目录并验证
-                let dir_val = match field.text().await {
-                    Ok(val) => val,
-                    Err(e) => {
-                        return error(
-                            StatusCode::BAD_REQUEST,
-                            &format!("Failed to read dir: {}", e),
-                        )
-                    }
-                };
-
-                // 拼接子目录路径
-                let target_dir = root_dir.join(&dir_val);
-
-                // 验证目录是否存在且是目录
-                let dir_valid = match tokio::fs::metadata(&target_dir).await {
-                    Ok(meta) => meta.is_dir(),
-                    Err(_) => false,
-                };
-
-                if !dir_valid {
-                    return error(
-                        StatusCode::UNPROCESSABLE_ENTITY,
-                        &format!(
-                            "Directory '{}' does not exist or is not a directory",
-                            target_dir.display()
-                        ),
-                    );
-                }
-
-                // 更新写入目录，标记已验证
-                sub_dir = Some(dir_val);
-                write_dir = target_dir;
-                dir_verified = true;
-            }
-
             "file" => {
-                // 验证目录（如果是第一次处理文件且未验证过目录）
-                if !dir_verified {
-                    // 验证默认根目录是否存在
-                    let root_valid = match tokio::fs::metadata(&write_dir).await {
-                        Ok(meta) => meta.is_dir(),
-                        Err(_) => false,
-                    };
-                    if !root_valid {
-                        return error(
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            &format!(
-                                "Default root directory '{}' does not exist",
-                                write_dir.display()
-                            ),
-                        );
-                    }
-                    dir_verified = true; // 标记根目录已验证
-                }
-
                 // 获取并清洗文件名
                 let filename = match field.file_name() {
                     Some(name) => name.to_string(),
