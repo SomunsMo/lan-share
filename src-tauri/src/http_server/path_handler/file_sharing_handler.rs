@@ -2,6 +2,7 @@
 
 use crate::config::config::get_sharing_root;
 use crate::http_server::responses::{error, success};
+use crate::QueryParams;
 use form_urlencoded;
 use futures_util::stream::TryStreamExt;
 use http_body_util::{BodyExt, StreamBody};
@@ -31,15 +32,10 @@ enum FileInfo {
 #[get("/upload/file")]
 pub async fn get_file_list(
     _req: Request<Incoming>,
+    query_params: QueryParams,
 ) -> Result<Response<String>, std::convert::Infallible> {
-    // 解析查询参数
-    let query = _req.uri().query().unwrap_or("");
-    let params: HashMap<_, _> = form_urlencoded::parse(query.as_bytes())
-        .into_owned()
-        .collect();
-
     // 获取 dir 参数，默认为根目录
-    let dir_param = params.get("dir").map(|s| s.as_str()).unwrap_or("");
+    let dir_param = query_params.get("dir").map(|s| s.as_str()).unwrap_or("");
 
     // let sharing_root = get_sharing_root();
     let sharing_root = &PathBuf::from("F:/");
@@ -47,7 +43,7 @@ pub async fn get_file_list(
         sharing_root.clone()
     } else {
         // TODO 这里要防止访问到上级目录！！！
-        // 如 ../ / ~ 
+        // 如 ../ / ~
 
         sharing_root.join(dir_param)
     };

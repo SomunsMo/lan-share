@@ -17,8 +17,8 @@ use std::sync::{LazyLock, RwLock};
 // - 'static: 确保 Future 不包含对外部短暂数据的引用
 pub type BoxedHandlerFuture = Pin<
     Box<
-        (dyn futures_util::Future<Output = Result<Response<std::string::String>, Infallible>>
-             + std::marker::Send
+        (dyn Future<Output = Result<Response<String>, Infallible>>
+             + Send
              + 'static),
     >,
 >;
