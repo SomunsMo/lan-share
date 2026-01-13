@@ -38,14 +38,13 @@ pub async fn get_file_list(
     let dir_param = query_params.get("dir").map(|s| s.as_str()).unwrap_or("");
 
     // let sharing_root = get_sharing_root();
-    let sharing_root = &PathBuf::from("F:/");
+    let sharing_root = &PathBuf::from("F:/Shared");
     let target_dir = if dir_param.is_empty() {
         sharing_root.clone()
     } else {
-        // TODO 这里要防止访问到上级目录！！！
-        // 如 ../ / ~
-
-        sharing_root.join(dir_param)
+        // 消毒路径，防止路径遍历攻击
+        let safe_path = sanitize_path_segment(dir_param);
+        sharing_root.join(safe_path)
     };
 
     // 验证目录是否存在且是目录
@@ -157,7 +156,9 @@ pub async fn upload_file(
     let target_dir = if dir_param.is_empty() {
         root_dir.clone()
     } else {
-        root_dir.join(dir_param)
+        // 消毒路径，防止路径遍历攻击
+        let safe_path = sanitize_path_segment(dir_param);
+        root_dir.join(safe_path)
     };
 
     // 验证目标目录是否存在且是目录
@@ -307,6 +308,30 @@ fn sanitize_filename(filename: &str) -> String {
         // 只
         .filter(|c| c.is_ascii_alphanumeric() || *c == '.' || *c == '-' || *c == '_')
         .collect()
+}
+
+/// 路径段消毒函数，防止路径遍历攻击
+fn sanitize_path_segment(path_segment: &str) -> String {
+    // 替换 Windows 风格的反斜杠为 Unix 风格的正斜杠，便于统一处理
+    let normalized_path = path_segment.replace('\\', "/");
+    
+    // 分割路径并处理每个部分
+    let parts: Vec<&str> = normalized_path.split('/').collect();
+    let mut clean_parts = Vec::new();
+    
+    for part in parts {
+        if part == ".." {
+            // 如果遇到 ".."，则从 clean_parts 中弹出最后一个元素（如果有）
+            if !clean_parts.is_empty() {
+                clean_parts.pop();
+            }
+        } else if !part.is_empty() && part != "." {
+            // 保留所有字符，包括特殊字符，只排除 ".." 和 "."
+            clean_parts.push(part);
+        }
+    }
+    
+    clean_parts.join("/")
 }
 
 // #[get("/download/file")]
