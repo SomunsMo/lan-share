@@ -52,7 +52,7 @@ pub fn error(
 }
 
 pub fn redirect(url: &str) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
-    let mut response = Response::new(GenericResponseBody::String("redirect".to_string()));
+    let mut response = Response::new(GenericResponseBody::String("".to_string()));
     response
         .headers_mut()
         .insert(header::LOCATION, url.parse().unwrap());

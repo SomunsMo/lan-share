@@ -6,8 +6,8 @@ use crate::http_server::responses::{error, success_json};
 use crate::QueryParams;
 use form_urlencoded;
 use futures_util::stream::TryStreamExt;
-use http_body_util::{BodyExt, StreamBody};
-use hyper::body::{Body, Bytes, Incoming};
+use http_body_util::BodyExt;
+use hyper::body::{Body, Incoming};
 use hyper::{header, Request, Response, StatusCode};
 use lan_share_http_macros::{get, post};
 use multer::Multipart;
@@ -18,7 +18,6 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
 use std::{fs, io};
-use tokio::io::BufReader;
 
 #[derive(Serialize, Debug, Clone)]
 // serde指定为untagged是为了去除序列化时value被包到Type中
@@ -106,15 +105,13 @@ pub async fn get_file_list(
 #[post("/upload/file")]
 pub async fn upload_file(
     _req: Request<Incoming>,
+    query_params: QueryParams,
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
     // 解析查询参数
     let query = _req.uri().query().unwrap_or("");
-    let params: HashMap<_, _> = form_urlencoded::parse(query.as_bytes())
-        .into_owned()
-        .collect();
 
     // 获取 dir 参数，默认为根目录
-    let dir_param = params.get("dir").map(|s| s.as_str()).unwrap_or("");
+    let dir_param = query_params.get("dir").map(|s| s.as_str()).unwrap_or("");
 
     let headers = _req.headers().clone();
 
