@@ -1,12 +1,13 @@
 //! # 文件共享处理器
 
 use crate::config::config::get_sharing_root;
-use crate::http_server::responses::{error, success};
+use crate::http_server::handler::GenericResponseBody;
+use crate::http_server::responses::{error, success_json};
 use crate::QueryParams;
 use form_urlencoded;
 use futures_util::stream::TryStreamExt;
 use http_body_util::{BodyExt, StreamBody};
-use hyper::body::{Body, Incoming};
+use hyper::body::{Body, Bytes, Incoming};
 use hyper::{header, Request, Response, StatusCode};
 use lan_share_http_macros::{get, post};
 use multer::Multipart;
@@ -33,12 +34,11 @@ enum FileInfo {
 pub async fn get_file_list(
     _req: Request<Incoming>,
     query_params: QueryParams,
-) -> Result<Response<String>, std::convert::Infallible> {
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
     // 获取 dir 参数，默认为根目录
     let dir_param = query_params.get("dir").map(|s| s.as_str()).unwrap_or("");
 
-    // let sharing_root = get_sharing_root();
-    let sharing_root = &PathBuf::from("F:/Shared");
+    let sharing_root = get_sharing_root();
     let target_dir = if dir_param.is_empty() {
         sharing_root.clone()
     } else {
@@ -99,14 +99,14 @@ pub async fn get_file_list(
     }
 
     // 构建响应
-    success(file_list)
+    success_json(file_list)
 }
 
 /// 上传被共享的文件
 #[post("/upload/file")]
 pub async fn upload_file(
     _req: Request<Incoming>,
-) -> Result<Response<String>, std::convert::Infallible> {
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
     // 解析查询参数
     let query = _req.uri().query().unwrap_or("");
     let params: HashMap<_, _> = form_urlencoded::parse(query.as_bytes())
@@ -256,7 +256,7 @@ pub async fn upload_file(
         return error(StatusCode::BAD_REQUEST, "No files uploaded");
     }
 
-    success(())
+    success_json(())
 }
 
 /// 验证路径安全性并构建完整路径
@@ -314,11 +314,11 @@ fn sanitize_filename(filename: &str) -> String {
 fn sanitize_path_segment(path_segment: &str) -> String {
     // 替换 Windows 风格的反斜杠为 Unix 风格的正斜杠，便于统一处理
     let normalized_path = path_segment.replace('\\', "/");
-    
+
     // 分割路径并处理每个部分
     let parts: Vec<&str> = normalized_path.split('/').collect();
     let mut clean_parts = Vec::new();
-    
+
     for part in parts {
         if part == ".." {
             // 如果遇到 ".."，则从 clean_parts 中弹出最后一个元素（如果有）
@@ -330,106 +330,126 @@ fn sanitize_path_segment(path_segment: &str) -> String {
             clean_parts.push(part);
         }
     }
-    
+
     clean_parts.join("/")
 }
 
-// #[get("/download/file")]
-// pub async fn download_file(
-//     _req: Request<Incoming>,
-// ) -> Result<Response<String>, std::convert::Infallible> {
-//     // 第一步：解析 GET 查询参数（sub_dir 和 file_name）
-//     let query = match _req.uri().query() {
-//         Some(q) => q,
-//         None => {
-//             return error(
-//                 StatusCode::BAD_REQUEST,
-//                 "缺少查询参数：?sub_dir=子目录&file_name=文件名",
-//             )
-//         }
-//     };
-//
-//     // 解析查询参数为 HashMap
-//     let params: HashMap<_, _> = form_urlencoded::parse(query.as_bytes())
-//         .into_owned()
-//         .collect();
-//
-//     // 第二步：提取并校验必填参数
-//     // 1. 提取 sub_dir（子目录，可为空，为空则直接拼接根目录）
-//     let sub_dir = params
-//         .get("sub_dir")
-//         // .map(|s| sanitize_path_segment(s))
-//         .unwrap();
-//
-//     // 2. 提取 file_name（文件名，必填）
-//     let file_name = match params.get("file_name") {
-//         // Some(name) if !name.is_empty() => sanitize_path_segment(name),
-//         Some(name) if !name.is_empty() => name,
-//         _ => return error(StatusCode::BAD_REQUEST, "缺少必填参数：file_name（文件名）"),
-//     };
-//
-//     // 第三步：拼接完整文件路径（root_dir + sub_dir + file_name）
-//     let root_dir = get_sharing_root();
-//     let full_file_path = if sub_dir.is_empty() {
-//         // 无 sub_dir 时：root_dir / file_name
-//         root_dir.join(&file_name)
-//     } else {
-//         // 有 sub_dir 时：root_dir / sub_dir / file_name
-//         root_dir.join(sub_dir).join(&file_name)
-//     };
-//
-//     // 第四步：验证文件合法性
-//     // 1. 检查文件是否存在
-//     let metadata = match fs::metadata(&full_file_path) {
-//         Ok(meta) => meta,
-//         Err(_) => {
-//             return error(
-//                 StatusCode::NOT_FOUND,
-//                 &format!("文件不存在：{}", full_file_path.display()),
-//             )
-//         }
-//     };
-//
-//     // 2. 确保是文件（不是目录）
-//     if !metadata.is_file() {
-//         return error(
-//             StatusCode::FORBIDDEN,
-//             "指定路径是目录，不允许下载，请检查 file_name 参数",
-//         );
-//     }
-//
-//     // 第五步：打开文件（异步流式读取）
-//     let file = match File::open(&full_file_path) {
-//         Ok(f) => f,
-//         Err(e) => {
-//             return error(
-//                 StatusCode::INTERNAL_SERVER_ERROR,
-//                 &format!("文件打开失败：{}", e),
-//             )
-//         }
-//     };
-//
-//     // 第六步：构建下载响应
-//     let response = Response::builder()
-//         .status(StatusCode::OK)
-//         // 触发浏览器下载弹窗（文件名使用清洗后的原始文件名）
-//         .header(
-//             header::CONTENT_DISPOSITION,
-//             format!("attachment; filename=\"{}\"", file_name),
-//         )
-//         // 传递文件大小（用于下载进度显示）
-//         .header(header::CONTENT_LENGTH, metadata.len().to_string())
-//         // 自动推断 MIME 类型（优化浏览器行为）
-//         .header(
-//             header::CONTENT_TYPE,
-//             mime_guess::from_path(&full_file_path)
-//                 .first_or_octet_stream()
-//                 .to_string(),
-//         )
-//         // 流式响应体（支持大文件，无内存溢出）
-//         // .body(StreamBody::new(file))
-//         .body("123".to_string())
-//         .unwrap();
-//
-//     Ok(response)
-// }
+#[get("/download/file")]
+pub async fn download_file(
+    _req: Request<Incoming>,
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
+    // 第一步：解析 GET 查询参数（dir 和 file_name）
+    let query = match _req.uri().query() {
+        Some(q) => q,
+        None => {
+            let error_response = create_error_response(
+                StatusCode::BAD_REQUEST,
+                "缺少查询参数：?dir=目录&file_name=文件名",
+            );
+            return Ok(error_response);
+        }
+    };
+
+    // 解析查询参数为 HashMap
+    let params: HashMap<_, _> = form_urlencoded::parse(query.as_bytes())
+        .into_owned()
+        .collect();
+
+    // 第二步：提取并校验必填参数
+    // 1. 提取 dir（目录，可为空，为空则直接拼接根目录）
+    let dir_param = params.get("dir").map(|s| s.as_str()).unwrap_or("");
+
+    // 2. 提取 file_name（文件名，必填）
+    let file_name = match params.get("file_name") {
+        Some(name) if !name.is_empty() => name,
+        _ => {
+            let error_response =
+                create_error_response(StatusCode::BAD_REQUEST, "缺少必填参数：file_name（文件名）");
+            return Ok(error_response);
+        }
+    };
+
+    // 第三步：拼接完整文件路径（root_dir + dir + file_name）
+    let root_dir = get_sharing_root();
+    let target_dir = if dir_param.is_empty() {
+        root_dir.clone()
+    } else {
+        // 消毒路径，防止路径遍历攻击
+        let safe_path = sanitize_path_segment(dir_param);
+        root_dir.join(safe_path)
+    };
+    let full_file_path = target_dir.join(&file_name);
+
+    // 第四步：验证文件合法性
+    // 1. 检查文件是否存在
+    let metadata = match fs::metadata(&full_file_path) {
+        Ok(meta) => meta,
+        Err(_) => {
+            let error_response = create_error_response(
+                StatusCode::NOT_FOUND,
+                &format!("文件不存在：{}", full_file_path.display()),
+            );
+            return Ok(error_response);
+        }
+    };
+
+    // 2. 确保是文件（不是目录）
+    if !metadata.is_file() {
+        let error_response = create_error_response(
+            StatusCode::FORBIDDEN,
+            "指定路径是目录，不允许下载，请检查 file_name 参数",
+        );
+        return Ok(error_response);
+    }
+
+    // 第五步：打开文件并读取内容
+    let file_content = match std::fs::read(&full_file_path) {
+        Ok(content) => content,
+        Err(e) => {
+            let error_response = create_error_response(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                &format!("文件读取失败：{}", e),
+            );
+            return Ok(error_response);
+        }
+    };
+
+    // 第六步：构建下载响应
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        // 触发浏览器下载弹窗（文件名使用原始文件名）
+        .header(
+            header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{}\"", file_name),
+        )
+        // 传递文件大小（用于下载进度显示）
+        .header(header::CONTENT_LENGTH, metadata.len().to_string())
+        // 自动推断 MIME 类型（优化浏览器行为）
+        .header(
+            header::CONTENT_TYPE,
+            mime_guess::from_path(&full_file_path)
+                .first_or_octet_stream()
+                .to_string(),
+        )
+        .body(GenericResponseBody::Bytes(file_content.into()))
+        .unwrap();
+
+    Ok(response)
+}
+
+// 创建错误响应，响应体类型为 GenericResponseBody
+fn create_error_response(status: StatusCode, msg: &str) -> Response<GenericResponseBody> {
+    let res_json = serde_json::json!( {
+        "code": status.as_u16(),
+        "status": msg
+    })
+    .to_string();
+
+    let body = GenericResponseBody::String(res_json);
+
+    Response::builder()
+        .status(status)
+        .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
+        .body(body)
+        .unwrap()
+}

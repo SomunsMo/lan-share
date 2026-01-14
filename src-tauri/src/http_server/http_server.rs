@@ -9,10 +9,10 @@ use tokio::net::TcpListener;
 
 use crate::http_server::handler;
 use local_ip_address::local_ip;
-use crate::handler::BoxedHandlerFuture;
+use crate::http_server::handler::{BoxedHandlerFuture, GenericResponseBody};
 
 // 处理HTTP请求的异步函数
-async fn handle_request(req: Request<Incoming>) -> Result<Response<String>, Infallible> {
+async fn handle_request(req: Request<Incoming>) -> Result<Response<GenericResponseBody>, Infallible> {
     let path = req.uri().path();
     let method = req.method().clone();
 
@@ -25,10 +25,16 @@ async fn handle_request(req: Request<Incoming>) -> Result<Response<String>, Infa
         None => {
             log::error!("❌ 未找到处理器: {}", path);
             // 返回 404 页面
-            handler::get_handler("/404", &Method::GET)
-                .unwrap()
-                .handle(req)
-                .await
+            if let Some(not_found_handler) = handler::get_handler("/404", &Method::GET) {
+                not_found_handler.handle(req).await
+            } else {
+                // 如果连404处理器都没有，返回默认错误响应
+                Ok(Response::builder()
+                    .status(404)
+                    .header("Content-Type", "text/plain")
+                    .body(GenericResponseBody::String("Not Found".to_string()))
+                    .unwrap())
+            }
         }
     }
 }
@@ -48,7 +54,7 @@ pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error + S
         let (tcp_stream, remote_addr) = listener.accept().await?;
 
         let io = TokioIo::new(tcp_stream);
-        let service = service_fn(move |mut req: hyper::Request<Incoming>| {
+        let service = service_fn(move |mut req: Request<Incoming>| {
             // 将客户端地址插入到 request extensions 中，否则handler无法获取客户端IP和端口
             req.extensions_mut().insert(remote_addr);
             handle_request(req)

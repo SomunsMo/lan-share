@@ -3,7 +3,7 @@
 use crate::db::dao::upload_dao;
 use crate::db::entity::UploadRecord;
 use crate::db::sqlite::get_pool;
-use crate::http_server::responses::{error, success};
+use crate::http_server::responses::{error, success_json};
 use http_body_util::BodyExt;
 use hyper::body::Incoming;
 use hyper::{Request, Response, StatusCode};
@@ -12,12 +12,13 @@ use serde_json::Value::Null;
 use sqlx::Row;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use crate::handler::GenericResponseBody;
 
 /// 上传共享的文本接口
 #[post("/upload/text")]
 pub async fn upload_text(
     _req: Request<Incoming>,
-) -> Result<Response<String>, std::convert::Infallible> {
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
     // 从 extensions 中获取客户端地址
     let client_ip = _req
         .extensions()
@@ -66,14 +67,14 @@ pub async fn upload_text(
         .unwrap();
 
     // 响应接收成功
-    success(Null)
+    success_json(Null)
 }
 
 /// 获取已被记录的共享文本
 #[get("/upload/text")]
 pub async fn text_history(
     _req: Request<Incoming>,
-) -> Result<Response<String>, std::convert::Infallible> {
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
     let records = upload_dao::list_by_type(1)
         .await
         .unwrap();
@@ -109,5 +110,5 @@ pub async fn text_history(
     //     .collect();
 
     // 这里响应历史记录
-    success(records)
+    success_json(records)
 }

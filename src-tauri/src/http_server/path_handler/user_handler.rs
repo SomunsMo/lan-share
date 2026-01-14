@@ -1,12 +1,14 @@
+use crate::handler::GenericResponseBody;
+use crate::http_server::responses::success_json;
 use crate::{get, post};
 use hyper::body::Incoming;
-use hyper::{header, Request, Response};
+use hyper::{Request, Response};
 
 // 用户列表 - GET /api/users
 #[get("/api/users")]
 pub async fn get_users(
     _req: Request<Incoming>,
-) -> Result<Response<String>, std::convert::Infallible> {
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
     let res_json = serde_json::json!({
         "code": 200,
         "status": "success",
@@ -17,19 +19,14 @@ pub async fn get_users(
     })
     .to_string();
 
-    let mut response = Response::new(res_json);
-    response.headers_mut().insert(
-        header::CONTENT_TYPE,
-        "application/json; charset=utf-8".parse().unwrap(),
-    );
-    Ok(response)
+    success_json(res_json)
 }
 
 // 获取单个用户 - GET /api/users/{id}
 #[get("/api/users/:id")]
 pub async fn get_user_by_id(
     _req: Request<Incoming>,
-) -> Result<Response<String>, std::convert::Infallible> {
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
     let res_json = serde_json::json!({
         "code": 200,
         "status": "success",
@@ -42,19 +39,14 @@ pub async fn get_user_by_id(
     })
     .to_string();
 
-    let mut response = Response::new(res_json);
-    response.headers_mut().insert(
-        header::CONTENT_TYPE,
-        "text/html; charset=utf-8".parse().unwrap(),
-    );
-    Ok(response)
+    success_json(res_json)
 }
 
 // 创建用户 - POST /api/users
 #[post("/api/users")]
 pub async fn create_user(
     _req: Request<Incoming>,
-) -> Result<Response<String>, std::convert::Infallible> {
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
     let res_json = serde_json::json!({
         "code": 200,
         "message": "用户创建成功",
@@ -65,10 +57,5 @@ pub async fn create_user(
     })
     .to_string();
 
-    let mut response = Response::new(res_json);
-    response.headers_mut().insert(
-        header::CONTENT_TYPE,
-        "text/html; charset=utf-8".parse().unwrap(),
-    );
-    Ok(response)
+    success_json(res_json)
 }

@@ -53,4 +53,5 @@ form_urlencoded = "1.2.2"
 futures-util = "0.3.31"
 # HttpServer的路径处理器宏
 lan-share-http-macros = { workspace = true }
+mime_guess = "2.0.5"
 ctor = "0.6.0"

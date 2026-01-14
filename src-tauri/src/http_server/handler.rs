@@ -1,6 +1,7 @@
 use crate::normalizer::path_normalizer::path_normalizer;
+use http_body_util::Full;
 use hyper::body::{Body, Bytes, Incoming};
-use hyper::{Method, Request, Response};
+use hyper::{Method, Request, Response, StatusCode};
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::error::Error;
@@ -8,16 +9,48 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{LazyLock, RwLock};
 
-// pub type ResponseBody =
-//     Box<dyn Body<Data = Bytes, Error = Box<dyn Error + Send + Sync>> + Send + Sync>;
+// 定义一个通用的响应体类型，可以是字符串或字节数组
+#[derive(Debug)]
+pub enum GenericResponseBody {
+    String(String),
+    Bytes(Bytes),
+    Empty,
+}
+
+use std::task::Poll;
+
+impl Body for GenericResponseBody {
+    type Data = Bytes;
+    type Error = Infallible;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+    ) -> Poll<Option<Result<hyper::body::Frame<Self::Data>, Self::Error>>> {
+        use std::mem;
+        
+        // 检查是否已经是Empty状态（已发送）
+        match mem::replace(self.as_mut().get_mut(), GenericResponseBody::Empty) {
+            GenericResponseBody::String(s) => {
+                let bytes = Bytes::from(s);
+                Poll::Ready(Some(Ok(hyper::body::Frame::data(bytes))))
+            }
+            GenericResponseBody::Bytes(b) => {
+                Poll::Ready(Some(Ok(hyper::body::Frame::data(b))))
+            }
+            GenericResponseBody::Empty => {
+                // 已经发送过了，返回 None 表示流结束
+                Poll::Ready(None)
+            }
+        }
+    }
+}
 
 // 定义处理函数返回的 Boxed 和 Pinned 的 Future 类型
-// - Output: 必须匹配您的函数签名 Result<Response<String>, Infallible>
-// - Send: 允许在线程间发送 Future
-// - 'static: 确保 Future 不包含对外部短暂数据的引用
+// 现在支持通用响应体类型
 pub type BoxedHandlerFuture = Pin<
     Box<
-        (dyn Future<Output = Result<Response<String>, Infallible>>
+        (dyn Future<Output = Result<Response<GenericResponseBody>, Infallible>>
              + Send
              + 'static),
     >,
@@ -39,7 +72,7 @@ pub struct BaseHandler {
 }
 
 impl BaseHandler {
-    pub async fn handle(&self, req: Request<Incoming>) -> Result<Response<String>, Infallible> {
+    pub async fn handle(&self, req: Request<Incoming>) -> Result<Response<GenericResponseBody>, Infallible> {
         // 1. 调用 handler_func，得到一个 BoxedHandlerFuture
         let future = (self.handler_func)(req);
         // 2. 立即等待（await）这个 Future
