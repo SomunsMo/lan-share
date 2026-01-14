@@ -225,6 +225,23 @@ function FileSharing() {
         }
     }
 
+    // 下载文件
+    const downloadFile = async (v) => {
+        // 获取当前目录
+        const currentDir = getCurrentDir();
+
+        try {
+            // 构造下载URL，直接跳转到下载地址
+            const downloadUrl = `/download/file?dir=${currentDir ? currentDir : ''}&file_name=${encodeURIComponent(v.name)}`;
+
+            // 使用window.open打开下载链接，让浏览器原生处理下载
+            // 这样可以让第三方下载工具接管下载
+            window.open(downloadUrl, '_blank');
+        } catch (error) {
+            console.error('文件下载失败:', error);
+            alert('文件下载失败: ' + (error.message || '未知错误'));
+        }
+    }
 
     return (
         <Card>
@@ -263,7 +280,7 @@ function FileSharing() {
                                     <td>{v.is_dir ? '-' : formatFileSize(v.size, 1)}</td>
                                     <td>
                                         <div className={!v.is_dir ? "fileActions" : "dirActions"}>
-                                            <button>下载</button>
+                                            <button onClick={() => downloadFile(v)}>下载</button>
                                             <button>删除</button>
                                         </div>
                                     </td>
