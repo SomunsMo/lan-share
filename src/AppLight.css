@@ -5,7 +5,7 @@
     font-weight: 400;
 
     color: #0f0f0f;
-    background-color: #e8eaef;
+    background-color: ghostwhite;
 
     font-synthesis: none;
     text-rendering: optimizeLegibility;
@@ -33,11 +33,12 @@ a {
     text-decoration: inherit;
 }
 
-h1 {
-    text-align: center;
+h1, h2, h3, h4, h5, h6 {
+    margin: 10px 0 5px;
 }
 
 input,
+textarea,
 button {
     box-sizing: border-box;
     border-radius: 4px;
@@ -51,7 +52,8 @@ button {
     transition: border-color 0.25s;
 }
 
-input:hover {
+input:hover,
+textarea:hover {
     color: black;
     border-color: darkgrey;
 }
@@ -69,6 +71,7 @@ button:active {
 }
 
 input,
+textarea,
 button {
     outline: none;
 }
@@ -85,18 +88,11 @@ button {
 }
 
 .content {
-    flex-grow: 1;
-}
-
-/*用于在视觉上划分区块*/
-.block {
     box-sizing: border-box;
-    padding: 10px 15px;
-    margin: 10px;
-    background-color: white;
-    border-radius: 5px;
+    flex-grow: 1;
+    padding: 10px;
+    overflow: hidden;
 }
-
 
 /* 更改Checkbox为开关的样式 */
 

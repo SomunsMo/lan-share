@@ -1,6 +1,7 @@
 import React from 'react';
 import SettingsStyle from "./style.js";
 import {invoke} from "@tauri-apps/api/core";
+import Card from "../../components/card/Card.js";
 
 
 function Settings() {
@@ -52,7 +53,7 @@ function Settings() {
         <SettingsStyle>
             {optionMap.map(v => {
                 return (
-                    <div className={"block"}>
+                    <Card>
                         <h3 className={"block-title"}>{v.name}</h3>
                         <table className={"options-table"}>
                             <colgroup>
@@ -74,7 +75,7 @@ function Settings() {
                             })}
                             </tbody>
                         </table>
-                    </div>
+                    </Card>
                 )
             })}
         </SettingsStyle>

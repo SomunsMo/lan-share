@@ -4,14 +4,17 @@ const NavbarStyle = styled.div`
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    width: 140px;
+    width: 200px;
+    min-width: 200px;
+    max-width: 200px;
     height: 100%;
 
-    border-right: 1px solid lightgrey;
+    border-right: 1px solid whitesmoke;
     overflow: hidden;
     user-select: none;
 
-    background-color: whitesmoke;
+    background-color: white;
+    flex-shrink: 0;
 
     ul {
         display: flex;
@@ -64,7 +67,7 @@ const NavbarStyle = styled.div`
     .bottom {
         /* 使用伪元素创建一个居中的短边框 */
         position: relative;
-        
+
         flex-grow: 0;
         flex-shrink: 0;
     }

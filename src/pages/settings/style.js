@@ -1,8 +1,6 @@
 import styled from "styled-components";
 
 const SettingsStyle = styled.div`
-    padding: 10px;
-
 
     .clear-text {
         background-color: red;

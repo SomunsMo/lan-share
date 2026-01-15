@@ -10,6 +10,11 @@ const topItems = [
         icon: "/src/assets/icon/home.webp",
     },
     {
+        name: "文本共享",
+        path: "/text-sharing",
+        icon: "/src/assets/icon/home.webp",
+    },
+    {
         name: "测试页",
         path: "/test",
     }
@@ -30,13 +35,6 @@ function Navbar() {
     return (
         <NavbarStyle>
             <ul className={"top"}>
-                <li>
-                    <a onClick={() => navigate(-1)}>
-                        <img src={"/src/assets/icon/vArrowLeft.webp"} alt={null}/>
-                        返回
-                    </a>
-                </li>
-
                 {topItems.map((item, index) => (
                     <li key={index}>
                         <Link to={item.path}>
