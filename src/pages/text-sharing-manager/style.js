@@ -76,6 +76,28 @@ const TextSharingManagerStyle = styled.div`
         line-height: 1.5em;
     }
 
+    .context-menu {
+        position: fixed;
+        z-index: 10000;
+        background-color: var(--card-bg-color, white);
+        border: 1px solid var(--border-color, #ccc);
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        padding: 4px 0;
+        min-width: 100px;
+        font-size: 14px;
+    }
+
+    .context-menu-item {
+        padding: 8px 16px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .context-menu-item:hover {
+        background-color: var(--hover-bg-color, #f0f0f0);
+    }
+
 `
 
 export default TextSharingManagerStyle;
