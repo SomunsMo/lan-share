@@ -4,7 +4,6 @@ import {invoke} from "@tauri-apps/api/core";
 import {QRCodeSVG} from "qrcode.react";
 
 function Home() {
-    const [localIp, setLocalIp] = useState("");
     const [webUrl, setWebUrl] = useState("none");
 
     useEffect(() => {
@@ -16,8 +15,7 @@ function Home() {
     // 获取本机IP
     const getLocalIp = async () => {
         const ip = await invoke("get_local_ip");
-        setLocalIp(ip);
-        setWebUrl(`http://${localIp}:3000/web`);
+        setWebUrl(`http://${ip}:3000/web`);
 
         console.log("得到本机IP:", ip);
     }
