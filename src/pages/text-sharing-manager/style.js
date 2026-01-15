@@ -17,6 +17,21 @@ const TextSharingManagerStyle = styled.div`
         text-align: center;
     }
 
+    .textEditActions button {
+        padding: 8px 16px;
+        background-color: #2196F3;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.3s;
+    }
+
+    .textEditActions button:hover {
+        background-color: #1976D2;
+    }
+
     .sharingHistory {
         width: 100%;
         height: 100%;
@@ -26,6 +41,7 @@ const TextSharingManagerStyle = styled.div`
 
     .historyTable {
         width: 100%;
+        table-layout: fixed;
         border-collapse: collapse;
         border-spacing: 0;
     }
@@ -47,6 +63,8 @@ const TextSharingManagerStyle = styled.div`
 
     th {
         text-align: left;
+        word-wrap: break-word;
+        word-break: break-word;
     }
 
     .historyRow {
@@ -57,23 +75,24 @@ const TextSharingManagerStyle = styled.div`
         border-radius: 14px;
 
         overflow: hidden;
+        
+        td {
+            vertical-align: middle;
+            height: 46px;
+            line-height: 1.5em;
+        }
     }
 
     .historyRow:hover {
         background-color: rgba(128, 128, 128, 0.43);
     }
 
-    .hisTime {
-    }
-
     .hisContent {
-        display: -webkit-box;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 3;
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-height: calc(1.5em * 3);
         line-height: 1.5em;
+        word-break: break-word;
     }
 
     .context-menu {
@@ -82,7 +101,7 @@ const TextSharingManagerStyle = styled.div`
         background-color: var(--card-bg-color, white);
         border: 1px solid var(--border-color, #ccc);
         border-radius: 4px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         padding: 4px 0;
         min-width: 100px;
         font-size: 14px;

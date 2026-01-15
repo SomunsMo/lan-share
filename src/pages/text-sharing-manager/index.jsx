@@ -2,26 +2,13 @@ import React, {useState, useEffect, useRef, useCallback} from 'react';
 import TextSharingManagerStyle from "./style.js";
 import Card from "../../components/card/Card.js";
 import copy from 'copy-to-clipboard';
+import {invoke} from '@tauri-apps/api/core';
 
 function TextSharingManager(props) {
+    // 文本框内容
+    const [textValue, setTextValue] = useState("");
     // 历史记录
-    const [history, setHistory] = useState([
-        {id: 1, time: "2023/04/05 12:00:00", ip: "255.255.255.255", content: "共享内容"},
-        {id: 2, time: "2023/04/05 12:00:00", ip: "255.255.255.255", content: "共享内容"},
-        {id: 3, time: "2023/04/05 12:00:00", ip: "255.255.255.255", content: "共享内容"},
-        {id: 4, time: "2023/04/05 12:00:00", ip: "255.255.255.255", content: "共享内容"},
-        {id: 5, time: "2023/04/05 12:00:00", ip: "255.255.255.255", content: "共享内容"},
-        {
-            id: 6,
-            time: "2023/04/05 12:00:00",
-            ip: "255.255.255.255",
-            content: "共享内容~共享内容~共享内容~共享内容~共享内容~共享内容~"
-        },
-        {id: 7, time: "2023/04/05 12:00:00", ip: "255.255.255.255", content: "共享内容"},
-        {id: 8, time: "2023/04/05 12:00:00", ip: "255.255.255.255", content: "共享内容"},
-        {id: 9, time: "2023/04/05 12:00:00", ip: "255.255.255.255", content: "共享内容"},
-        {id: 10, time: "2023/04/05 12:00:00", ip: "255.255.255.255", content: "共享内容"},
-    ]);
+    const [history, setHistory] = useState([]);
 
     // 右键菜单状态
     const [contextMenu, setContextMenu] = useState({
@@ -77,9 +64,15 @@ function TextSharingManager(props) {
     }, []);
 
     // 删除历史记录项
-    const deleteHistoryItem = useCallback((itemId) => {
-        setHistory(prev => prev.filter(item => item.id !== itemId));
-        setContextMenu({visible: false, x: 0, y: 0, item: null});
+    const deleteHistoryItem = useCallback(async (itemId) => {
+        try {
+            await invoke('delete_text_sharing_record', {id: itemId});
+            setHistory(prev => prev.filter(item => item.id !== itemId));
+            setContextMenu({visible: false, x: 0, y: 0, item: null});
+            console.log('删除成功');
+        } catch (error) {
+            console.error('删除文本共享记录失败:', error);
+        }
     }, []);
 
     // 显示右键菜单
@@ -98,6 +91,48 @@ function TextSharingManager(props) {
         setContextMenu({visible: false, x: 0, y: 0, item: null});
     }, []);
 
+    // 加载历史记录
+    const loadHistory = useCallback(async () => {
+        try {
+            const records = await invoke('get_text_sharing_history');
+            // 将数据库记录转换为前端所需的格式
+            const formattedRecords = records.map(record => ({
+                id: record.id,
+                time: new Date(record.created_at).toISOString().slice(0, 19).replace('T', ' '),
+                ip: record.ip,
+                content: record.content
+            }));
+            setHistory(formattedRecords);
+        } catch (error) {
+            console.error('获取文本共享历史记录失败:', error);
+        }
+    }, []);
+
+    // 初始化加载历史记录
+    useEffect(() => {
+        loadHistory();
+    }, [loadHistory]);
+
+    // 通过Tauri分享文本到局域网
+    const shareTextViaTauri = async () => {
+        if (!textValue.trim()) {
+            console.warn("文本内容为空，无法分享");
+            return;
+        }
+
+        try {
+            await invoke('share_text_to_lan', {textData: textValue});
+            console.log("文本已通过Tauri分享到局域网");
+
+            // 清空文本输入框
+            setTextValue("");
+            // 刷新历史列表
+            loadHistory();
+        } catch (error) {
+            console.error("通过Tauri分享文本失败:", error);
+        }
+    }
+
     // 点击其他地方隐藏菜单
     useEffect(() => {
         const handleClickOutside = () => {
@@ -115,9 +150,13 @@ function TextSharingManager(props) {
     return (
         <TextSharingManagerStyle>
             <Card>
-                <textarea className={"textEdit"}></textarea>
+                <textarea
+                    className={"textEdit"}
+                    value={textValue}
+                    onChange={(e) => setTextValue(e.target.value)}
+                ></textarea>
                 <div className={"textEditActions"}>
-                    <button>共享</button>
+                    <button onClick={shareTextViaTauri}>共享</button>
                 </div>
             </Card>
             <Card fillSpace>
