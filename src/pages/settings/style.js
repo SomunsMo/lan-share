@@ -1,7 +1,9 @@
 import styled from "styled-components";
 
 const SettingsStyle = styled.div`
-
+    display: flex;
+    flex-direction: column;
+    
     .clear-text {
         background-color: red;
         color: white;

@@ -154,7 +154,8 @@ function TextSharingManager(props) {
                     className={"textEdit"}
                     value={textValue}
                     onChange={(e) => setTextValue(e.target.value)}
-                ></textarea>
+                    placeholder={"请输入要分享的文本"}
+                />
                 <div className={"textEditActions"}>
                     <button onClick={shareTextViaTauri}>共享</button>
                 </div>

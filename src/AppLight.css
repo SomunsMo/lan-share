@@ -43,13 +43,13 @@ button {
     box-sizing: border-box;
     border-radius: 4px;
     border: 1px solid lightgrey;
-    padding: 0.41em 1.2em;
+    padding: 0.41em 0.61em;
     font-size: 1em;
     font-weight: 500;
     font-family: inherit;
     color: dimgrey;
     background-color: #ffffff;
-    transition: border-color 0.25s;
+    transition: 0.3s ease-in-out;
 }
 
 input:hover,
@@ -60,10 +60,13 @@ textarea:hover {
 
 button {
     cursor: pointer;
+    color: white;
+    background-color: dodgerblue;
+    border: none;
 }
 
 button:hover {
-    color: #252525;
+    background-color: #43c0ff;
 }
 
 button:active {

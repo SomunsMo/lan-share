@@ -10,26 +10,17 @@ const TextSharingManagerStyle = styled.div`
         width: 100%;
         height: 260px;
         resize: none;
+        border: none;
     }
 
     .textEditActions {
-        margin: 10px;
-        text-align: center;
+        padding: 8px 5px 0;
+        text-align: right;
+        border-top: 1px solid lightgrey;
     }
 
     .textEditActions button {
-        padding: 8px 16px;
-        background-color: #2196F3;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-        transition: background-color 0.3s;
-    }
-
-    .textEditActions button:hover {
-        background-color: #1976D2;
+        padding: 8px 26px;
     }
 
     .sharingHistory {
@@ -75,7 +66,7 @@ const TextSharingManagerStyle = styled.div`
         border-radius: 14px;
 
         overflow: hidden;
-        
+
         td {
             vertical-align: middle;
             height: 46px;

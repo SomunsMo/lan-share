@@ -7,12 +7,12 @@ const topItems = [
     {
         name: "主页",
         path: "/home",
-        icon: "/src/assets/icon/home.webp",
+        icon: "/src/assets/icon/home.svg",
     },
     {
         name: "文本共享",
         path: "/text-sharing",
-        icon: "/src/assets/icon/home.webp",
+        icon: "/src/assets/icon/textMsg.svg",
     },
     {
         name: "测试页",
@@ -25,7 +25,7 @@ const bottomItems = [
     {
         name: "设置",
         path: "/settings",
-        icon: "/src/assets/icon/setting.webp",
+        icon: "/src/assets/icon/setting.svg",
     }
 ];
 

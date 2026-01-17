@@ -4,9 +4,8 @@ const Card = styled.div`
     box-sizing: border-box;
     display: flex;
     min-width: 200px;
-    min-height: 240px;
     padding: 10px 15px;
-    margin: 10px;
+    margin: 10px 20px;
     flex-grow: ${props => props.fillSpace === true ? 1 : 0};
     flex-direction: column;
 

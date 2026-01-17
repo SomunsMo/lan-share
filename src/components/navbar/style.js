@@ -4,12 +4,9 @@ const NavbarStyle = styled.div`
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    width: 200px;
-    min-width: 200px;
-    max-width: 200px;
+    width: 160px;
     height: 100%;
 
-    border-right: 1px solid whitesmoke;
     overflow: hidden;
     user-select: none;
 
@@ -80,9 +77,9 @@ const NavbarStyle = styled.div`
         top: 0;
         left: 50%;
         transform: translateX(-50%);
-        width: 80%;
+        width: 61%;
         height: 1px;
-        background-color: lightgrey;
+        background-color: rgba(228, 228, 228, 0.64);
     }
 
 `
