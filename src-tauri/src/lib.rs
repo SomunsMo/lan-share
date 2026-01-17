@@ -37,6 +37,8 @@ pub mod utils {
     pub mod datetime;
 }
 
+pub mod tray;
+
 // 导出宏
 pub use lan_share_http_macros::{delete, get, post, put, request};
 
@@ -133,8 +135,22 @@ use cmd::_cmd_handler::get_cmd_handler;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        // .invoke_handler(tauri::generate_handler![get_local_ip])
         .invoke_handler(get_cmd_handler())
+        .setup(|app| {
+            // 构建系统托盘
+            tray::create_tray_menu(&app.handle());
+            Ok(())
+        })
+        .on_menu_event(|app, event| {
+            tray::handle_system_tray_menu_event(app, &event.id().0);
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                // 拦截关闭请求，将窗口隐藏到托盘而不是关闭
+                api.prevent_close();
+                window.hide().unwrap();
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
