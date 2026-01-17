@@ -55,3 +55,4 @@ futures-util = "0.3.31"
 lan-share-http-macros = { workspace = true }
 mime_guess = "2.0.5"
 ctor = "0.6.0"
+tauri-plugin-single-instance = "2"

@@ -39,6 +39,8 @@ pub mod utils {
 
 pub mod tray;
 
+use tauri::Manager;
+
 // 导出宏
 pub use lan_share_http_macros::{delete, get, post, put, request};
 
@@ -134,6 +136,18 @@ use cmd::_cmd_handler::get_cmd_handler;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // 当尝试启动第二个实例时，显示现有的主窗口
+            if let Some(window) = app.get_webview_window("main") {
+                // 尝试显示并聚焦窗口，忽略可能的错误
+                let _ = window.show().map_err(|e| {
+                    log::warn!("Failed to show window: {}", e);
+                });
+                let _ = window.set_focus().map_err(|e| {
+                    log::warn!("Failed to focus window: {}", e);
+                });
+            }
+        }))
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(get_cmd_handler())
         .setup(|app| {
