@@ -24,7 +24,7 @@ const NavbarStyle = styled.div`
 
     li {
         box-sizing: border-box;
-        margin: 5px;
+        margin: 1px;
         flex-shrink: 0;
 
         justify-content: center;
@@ -59,6 +59,7 @@ const NavbarStyle = styled.div`
     .top {
         flex-grow: 1;
         min-height: 40px;
+        margin-top: 10px;
     }
 
     .bottom {

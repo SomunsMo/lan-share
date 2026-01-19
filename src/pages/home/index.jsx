@@ -20,18 +20,16 @@ function Home() {
         console.log("得到本机IP:", ip);
     }
 
-    const urlChanged = (e) => {
-        console.log("url更改")
-    }
-
     return (
         <HomeStyle>
             <div className={"banner"}>
                 <h1 className={"title"}>LAN Share</h1>
-                <p className={"subtitle"}>基于Rust的局域网文件传输工具</p>
+                <p className={"subtitle"}>基于 Http 的局域网文件传输工具</p>
                 <div className={"codeArea"}>
+                    <p className={"scanTips"}>在其他设备浏览器扫码</p>
                     <QRCodeSVG className={"qrcode"} value={webUrl} fgColor={"#213547"}/>
-                    <p className={"qrcodeTips"}>{webUrl}</p>
+                    <p className={"urlTips"}>或访问</p>
+                    <p className={"qrcodeUrl"}>{webUrl}</p>
                 </div>
             </div>
         </HomeStyle>

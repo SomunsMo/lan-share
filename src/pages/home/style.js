@@ -5,9 +5,10 @@ const HomeStyle = styled.div`
     width: 100%;
     height: 100%;
 
+    color: #213547;
     justify-content: center;
     align-items: center;
-    
+
     user-select: none;
 
     .banner {
@@ -18,11 +19,15 @@ const HomeStyle = styled.div`
         text-align: center;
     }
 
+    .title {
+        margin-top: 0;
+    }
+
     .codeArea {
         box-sizing: border-box;
         display: flex;
-        width: 200px;
-        height: 200px;
+        width: 230px;
+        height: 230px;
         margin: 0 auto;
         flex-direction: column;
 
@@ -34,14 +39,30 @@ const HomeStyle = styled.div`
         overflow: hidden;
     }
 
-    .qrcode {
-        margin-top: 10px;
+    .scanTips {
+        padding: 0;
+        margin: 10px 0 0;
+        color: grey;
+        font-size: 0.8rem;
     }
 
-    .qrcodeTips {
-        margin: 6px auto;
-        color: dimgrey;
-        font-size: small;
+    .qrcode {
+    }
+
+    .urlTips {
+        padding: 0;
+        margin: 15px 0 0;
+        color: grey;
+        font-size: 0.8rem;
+        line-height: 0.8rem;
+    }
+
+    .qrcodeUrl {
+        margin: 0 0 10px 0;
+        line-height: 1rem;
+        font-size: 0.8rem;
+
+        user-select: text;
     }
 
 
