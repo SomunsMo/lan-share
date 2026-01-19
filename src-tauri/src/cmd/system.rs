@@ -60,3 +60,62 @@ pub async fn share_text_to_lan(text_data: String) -> Result<(), String> {
         }
     }
 }
+
+/// 设置共享根目录
+#[tauri::command]
+pub async fn set_sharing_directory(directory_path: String) -> Result<(), String> {
+    use crate::config::config;
+    use crate::db::dao::config_dao;
+    use std::path::PathBuf;
+    
+    let path = PathBuf::from(directory_path);
+    
+    // 验证路径是否有效
+    if !path.exists() {
+        return Err("路径不存在".to_string());
+    }
+    
+    if !path.is_dir() {
+        return Err("请选择一个有效的目录".to_string());
+    }
+    
+    // 保存到数据库配置
+    if let Err(e) = config_dao::set_config("file_sharing_root_dir", path.to_str().unwrap_or("")).await {
+        log::error!("保存共享根目录到数据库失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+    
+    // 更新全局共享根目录
+    if let Err(e) = config::set_sharing_root_new(path).await {
+        log::error!("设置共享根目录失败: {}", e);
+        return Err(e);
+    }
+    
+    let sharing_root = config::get_sharing_root().await;
+    log::info!("共享根目录已设置为: {:?}", (*sharing_root));
+    Ok(())
+}
+
+/// 获取当前共享根目录
+#[tauri::command]
+pub async fn get_sharing_directory() -> Result<String, String> {
+    use crate::config::config;
+    use crate::db::dao::config_dao;
+    
+    // 首先尝试从数据库获取
+    match config_dao::get_config_value("file_sharing_root_dir").await {
+        Ok(Some(path)) => Ok(path),
+        Ok(None) => {
+            // 如果数据库中没有配置，返回当前的全局配置
+            let sharing_root = config::get_sharing_root().await;
+            log::info!("当前配置: {:?}", (*sharing_root));
+            Ok((*sharing_root).to_string_lossy().to_string())
+        },
+        Err(e) => {
+            log::warn!("获取共享根目录配置失败: {}", e);
+            // 返回当前的全局配置
+            let sharing_root = config::get_sharing_root().await;
+            Ok((*sharing_root).to_string_lossy().to_string())
+        }
+    }
+}

@@ -15,6 +15,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
 # 颜色库
 colored = "3.0.0"
 # 日志
@@ -51,6 +52,7 @@ multer = "2.1"
 form_urlencoded = "1.2.2"
 # 用于处理流的 map 操作
 futures-util = "0.3.31"
+lazy_static = "1.4.0"
 # HttpServer的路径处理器宏
 lan-share-http-macros = { workspace = true }
 mime_guess = "2.0.5"

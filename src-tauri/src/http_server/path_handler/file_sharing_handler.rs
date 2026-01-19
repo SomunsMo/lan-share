@@ -3,6 +3,7 @@
 use crate::config::config::get_sharing_root;
 use crate::http_server::handler::GenericResponseBody;
 use crate::http_server::responses::{error, success_json};
+use log;
 use crate::QueryParams;
 use form_urlencoded;
 use futures_util::stream::TryStreamExt;
@@ -13,11 +14,13 @@ use lan_share_http_macros::{get, post};
 use multer::Multipart;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::Write;
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
 use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
-use std::{fs, io};
+use tokio::fs;
+use std::io;
+use std::iter::FromIterator;
 
 #[derive(Serialize, Debug, Clone)]
 // serde指定为untagged是为了去除序列化时value被包到Type中
@@ -37,64 +40,94 @@ pub async fn get_file_list(
     // 获取 dir 参数，默认为根目录
     let dir_param = query_params.get("dir").map(|s| s.as_str()).unwrap_or("");
 
-    let sharing_root = get_sharing_root();
+    let sharing_root = get_sharing_root().await;
     let target_dir = if dir_param.is_empty() {
-        sharing_root.clone()
+        (*sharing_root).clone()
     } else {
         // 消毒路径，防止路径遍历攻击
         let safe_path = sanitize_path_segment(dir_param);
-        sharing_root.join(safe_path)
+        (*sharing_root).join(safe_path)
     };
 
     // 验证目录是否存在且是目录
-    if !target_dir.exists() || !target_dir.is_dir() {
-        return error(
-            StatusCode::UNPROCESSABLE_ENTITY,
-            &format!(
-                "Directory '{}' does not exist or is not a directory",
-                target_dir.display()
-            ),
-        );
+    let metadata_res = tokio::fs::metadata(&target_dir).await;
+    match metadata_res {
+        Ok(metadata) => {
+            if !metadata.is_dir() {
+                return error(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    &format!(
+                        "Path '{}' exists but is not a directory",
+                        target_dir.display()
+                    ),
+                );
+            }
+        },
+        Err(_) => {
+            return error(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                &format!(
+                    "Directory '{}' does not exist",
+                    target_dir.display()
+                ),
+            );
+        }
     }
 
     let mut file_list: Vec<HashMap<String, FileInfo>> = Vec::new();
 
-    if let Ok(entries) = fs::read_dir(&target_dir) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                let metadata = match fs::metadata(&path) {
-                    Ok(meta) => meta,
-                    Err(_) => continue,
-                };
+    let mut entries = match tokio::fs::read_dir(&target_dir).await {
+        Ok(entries) => entries,
+        Err(_) => {
+            return error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                &format!("Failed to read directory: {}", target_dir.display()),
+            );
+        }
+    };
+    
+    loop {
+        let entry = match entries.next_entry().await {
+            Ok(Some(entry)) => entry,
+            Ok(None) => break, // 已经读完所有条目
+            Err(e) => {
+                log::error!("Error reading directory entry: {}", e);
+                break;
+            }
+        };
+        let path = entry.path();
+        let metadata = match tokio::fs::symlink_metadata(&path).await {
+            Ok(meta) => meta,
+            Err(_) => continue,
+        };
 
-                let mut file_info = HashMap::new();
-                file_info.insert(
-                    "name".to_string(),
-                    FileInfo::String(entry.file_name().to_string_lossy().to_string()),
-                );
+        let mut file_info = HashMap::new();
+        file_info.insert(
+            "name".to_string(),
+            FileInfo::String(entry.file_name().to_string_lossy().to_string()),
+        );
 
-                file_info.insert("is_dir".to_string(), FileInfo::Bool(metadata.is_dir()));
+        file_info.insert("is_dir".to_string(), FileInfo::Bool(metadata.is_dir()));
 
-                // 获取修改时间
-                if let Ok(modified) = metadata.modified() {
-                    if let Ok(duration) = modified.duration_since(UNIX_EPOCH) {
-                        let timestamp = duration.as_secs();
-                        let formatted_time = crate::utils::datetime::format_datetime(timestamp);
-                        file_info.insert("modified".to_string(), FileInfo::String(formatted_time));
-                    }
-                }
-
-                // 如果是文件，添加文件大小
-                if metadata.is_file() {
-                    file_info.insert("size".to_string(), FileInfo::U64(metadata.len()));
-                } else {
-                    file_info.insert("size".to_string(), FileInfo::U64(0));
-                }
-
-                file_list.push(file_info);
+        // 获取修改时间
+        // metadata.modified() 实际上是访问内存中的元数据，不是磁盘I/O操作
+        // 因此即使在异步函数中也是安全的
+        if let Ok(modified) = metadata.modified() {
+            if let Ok(duration) = modified.duration_since(UNIX_EPOCH) {
+                let timestamp = duration.as_secs();
+                let formatted_time = crate::utils::datetime::format_datetime(timestamp);
+                file_info.insert("modified".to_string(), FileInfo::String(formatted_time));
             }
         }
+
+        // 如果是文件，添加文件大小
+        if metadata.is_file() {
+            file_info.insert("size".to_string(), FileInfo::U64(metadata.len()));
+        } else {
+            file_info.insert("size".to_string(), FileInfo::U64(0));
+        }
+
+        file_list.push(file_info);
     }
 
     // 构建响应
@@ -149,24 +182,38 @@ pub async fn upload_file(
     let mut multipart = Multipart::new(body_stream, boundary);
 
     // 4. 定义变量
-    let root_dir = get_sharing_root();
+    let root_dir = get_sharing_root().await;
     let target_dir = if dir_param.is_empty() {
-        root_dir.clone()
+        (*root_dir).clone()
     } else {
         // 消毒路径，防止路径遍历攻击
         let safe_path = sanitize_path_segment(dir_param);
-        root_dir.join(safe_path)
+        (*root_dir).join(safe_path)
     };
 
     // 验证目标目录是否存在且是目录
-    if !target_dir.exists() || !target_dir.is_dir() {
-        return error(
-            StatusCode::UNPROCESSABLE_ENTITY,
-            &format!(
-                "Directory '{}' does not exist or is not a directory",
-                target_dir.display()
-            ),
-        );
+    let metadata_res = tokio::fs::metadata(&target_dir).await;
+    match metadata_res {
+        Ok(metadata) => {
+            if !metadata.is_dir() {
+                return error(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    &format!(
+                        "Path '{}' exists but is not a directory",
+                        target_dir.display()
+                    ),
+                );
+            }
+        },
+        Err(_) => {
+            return error(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                &format!(
+                    "Directory '{}' does not exist",
+                    target_dir.display()
+                ),
+            );
+        }
     }
 
     let mut write_dir: PathBuf = target_dir;
@@ -202,7 +249,7 @@ pub async fn upload_file(
                 let file_path = write_dir.join(&safe_filename);
 
                 // 直接创建文件并写入（边解析边写，无锁竞争）
-                let mut file = match File::create(&file_path) {
+                let mut file = match File::create(&file_path).await {
                     Ok(f) => f,
                     Err(e) => {
                         return error(
@@ -216,7 +263,7 @@ pub async fn upload_file(
                 loop {
                     match field.chunk().await {
                         Ok(Some(chunk)) => {
-                            if let Err(e) = file.write_all(&chunk) {
+                            if let Err(e) = file.write_all(&chunk).await {
                                 return error(
                                     StatusCode::INTERNAL_SERVER_ERROR,
                                     &format!("Failed to write file '{}': {}", safe_filename, e),
@@ -234,7 +281,7 @@ pub async fn upload_file(
                 }
 
                 // 刷新并记录上传结果
-                if let Err(e) = file.flush() {
+                if let Err(e) = file.flush().await {
                     return error(
                         StatusCode::INTERNAL_SERVER_ERROR,
                         &format!("Failed to flush file '{}': {}", safe_filename, e),
@@ -256,47 +303,7 @@ pub async fn upload_file(
     success_json(())
 }
 
-/// 验证路径安全性并构建完整路径
-fn validate_and_build_path(user_path: &str, filename: &str) -> Result<PathBuf, String> {
-    // 消毒路径，只允许字母数字、点、连字符、下划线和正斜杠
-    let sanitized_path: String = user_path
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric() || *c == '.' || *c == '-' || *c == '_' || *c == '/')
-        .collect();
 
-    // 构建完整路径
-    let full_path = PathBuf::from(get_sharing_root())
-        .join(&sanitized_path)
-        .join(filename);
-
-    // 规范化路径并检查是否试图逃逸根目录
-    let normalized_path = full_path.canonicalize().unwrap_or(full_path.clone());
-    let root_path = PathBuf::from(get_sharing_root())
-        .canonicalize()
-        .unwrap_or(PathBuf::from(get_sharing_root()));
-
-    // 检查路径是否在根目录内
-    if !normalized_path.starts_with(&root_path) {
-        return Err("Invalid path: attempting to access outside root directory".to_string());
-    }
-
-    // 检查路径遍历攻击
-    if user_path.contains("..") || sanitized_path.contains("..") {
-        return Err("Invalid path: '..' is not allowed".to_string());
-    }
-
-    // 检查绝对路径
-    if user_path.starts_with('/') || user_path.starts_with('\\') {
-        return Err("Invalid path: absolute paths are not allowed".to_string());
-    }
-
-    // 检查空路径段
-    if user_path.contains("//") || sanitized_path.contains("//") {
-        return Err("Invalid path: empty path segments are not allowed".to_string());
-    }
-
-    Ok(full_path)
-}
 
 /// 文件名消毒函数
 fn sanitize_filename(filename: &str) -> String {
@@ -367,19 +374,19 @@ pub async fn download_file(
     };
 
     // 第三步：拼接完整文件路径（root_dir + dir + file_name）
-    let root_dir = get_sharing_root();
+    let root_dir = get_sharing_root().await;
     let target_dir = if dir_param.is_empty() {
-        root_dir.clone()
+        (*root_dir).clone()
     } else {
         // 消毒路径，防止路径遍历攻击
         let safe_path = sanitize_path_segment(dir_param);
-        root_dir.join(safe_path)
+        (*root_dir).join(safe_path)
     };
     let full_file_path = target_dir.join(&file_name);
 
     // 第四步：验证文件合法性
     // 1. 检查文件是否存在
-    let metadata = match fs::metadata(&full_file_path) {
+    let metadata = match tokio::fs::metadata(&full_file_path).await {
         Ok(meta) => meta,
         Err(_) => {
             let error_response = create_error_response(
@@ -400,7 +407,7 @@ pub async fn download_file(
     }
 
     // 第五步：打开文件并读取内容
-    let file_content = match std::fs::read(&full_file_path) {
+    let file_content = match tokio::fs::read(&full_file_path).await {
         Ok(content) => content,
         Err(e) => {
             let error_response = create_error_response(

@@ -1,7 +1,7 @@
-import React, { useCallback } from 'react';
-import { useDropzone } from 'react-dropzone';
+import React, {useState, useEffect} from 'react';
 import SettingsStyle from "./style.js";
 import {invoke} from "@tauri-apps/api/core";
+import {open} from '@tauri-apps/plugin-dialog';
 import Card from "../../components/card/Card.js";
 
 function Settings() {
@@ -11,36 +11,47 @@ function Settings() {
         console.log("清空共享文本成功：", resultCount);
     }
 
-    // 使用 react-dropzone 实现拖拽文件夹功能
-    const onDrop = useCallback((acceptedFiles) => {
-        if (acceptedFiles.length > 0) {
-            const file = acceptedFiles[0];
-            
-            // 检查是否是通过拖拽文件夹方式添加的文件
-            if (file.webkitRelativePath) { 
-                // 从 webkitRelativePath 提取文件夹路径
-                const relativePath = file.webkitRelativePath;
-                const folderName = relativePath.split('/')[0];
-                console.log('拖拽的文件夹:', folderName);
-                
-                alert(`已选择文件夹: ${folderName}`);
-            } else {
-                alert('请拖拽整个文件夹，而不是单个文件');
+    const [selectedDirectory, setSelectedDirectory] = useState(null);
+
+    // 每次组件渲染时获取当前共享目录
+    useEffect(() => {
+        const fetchCurrentDirectory = async () => {
+            try {
+                const currentDir = await invoke('get_sharing_directory');
+                console.log('当前共享目录是:', currentDir);
+                setSelectedDirectory(currentDir);
+            } catch (error) {
+                console.error('获取当前共享目录失败:', error);
             }
+        };
+
+        fetchCurrentDirectory();
+    }, []); // 只在组件挂载时获取，但我们也会在selectDirectory函数中更新状态
+
+    const selectDirectory = async () => {
+        try {
+            const selectedPath = await open({
+                directory: true,
+                multiple: false,
+                title: '选择共享根目录'
+            });
+
+            if (selectedPath) {
+                setSelectedDirectory(selectedPath);
+                console.log('已选择文件夹:', selectedPath);
+
+                try {
+                    // 调用后端API保存设置
+                    await invoke('set_sharing_directory', {directoryPath: selectedPath});
+                } catch (backendError) {
+                    console.error('保存共享根目录到后端失败:', backendError);
+                    alert('保存设置失败: ' + backendError.message);
+                }
+            }
+        } catch (error) {
+            console.error('选择文件夹时出错:', error);
+            alert('选择文件夹失败: ' + error.message);
         }
-    }, []);
-
-    const {getRootProps, getInputProps, isDragActive} = useDropzone({
-        onDrop,
-        noClick: true,  // 禁用点击选择，因为我们有自己的按钮
-        noKeyboard: true,  // 禁用键盘操作
-        webkitdirectory: true, // 启用文件夹选择
-        multiple: false
-    });
-
-    const selectDirectory = () => {
-        // 点击按钮时触发文件输入
-        document.querySelector('#folder-selector input').click();
     };
 
     // ========================================
@@ -58,14 +69,15 @@ function Settings() {
                     name: "共享根目录",
                     // content: <input type="text" value={"F:/"}/>,
                     content: (
-                        <div id="folder-selector">
-                            <div {...getRootProps()} style={{ padding: '10px 0' }}>
-                                <input {...getInputProps()} />
+                        <div>
+                            <div style={{marginBottom: '8px'}}>
                                 <button onClick={selectDirectory}>点击选择目录</button>
-                                <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
-                                    {isDragActive ? "释放文件以选择文件夹" : "或将文件夹拖拽到这里"}
-                                </div>
                             </div>
+                            {selectedDirectory && (
+                                <div style={{fontSize: '14px', color: '#666'}}>
+                                    已选择目录: {selectedDirectory}
+                                </div>
+                            )}
                         </div>
                     ),
                 },

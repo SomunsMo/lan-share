@@ -51,7 +51,7 @@ async fn init() {
 
     // ====================【↓DB初始化后才能执行的代码】====================
 
-    //TODO 文件共享根目录
+    //TODO 文件共享根目录 - 使用新的初始化方法
     let fs_rd = get_config("file_sharing_root_dir")
         .await
         .map(|cfg| PathBuf::from(cfg.cfg_value)) // 直接转换
@@ -59,7 +59,11 @@ async fn init() {
             log::error!("cannot get config：{}", e);
             PathBuf::from("./uploads") // 默认 PathBuf
         });
-    FILE_SHARING_ROOT_DIR.set(fs_rd).unwrap();
+    
+    // 使用新的设置方法
+    if let Err(e) = lan_share_lib::config::config::set_sharing_root_new(fs_rd).await {
+        log::error!("设置共享根目录失败: {}", e);
+    }
 }
 
 // 初始化日志系统
