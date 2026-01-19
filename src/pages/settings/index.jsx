@@ -11,7 +11,7 @@ function Settings() {
         console.log("清空共享文本成功：", resultCount);
     }
 
-    const [selectedDirectory, setSelectedDirectory] = useState(null);
+    const [selectedDirectory, setSelectedDirectory] = useState("点击选择目录");
 
     // 每次组件渲染时获取当前共享目录
     useEffect(() => {
@@ -69,16 +69,13 @@ function Settings() {
                     name: "共享根目录",
                     // content: <input type="text" value={"F:/"}/>,
                     content: (
-                        <div>
-                            <div style={{marginBottom: '8px'}}>
-                                <button onClick={selectDirectory}>点击选择目录</button>
-                            </div>
-                            {selectedDirectory && (
-                                <div style={{fontSize: '14px', color: '#666'}}>
-                                    已选择目录: {selectedDirectory}
-                                </div>
-                            )}
-                        </div>
+                        <span
+                            className="directory-text"
+                            onClick={selectDirectory}
+                            title="点击更改目录"
+                        >
+                              {selectedDirectory}
+                        </span>
                     ),
                 },
                 {
