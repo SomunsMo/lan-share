@@ -21,6 +21,7 @@ use std::time::UNIX_EPOCH;
 use tokio::fs;
 use std::io;
 use std::iter::FromIterator;
+use crate::db::dao::config_dao;
 
 #[derive(Serialize, Debug, Clone)]
 // serde指定为untagged是为了去除序列化时value被包到Type中
@@ -140,6 +141,17 @@ pub async fn upload_file(
     _req: Request<Incoming>,
     query_params: QueryParams,
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
+    // 检查上传功能是否启用
+    let upload_enabled = match config_dao::get_config_value("upload_enabled").await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(true),
+        Ok(None) => false, // 如果配置不存在，默认禁止上传
+        Err(_) => false,   // 如果出错，默认禁止上传
+    };
+    
+    if !upload_enabled {
+        return error(StatusCode::FORBIDDEN, "文件上传功能已被禁用");
+    }
+    
     // 解析查询参数
     let query = _req.uri().query().unwrap_or("");
 

@@ -5,15 +5,10 @@ import {open} from '@tauri-apps/plugin-dialog';
 import Card from "../../components/card/Card.js";
 
 function Settings() {
-
-    const clearText = () => {
-        let resultCount = invoke("clear_sharing_text");
-        console.log("清空共享文本成功：", resultCount);
-    }
-
     const [selectedDirectory, setSelectedDirectory] = useState("点击选择目录");
+    const [uploadEnabled, setUploadEnabled] = useState(false); // 默认禁止上传
 
-    // 每次组件渲染时获取当前共享目录
+    // 每次组件渲染时获取当前共享目录和上传设置
     useEffect(() => {
         const fetchCurrentDirectory = async () => {
             try {
@@ -25,8 +20,27 @@ function Settings() {
             }
         };
 
+        const fetchUploadSetting = async () => {
+            try {
+                const enabled = await invoke('get_upload_enabled');
+                console.log('当前上传设置是:', enabled);
+                setUploadEnabled(enabled);
+            } catch (error) {
+                console.error('获取上传设置失败:', error);
+                // 出错时默认启用上传
+                setUploadEnabled(true);
+            }
+        };
+
         fetchCurrentDirectory();
+        fetchUploadSetting();
     }, []); // 只在组件挂载时获取，但我们也会在selectDirectory函数中更新状态
+
+
+    const clearText = () => {
+        let resultCount = invoke("clear_sharing_text");
+        console.log("清空共享文本成功：", resultCount);
+    }
 
     const selectDirectory = async () => {
         try {
@@ -51,6 +65,22 @@ function Settings() {
         } catch (error) {
             console.error('选择文件夹时出错:', error);
             alert('选择文件夹失败: ' + error.message);
+        }
+    };
+
+    // 处理上传设置变更
+    const handleUploadChange = async (event) => {
+        const checked = event.target.checked;
+        setUploadEnabled(checked);
+
+        try {
+            await invoke('set_upload_enabled', {enabled: checked});
+            console.log('上传设置已更新:', checked);
+        } catch (error) {
+            console.error('保存上传设置失败:', error);
+            // 如果保存失败，恢复之前的值
+            setUploadEnabled(!checked);
+            alert('保存上传设置失败: ' + error.message);
         }
     };
 
@@ -80,7 +110,13 @@ function Settings() {
                 },
                 {
                     name: "是否可上传文件",
-                    content: <input type="checkbox"/>,
+                    content: (
+                        <input
+                            type="checkbox"
+                            checked={uploadEnabled}
+                            onChange={handleUploadChange}
+                        />
+                    ),
                 }
             ]
         },

@@ -9,6 +9,8 @@ pub fn get_cmd_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
         system::delete_text_sharing_record,
         system::share_text_to_lan,
         system::set_sharing_directory,
-        system::get_sharing_directory
+        system::get_sharing_directory,
+        system::get_upload_enabled,
+        system::set_upload_enabled
     ]
 }
