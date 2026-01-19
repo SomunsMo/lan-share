@@ -1,36 +1,30 @@
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import NavbarStyle from "./style.js";
 import {Link, useNavigate} from "react-router";
+import {routes} from "../../pages/_router-map.jsx";
 
-// 顶部导航栏选项
-const topItems = [
-    {
-        name: "主页",
-        path: "/home",
-        icon: "/src/assets/icon/home.svg",
-    },
-    {
-        name: "文本共享",
-        path: "/text-sharing",
-        icon: "/src/assets/icon/textMsg.svg",
-    },
-    {
-        name: "测试页",
-        path: "/test",
-    }
-];
-
-// 底部导航栏选项
-const bottomItems = [
-    {
-        name: "设置",
-        path: "/settings",
-        icon: "/src/assets/icon/setting.svg",
-    }
-];
 
 function Navbar() {
     let navigate = useNavigate();
+    // 顶部导航栏选项
+    const [topItems, setTopItems] = useState([]);
+    // 底部导航栏选项
+    const [bottomItems, setBottomItems] = useState([]);
+
+    useEffect(() => {
+        // 从路由映射关系中过滤出导航栏选项
+        let topItems = [];
+        let bottomItems = [];
+        routes.forEach(route => {
+            if (route.navPosition === "top") {
+                topItems.push(route);
+            } else if (route.navPosition === "bottom") {
+                bottomItems.push(route);
+            }
+        });
+        setTopItems(topItems);
+        setBottomItems(bottomItems);
+    }, []);
 
     return (
         <NavbarStyle>
