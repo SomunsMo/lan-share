@@ -10,7 +10,7 @@ const AppStyle = styled.div`
 
     main {
         width: 100%;
-        margin: 40px auto 70px auto;
+        margin: 10px auto 30px auto;
     }
 
     .subtitle {
@@ -20,33 +20,72 @@ const AppStyle = styled.div`
     .codeArea {
         box-sizing: border-box;
         display: flex;
-        width: 200px;
-        height: 200px;
-        margin: 0 auto;
+        width: 100%;
+        height: 40px;
         flex-direction: column;
 
-        justify-content: center;
         align-items: center;
 
-        background-color: white;
+        background-color: transparent;
         border-radius: 6px;
-        overflow: hidden;
+        overflow: visible;
         user-select: none;
+        z-index: 1000;
+
+        .barcodeIcon {
+            width: 40px;
+            height: 40px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .qrCodeContainer {
+            width: 200px;
+            height: 200px;
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.8);
+            transition: all 0.3s ease;
+            transition-delay: 618ms;
+            z-index: 1001;
+        }
+
+        .qrCodeWrapper {
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
 
         .qrcode {
-            margin-top: 10px;
+            opacity: 1;
+            visibility: visible;
         }
 
         .qrcodeTips {
-            margin: 6px auto;
-            color: dimgrey;
+            opacity: 1;
+            visibility: visible;
+            margin: 2px 0;
+            color: #666;
             font-size: small;
-
+            text-align: center;
+            word-break: break-all;
             // 确保网页URL可选中
-            user-select: auto;
+            user-select: text;
         }
     }
 
+    .barcodeIcon:hover ~ .qrCodeContainer,
+    .qrCodeContainer:hover {
+        opacity: 1;
+        visibility: visible;
+        transform: scale(1);
+        transition-delay: 0ms;
+    }
 
     .content {
         display: flex;
