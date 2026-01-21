@@ -13,11 +13,11 @@ const AppStyle = styled.div`
         margin: 10px auto 30px auto;
     }
 
-    .subtitle {
+    .app-subtitle {
         margin-top: 0;
     }
 
-    .codeArea {
+    .qrCodeArea {
         box-sizing: border-box;
         display: flex;
         width: 100%;
@@ -32,14 +32,14 @@ const AppStyle = styled.div`
         user-select: none;
         z-index: 1000;
 
-        .barcodeIcon {
+        .qrIcon {
             width: 40px;
             height: 40px;
             transition: all 0.2s ease;
             cursor: pointer;
         }
 
-        .qrCodeContainer {
+        .qr-popup-container {
             width: 200px;
             height: 200px;
             opacity: 0;
@@ -50,7 +50,7 @@ const AppStyle = styled.div`
             z-index: 1001;
         }
 
-        .qrCodeWrapper {
+        .qr-content-wrapper {
             background-color: white;
             padding: 15px;
             border-radius: 8px;
@@ -61,12 +61,12 @@ const AppStyle = styled.div`
             gap: 8px;
         }
 
-        .qrcode {
+        .qr-image {
             opacity: 1;
             visibility: visible;
         }
 
-        .qrcodeTips {
+        .qr-url-display {
             opacity: 1;
             visibility: visible;
             margin: 2px 0;
@@ -74,13 +74,13 @@ const AppStyle = styled.div`
             font-size: small;
             text-align: center;
             word-break: break-all;
-            // 确保网页URL可选中
+            /* 确保网页URL可选中 */
             user-select: text;
         }
     }
 
-    .barcodeIcon:hover ~ .qrCodeContainer,
-    .qrCodeContainer:hover {
+    .qrIcon:hover ~ .qr-popup-container,
+    .qr-popup-container:hover {
         opacity: 1;
         visibility: visible;
         transform: scale(1);
