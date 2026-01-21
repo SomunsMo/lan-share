@@ -13,7 +13,13 @@ const AppStyle = styled.div`
         margin: 10px auto 30px auto;
     }
 
-    .app-subtitle {
+    .appTitle {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .appSubtitle {
         margin-top: 0;
     }
 
@@ -33,24 +39,25 @@ const AppStyle = styled.div`
         z-index: 1000;
 
         .qrIcon {
-            width: 40px;
-            height: 40px;
-            transition: all 0.2s ease;
+            width: 50px;
+            height: 50px;
+            background-color: white;
+            border-radius: 4px;
             cursor: pointer;
         }
 
-        .qr-popup-container {
+        .qrPopupContainer {
             width: 200px;
             height: 200px;
             opacity: 0;
             visibility: hidden;
             transform: scale(0.8);
-            transition: all 0.3s ease;
+            transition: all 0.3s ease-out;
             transition-delay: 618ms;
             z-index: 1001;
         }
 
-        .qr-content-wrapper {
+        .qrContentWrapper {
             background-color: white;
             padding: 15px;
             border-radius: 8px;
@@ -61,12 +68,12 @@ const AppStyle = styled.div`
             gap: 8px;
         }
 
-        .qr-image {
+        .qrImage {
             opacity: 1;
             visibility: visible;
         }
 
-        .qr-url-display {
+        .qrUrlDisplay {
             opacity: 1;
             visibility: visible;
             margin: 2px 0;
@@ -79,11 +86,12 @@ const AppStyle = styled.div`
         }
     }
 
-    .qrIcon:hover ~ .qr-popup-container,
-    .qr-popup-container:hover {
+    .qrIcon:hover ~ .qrPopupContainer,
+    .qrPopupContainer:hover {
         opacity: 1;
         visibility: visible;
         transform: scale(1);
+        transition: all 150ms ease-in;
         transition-delay: 0ms;
     }
 
@@ -96,7 +104,6 @@ const AppStyle = styled.div`
 
         justify-content: center;
     }
-
 
 `
 export default AppStyle;
