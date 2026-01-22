@@ -1,9 +1,9 @@
 //! # 文件共享处理器
 
 use crate::config::config::get_sharing_root;
+use crate::db::dao::config_dao;
 use crate::http_server::handler::GenericResponseBody;
 use crate::http_server::responses::{error, success_json};
-use log;
 use crate::QueryParams;
 use form_urlencoded;
 use futures_util::stream::TryStreamExt;
@@ -11,17 +11,17 @@ use http_body_util::BodyExt;
 use hyper::body::{Body, Incoming};
 use hyper::{header, Request, Response, StatusCode};
 use lan_share_http_macros::{get, post};
+use log;
 use multer::Multipart;
 use serde::Serialize;
 use std::collections::HashMap;
-use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
+use std::io;
+use std::iter::FromIterator;
 use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
 use tokio::fs;
-use std::io;
-use std::iter::FromIterator;
-use crate::db::dao::config_dao;
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
 
 #[derive(Serialize, Debug, Clone)]
 // serde指定为untagged是为了去除序列化时value被包到Type中
@@ -63,14 +63,11 @@ pub async fn get_file_list(
                     ),
                 );
             }
-        },
+        }
         Err(_) => {
             return error(
                 StatusCode::UNPROCESSABLE_ENTITY,
-                &format!(
-                    "Directory '{}' does not exist",
-                    target_dir.display()
-                ),
+                &format!("Directory '{}' does not exist", target_dir.display()),
             );
         }
     }
@@ -86,7 +83,7 @@ pub async fn get_file_list(
             );
         }
     };
-    
+
     loop {
         let entry = match entries.next_entry().await {
             Ok(Some(entry)) => entry,
@@ -147,15 +144,13 @@ pub async fn upload_file(
         Ok(None) => false, // 如果配置不存在，默认禁止上传
         Err(_) => false,   // 如果出错，默认禁止上传
     };
-    
+
     if !upload_enabled {
         return error(StatusCode::FORBIDDEN, "文件上传功能已被禁用");
     }
-    
-    // 解析查询参数
-    let query = _req.uri().query().unwrap_or("");
 
-    // 获取 dir 参数，默认为根目录
+    // 解析查询参数
+    // dir：文件上传到哪目录，默认为根目录
     let dir_param = query_params.get("dir").map(|s| s.as_str()).unwrap_or("");
 
     let headers = _req.headers().clone();
@@ -216,14 +211,11 @@ pub async fn upload_file(
                     ),
                 );
             }
-        },
+        }
         Err(_) => {
             return error(
                 StatusCode::UNPROCESSABLE_ENTITY,
-                &format!(
-                    "Directory '{}' does not exist",
-                    target_dir.display()
-                ),
+                &format!("Directory '{}' does not exist", target_dir.display()),
             );
         }
     }
@@ -314,8 +306,6 @@ pub async fn upload_file(
 
     success_json(())
 }
-
-
 
 /// 文件名消毒函数
 fn sanitize_filename(filename: &str) -> String {
