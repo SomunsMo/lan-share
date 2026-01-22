@@ -174,7 +174,7 @@ function FileSharing() {
 
     }, []);
 
-    const fileSelectorHandler = (e) => {
+    const fileSelectorHandler = async (e) => {
         const fileList = e.target.files;
         // 用户点击取消（也就是没选择文件）
         if (!fileList || fileList.length === 0) return;
@@ -187,18 +187,31 @@ function FileSharing() {
         // 清除input的选择（防止下次选择同一个文件不响应onChange）
         fileSelectorRef.current.value = '';
 
-        files.forEach(v => {
-            //TODO 进度条、二次确认
+        // 显示上传进度提示
 
-            // 文件Form表单
-            let formData = new FormData();
-            formData.append("file", v);
-            // formData.append("sub_dir", "somTemp");
-            uploadFileAPI(formData).then(res => {
+        // 逐个上传文件，避免并发问题
+        for (const file of files) {
+            try {
+                // 获取当前目录作为上传目录
+                const currentDir = getCurrentDir();
+                
+                // 文件Form表单
+                let formData = new FormData();
+                formData.append("file", file);
+                
+                // 上传文件到当前目录
+                const res = await uploadFileAPI(formData, currentDir || "");
                 console.log("文件上传结果：", res);
-            });
-        })
-
+                
+                // 刷新文件列表以显示新上传的文件
+                await flushSharedFileList(currentDir ? currentDir : "");
+            } catch (error) {
+                console.error('文件上传失败:', file.name, error);
+                alert(`文件 ${file.name} 上传失败: ${error.message || '未知错误'}`);
+            }
+        }
+        
+        alert('文件上传完成！');
     }
 
     const itemDoubleClickHandler = async (item) => {
@@ -299,7 +312,6 @@ function FileSharing() {
                            ref={fileSelectorRef}
                            style={{display: "none"}}/>
                     <button onClick={() => fileSelectorRef.current.click()}>上传文件</button>
-
                     <button>批量下载</button>
                 </div>
             </FileSharingStyle>

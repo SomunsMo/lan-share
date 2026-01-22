@@ -28,10 +28,11 @@ export const getFileSharingAPI = (dir) => {
 }
 
 // 上传文件
-export const uploadFileAPI = (file) => {
+export const uploadFileAPI = (file, dir) => {
+    const url = dir ? `/upload/file?dir=${encodeURIComponent(dir)}` : "/upload/file";
     return request({
         method: "POST",
-        url: "/upload/file",
+        url: url,
         data: file,
         headers: {
             "Content-Type": "multipart/form-data",
