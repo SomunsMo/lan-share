@@ -211,13 +211,13 @@ function TextSharingManager(props) {
                                     setContextMenu({visible: false, x: 0, y: 0, item: null});
                                 }}
                             >
-                                复制
+                                复制内容
                             </div>
                             <div
                                 className="context-menu-item"
                                 onClick={() => deleteHistoryItem(contextMenu.item.id)}
                             >
-                                删除
+                                删除记录
                             </div>
                         </div>
                     )}
