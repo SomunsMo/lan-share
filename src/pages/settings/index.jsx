@@ -13,8 +13,8 @@ function Settings() {
     const [deleteEnabled, setDeleteEnabled] = useState(false);
     const [autostartEnabled, setAutostartEnabled] = useState(false);
     const [httpPort, setHttpPort] = useState(3000);
-    const { showToast } = useToast();
-    const { showDialog } = useDialog();
+    const {showToast} = useToast();
+    const {showDialog} = useDialog();
 
     // 每次组件渲染时获取当前共享目录和上传设置
     useEffect(() => {
@@ -99,14 +99,14 @@ function Settings() {
             title: '确认清空',
             content: '确定要清空所有文本记录吗？此操作不可撤销。',
             buttons: [
-                { label: '取消', value: false },
-                { label: '清空', value: true, primary: true, danger: true },
+                {label: '取消', value: false},
+                {label: '清空', value: true, primary: true, danger: true},
             ],
         });
         if (!confirmed) return;
         let resultCount = invoke("clear_sharing_text");
         console.log("清空共享文本成功：", resultCount);
-        showToast({ message: '文本记录已清空', type: 'success' });
+        showToast({message: '文本记录已清空', type: 'success'});
     }
 
     // 处理端口变更（点击后弹出输入框）
@@ -114,13 +114,13 @@ function Settings() {
         const input = await showDialog({
             title: '修改端口',
             content: '请输入新的端口号（1-65535）：',
-            input: { defaultValue: httpPort.toString(), placeholder: '1-65535' },
+            input: {defaultValue: httpPort.toString(), placeholder: '1-65535'},
         });
         if (input === null || input === undefined) return; // 用户取消
 
         const newPort = parseInt(input, 10);
         if (isNaN(newPort) || newPort < 1 || newPort > 65535) {
-            showToast({ message: '端口号无效，请输入 1-65535 之间的数字', type: 'error' });
+            showToast({message: '端口号无效，请输入 1-65535 之间的数字', type: 'error'});
             return;
         }
 
@@ -130,10 +130,10 @@ function Settings() {
             await invoke('set_http_port', {port: newPort});
             setHttpPort(newPort);
             console.log('HTTP端口设置已更新:', newPort);
-            showToast({ message: '端口设置已保存，重启应用后生效', type: 'success' });
+            showToast({message: '端口设置已保存，重启应用后生效', type: 'success'});
         } catch (error) {
             console.error('保存HTTP端口设置失败:', error);
-            showToast({ message: '保存端口设置失败: ' + error, type: 'error' });
+            showToast({message: '保存端口设置失败: ' + error, type: 'error'});
         }
     };
 
@@ -154,12 +154,12 @@ function Settings() {
                     await invoke('set_sharing_directory', {directoryPath: selectedPath});
                 } catch (backendError) {
                     console.error('保存共享根目录到后端失败:', backendError);
-                    showToast({ message: '保存设置失败: ' + backendError.message, type: 'error' });
+                    showToast({message: '保存设置失败: ' + backendError.message, type: 'error'});
                 }
             }
         } catch (error) {
             console.error('选择文件夹时出错:', error);
-            showToast({ message: '选择文件夹失败: ' + error.message, type: 'error' });
+            showToast({message: '选择文件夹失败: ' + error.message, type: 'error'});
         }
     };
 
@@ -174,7 +174,7 @@ function Settings() {
         } catch (error) {
             console.error('保存上传设置失败:', error);
             setUploadEnabled(!checked);
-            showToast({ message: '保存上传设置失败: ' + error.message, type: 'error' });
+            showToast({message: '保存上传设置失败: ' + error.message, type: 'error'});
         }
     };
 
@@ -189,7 +189,7 @@ function Settings() {
         } catch (error) {
             console.error('保存重命名设置失败:', error);
             setRenameEnabled(!checked);
-            showToast({ message: '保存重命名设置失败: ' + error.message, type: 'error' });
+            showToast({message: '保存重命名设置失败: ' + error.message, type: 'error'});
         }
     };
 
@@ -204,7 +204,7 @@ function Settings() {
         } catch (error) {
             console.error('保存删除设置失败:', error);
             setDeleteEnabled(!checked);
-            showToast({ message: '保存删除设置失败: ' + error.message, type: 'error' });
+            showToast({message: '保存删除设置失败: ' + error.message, type: 'error'});
         }
     };
 
@@ -219,7 +219,7 @@ function Settings() {
         } catch (error) {
             console.error('保存开机自启设置失败:', error);
             setAutostartEnabled(!checked);
-            showToast({ message: '保存开机自启设置失败: ' + error.message, type: 'error' });
+            showToast({message: '保存开机自启设置失败: ' + error.message, type: 'error'});
         }
     };
 
@@ -258,7 +258,6 @@ function Settings() {
             options: [
                 {
                     name: "共享根目录",
-                    // content: <input type="text" value={"F:/"}/>,
                     content: (
                         <span
                             className="directory-text"
@@ -314,8 +313,8 @@ function Settings() {
                             title: '确认清空',
                             content: '确定要清空所有文件记录吗？此操作不可撤销。',
                             buttons: [
-                                { label: '取消', value: false },
-                                { label: '清空', value: true, primary: true, danger: true },
+                                {label: '取消', value: false},
+                                {label: '清空', value: true, primary: true, danger: true},
                             ],
                         });
                         if (confirmed) {
