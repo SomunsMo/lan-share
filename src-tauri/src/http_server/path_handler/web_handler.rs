@@ -1,9 +1,9 @@
 use crate::handler::GenericResponseBody;
-use crate::http_server::responses::{redirect, success, success_json};
+use crate::http_server::responses::{redirect, success};
 use crate::request;
 use crate::STATIC_DIR;
 use hyper::body::Incoming;
-use hyper::{header, Request, Response};
+use hyper::{Request, Response};
 use include_dir::File;
 
 #[request("/")]

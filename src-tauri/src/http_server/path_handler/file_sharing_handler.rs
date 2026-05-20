@@ -221,7 +221,6 @@ pub async fn upload_file(
 
     let mut write_dir: PathBuf = target_dir;
     let mut uploaded: Vec<String> = Vec::new();
-    let mut dir_verified = true; // 目标目录已验证
 
     // 5. 核心逻辑：支持任意字段顺序，边解析边上传
     loop {

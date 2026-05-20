@@ -94,8 +94,8 @@ const getFileIcon = (suffix) => {
 function FileSharing() {
     // 文件选择器元素
     const fileSelectorRef = useRef(null);
-    const { showToast } = useToast();
-    const { showDialog } = useDialog();
+    const {showToast} = useToast();
+    const {showDialog} = useDialog();
     // 被共享的文件列表
     const [sharedFileList, setSharedFileList] = useState([
         {is_dir: true, modified: "1729437814", name: "TestFolder", size: 0},
@@ -114,6 +114,17 @@ function FileSharing() {
         rename_enabled: false,
         delete_enabled: false,
     });
+
+    // 右键菜单状态
+    const [contextMenu, setContextMenu] = useState({
+        visible: false,
+        x: 0,
+        y: 0,
+        item: null
+    });
+
+    // 选中的文件集合
+    const [selectedFiles, setSelectedFiles] = useState(new Set());
 
     const preprocessSharedFileList = (sfl) => {
         sfl.forEach(v => {
@@ -180,7 +191,7 @@ function FileSharing() {
                 description,
                 status
             };
-            
+
             if (existingIndex >= 0) {
                 // 更新现有进度
                 const updated = [...prev];
@@ -255,58 +266,60 @@ function FileSharing() {
                 // 文件Form表单
                 let formData = new FormData();
                 formData.append("file", file);
-                
+
                 // 创建上传进度条
                 updateProgress(fileId, `上传文件: ${file.name}`, 0, `正在上传 ${file.name}`, '准备上传');
-                
+
                 // 上传文件到当前目录，添加进度事件监听
                 const res = await uploadFileAPI(formData, currentDir || "", (progressEvent) => {
                     if (progressEvent.total) {
                         const percentCompleted = Math.round(
                             (progressEvent.loaded * 100) / progressEvent.total
                         );
-                        updateProgress(fileId, `上传文件: ${file.name}`, percentCompleted, 
-                            `已上传 ${(progressEvent.loaded / 1024 / 1024).toFixed(2)}MB / ${(progressEvent.total / 1024 / 1024).toFixed(2)}MB`, 
+                        updateProgress(fileId, `上传文件: ${file.name}`, percentCompleted,
+                            `已上传 ${(progressEvent.loaded / 1024 / 1024).toFixed(2)}MB / ${(progressEvent.total / 1024 / 1024).toFixed(2)}MB`,
                             '上传中');
                     }
                 });
-                
+
                 console.log("文件上传结果：", res);
-                
+
                 // 检查响应中的业务状态码
                 if (res.code !== 200) {
                     const errorMsg = res.status || '未知错误';
                     updateProgress(fileId, `上传文件: ${file.name}`, 0, `文件 ${file.name} 上传失败`, '上传失败');
-                    setTimeout(() => { removeProgress(fileId); }, 3000);
-                    showToast({ message: `文件 ${file.name} 上传失败: ${errorMsg}`, type: 'error' });
+                    setTimeout(() => {
+                        removeProgress(fileId);
+                    }, 3000);
+                    showToast({message: `文件 ${file.name} 上传失败: ${errorMsg}`, type: 'error'});
                     continue;
                 }
 
                 // 上传完成后更新进度条状态
                 updateProgress(fileId, `上传文件: ${file.name}`, 100, `文件 ${file.name} 上传完成`, '上传完成');
-                
+
                 // 2秒后自动移除进度条
                 setTimeout(() => {
                     removeProgress(fileId);
                 }, 2000);
-                
+
                 // 刷新文件列表以显示新上传的文件
                 await flushSharedFileList(currentDir ? currentDir : "");
             } catch (error) {
                 console.error('文件上传失败:', file.name, error);
-                
+
                 // 提取服务端返回的错误信息
                 const errorMsg = error.status || error.message || '未知错误';
 
                 // 复用同一个fileId更新进度条为失败状态
                 updateProgress(fileId, `上传文件: ${file.name}`, 0, `文件 ${file.name} 上传失败`, '上传失败');
-                
+
                 // 3秒后移除错误进度条
                 setTimeout(() => {
                     removeProgress(fileId);
                 }, 3000);
-                
-                showToast({ message: `文件 ${file.name} 上传失败: ${errorMsg}`, type: 'error' });
+
+                showToast({message: `文件 ${file.name} 上传失败: ${errorMsg}`, type: 'error'});
             }
         }
     }
@@ -349,7 +362,7 @@ function FileSharing() {
             window.open(downloadUrl, '_blank');
         } catch (error) {
             console.error('文件下载失败:', error);
-            showToast({ message: '文件下载失败: ' + (error.message || '未知错误'), type: 'error' });
+            showToast({message: '文件下载失败: ' + (error.message || '未知错误'), type: 'error'});
         }
     }
 
@@ -358,7 +371,7 @@ function FileSharing() {
         const newName = await showDialog({
             title: '重命名',
             content: `请输入新名称：`,
-            input: { defaultValue: v.name, placeholder: '请输入新名称' },
+            input: {defaultValue: v.name, placeholder: '请输入新名称'},
         });
         if (!newName || newName === v.name) return;
 
@@ -367,13 +380,13 @@ function FileSharing() {
             const res = await renameFileAPI(currentDir || '', v.name, newName);
             if (res.code === 200) {
                 await flushSharedFileList(currentDir || '');
-                showToast({ message: '重命名成功', type: 'success' });
+                showToast({message: '重命名成功', type: 'success'});
             } else {
-                showToast({ message: '重命名失败: ' + (res.status || '未知错误'), type: 'error' });
+                showToast({message: '重命名失败: ' + (res.status || '未知错误'), type: 'error'});
             }
         } catch (error) {
             console.error('重命名失败:', error);
-            showToast({ message: '重命名失败: ' + (error.status || error.message || '未知错误'), type: 'error' });
+            showToast({message: '重命名失败: ' + (error.status || error.message || '未知错误'), type: 'error'});
         }
     }
 
@@ -387,8 +400,8 @@ function FileSharing() {
             title: '确认删除',
             content: confirmMsg,
             buttons: [
-                { label: '取消', value: false },
-                { label: '删除', value: true, primary: true, danger: true },
+                {label: '取消', value: false},
+                {label: '删除', value: true, primary: true, danger: true},
             ],
         });
         if (!confirmed) return;
@@ -398,19 +411,134 @@ function FileSharing() {
             const res = await deleteFileAPI(currentDir || '', v.name);
             if (res.code === 200) {
                 await flushSharedFileList(currentDir || '');
-                showToast({ message: '删除成功', type: 'success' });
+                showToast({message: '删除成功', type: 'success'});
             } else {
-                showToast({ message: '删除失败: ' + (res.status || '未知错误'), type: 'error' });
+                showToast({message: '删除失败: ' + (res.status || '未知错误'), type: 'error'});
             }
         } catch (error) {
             console.error('删除失败:', error);
-            showToast({ message: '删除失败: ' + (error.status || error.message || '未知错误'), type: 'error' });
+            showToast({message: '删除失败: ' + (error.status || error.message || '未知错误'), type: 'error'});
         }
     }
 
+    // 返回上层目录
+    const goBackToParentDir = async () => {
+        const currentDir = getCurrentDir();
+        if (!currentDir) return;
+
+        const lastSlashIndex = currentDir.lastIndexOf('/');
+        const parentDir = lastSlashIndex > 0 ? currentDir.substring(0, lastSlashIndex) : '';
+
+        if (await flushSharedFileList(parentDir)) {
+            window.history.pushState(null, null, parentDir ? `?dir=${parentDir}` : window.location.pathname);
+            setSelectedFiles(new Set());
+        }
+    }
+
+    // 切换文件选中状态
+    const toggleFileSelection = (fileName) => {
+        setSelectedFiles(prev => {
+            const next = new Set(prev);
+            if (next.has(fileName)) {
+                next.delete(fileName);
+            } else {
+                next.add(fileName);
+            }
+            return next;
+        });
+    }
+
+    // 显示右键菜单
+    const showContextMenu = (e, item) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const x = e.clientX || (e.touches && e.touches[0]?.clientX) || 0;
+        const y = e.clientY || (e.touches && e.touches[0]?.clientY) || 0;
+
+        setContextMenu({
+            visible: true,
+            x,
+            y,
+            item
+        });
+    };
+
+    // 隐藏右键菜单
+    const hideContextMenu = () => {
+        setContextMenu({visible: false, x: 0, y: 0, item: null});
+    };
+
+    // 长按计时器
+    const longPressTimerRef = useRef(null);
+
+    // 触摸开始（移动端长按）
+    const handleTouchStart = (e, item) => {
+        longPressTimerRef.current = setTimeout(() => {
+            const touch = e.touches[0];
+            setContextMenu({
+                visible: true,
+                x: touch.clientX,
+                y: touch.clientY,
+                item
+            });
+        }, 500);
+    };
+
+    // 触摸结束/移动（取消长按）
+    const handleTouchEnd = () => {
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+    };
+
+    // 点击其他文件项或组件外区域时隐藏菜单，点击文件列表空白区域不关闭
+    useEffect(() => {
+        const handleClick = (e) => {
+            if (!contextMenu.visible) return;
+            // 点击了右键菜单自身，不关闭
+            if (e.target.closest('.context-menu')) return;
+            // 点击了文件列表内的空白区域，不关闭
+            if (e.target.closest('.fileList') && !e.target.closest('.fileItem')) return;
+            // 点击了其他文件项或组件外区域，关闭
+            setContextMenu({visible: false, x: 0, y: 0, item: null});
+        };
+
+        // 滚动时隐藏菜单
+        const handleScroll = () => {
+            if (contextMenu.visible) {
+                setContextMenu({visible: false, x: 0, y: 0, item: null});
+            }
+        };
+
+        document.addEventListener('click', handleClick);
+        window.addEventListener('scroll', handleScroll, true);
+        return () => {
+            document.removeEventListener('click', handleClick);
+            window.removeEventListener('scroll', handleScroll, true);
+        };
+    }, [contextMenu.visible]);
+
+    // 调整菜单位置，防止超出视口
+    const getAdjustedMenuPosition = () => {
+        let x = contextMenu.x;
+        let y = contextMenu.y;
+        const menuWidth = 140;
+        const menuHeight = contextMenu.item?.is_dir ? 192 : 160;
+
+        if (x + menuWidth > window.innerWidth) {
+            x = window.innerWidth - menuWidth - 8;
+        }
+        if (y + menuHeight > window.innerHeight) {
+            y = window.innerHeight - menuHeight - 8;
+        }
+        return {x, y};
+    };
+
     return (
         <Card>
-            {uploadProgresses.length > 0 && <ProgressBar progresses={uploadProgresses} />}
+            {uploadProgresses.length > 0 && <ProgressBar progresses={uploadProgresses}/>}
             <FileSharingStyle>
                 <div className="fileList">
                     <table className={"fileTable"}>
@@ -418,9 +546,9 @@ function FileSharing() {
                             <col width={"40px"}/>
                             <col width="45%"/>
                             {/*操作时间*/}
-                            <col width={"15%"}/>
+                            <col width={"160px"}/>
                             {/*大小*/}
-                            <col width={"10%"}/>
+                            <col width={"80px"}/>
                             {/*操作*/}
                             <col width={"25%"}/>
                         </colgroup>
@@ -434,21 +562,44 @@ function FileSharing() {
                         </tr>
                         </thead>
                         <tbody>
+                        {getCurrentDir() && (
+                            <tr className={"fileItem goBackItem"} onDoubleClick={goBackToParentDir}>
+                                <td></td>
+                                <td colSpan={4}>
+                                    <span className={"goBackLabel"}>.. (返回上层)</span>
+                                </td>
+                            </tr>
+                        )}
                         {sharedFileList.map((v, i) => {
                             return (
                                 <tr className={"fileItem"} key={v.name + i}
-                                    onDoubleClick={() => itemDoubleClickHandler(v)}>
+                                    onDoubleClick={() => itemDoubleClickHandler(v)}
+                                    onContextMenu={(e) => showContextMenu(e, v)}
+                                    onMouseEnter={() => {
+                                        if (contextMenu.visible && contextMenu.item && contextMenu.item.name !== v.name) {
+                                            hideContextMenu();
+                                        }
+                                    }}
+                                    onTouchStart={(e) => handleTouchStart(e, v)}
+                                    onTouchEnd={handleTouchEnd}
+                                    onTouchMove={handleTouchEnd}>
                                     <td>
-                                        <div className={"checkbox"}>{!v.is_dir && <input type={"checkbox"}/>}</div>
+                                        <div className={"checkbox"}>{!v.is_dir &&
+                                            <input type={"checkbox"}
+                                                   checked={selectedFiles.has(v.name)}
+                                                   onChange={() => toggleFileSelection(v.name)}/>
+                                        }</div>
                                     </td>
-                                    <td>{v.icon}<span className={"fileName"}>{v.name}</span></td>
+                                    <td>{v.icon}<span className={"fileName"} title={v.name}>{v.name}</span></td>
                                     <td>{v.modified}</td>
                                     <td>{v.is_dir ? '-' : formatFileSize(v.size, 1)}</td>
                                     <td>
                                         <div className={!v.is_dir ? "fileActions" : "dirActions"}>
                                             <button onClick={() => downloadFile(v)}>下载</button>
-                                            {permissions.rename_enabled && <button onClick={() => renameFile(v)}>重命名</button>}
-                                            {permissions.delete_enabled && <button onClick={() => deleteFile(v)}>删除</button>}
+                                            {permissions.rename_enabled &&
+                                                <button onClick={() => renameFile(v)}>重命名</button>}
+                                            {permissions.delete_enabled &&
+                                                <button onClick={() => deleteFile(v)}>删除</button>}
                                         </div>
                                     </td>
                                 </tr>
@@ -468,15 +619,100 @@ function FileSharing() {
                     <button
                         onClick={() => {
                             if (!permissions.upload_enabled) {
-                                showToast({ message: '上传功能已被禁用', type: 'warning' });
+                                showToast({message: '上传功能已被禁用', type: 'warning'});
                                 return;
                             }
                             fileSelectorRef.current.click();
                         }}
                         disabled={!permissions.upload_enabled}
-                    >上传文件</button>
-                    <button>批量下载</button>
+                    >上传文件
+                    </button>
+                    <button disabled={selectedFiles.size === 0}
+                            onClick={() => {
+                                const currentDir = getCurrentDir();
+                                let index = 0;
+                                selectedFiles.forEach(fileName => {
+                                    setTimeout(() => {
+                                        const link = document.createElement('a');
+                                        link.href = `/download/file?dir=${currentDir || ''}&file_name=${encodeURIComponent(fileName)}`;
+                                        link.download = fileName;
+                                        link.click();
+                                    }, index * 300);
+                                    index++;
+                                });
+                                setSelectedFiles(new Set());
+                            }}
+                    >批量下载</button>
                 </div>
+
+                {/* 右键菜单 */}
+                {contextMenu.visible && contextMenu.item && (() => {
+                    const pos = getAdjustedMenuPosition();
+                    const item = contextMenu.item;
+                    return (
+                        <div
+                            className="context-menu"
+                            style={{
+                                left: pos.x,
+                                top: pos.y,
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {item.is_dir && (
+                                <div
+                                    className="context-menu-item"
+                                    onClick={() => {
+                                        itemDoubleClickHandler(item);
+                                        hideContextMenu();
+                                    }}
+                                >
+                                    打开
+                                </div>
+                            )}
+                            <div
+                                className="context-menu-item"
+                                onClick={() => {
+                                    downloadFile(item);
+                                    hideContextMenu();
+                                }}
+                            >
+                                下载
+                            </div>
+                            <div
+                                className="context-menu-item"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(item.name);
+                                    showToast({message: '文件名已复制', type: 'success'});
+                                    hideContextMenu();
+                                }}
+                            >
+                                复制文件名
+                            </div>
+                            {permissions.rename_enabled && (
+                                <div
+                                    className="context-menu-item"
+                                    onClick={() => {
+                                        renameFile(item);
+                                        hideContextMenu();
+                                    }}
+                                >
+                                    重命名
+                                </div>
+                            )}
+                            {permissions.delete_enabled && (
+                                <div
+                                    className="context-menu-item context-menu-item-danger"
+                                    onClick={() => {
+                                        deleteFile(item);
+                                        hideContextMenu();
+                                    }}
+                                >
+                                    删除
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
             </FileSharingStyle>
         </Card>
     );

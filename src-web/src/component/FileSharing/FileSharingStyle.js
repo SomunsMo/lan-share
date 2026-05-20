@@ -5,21 +5,21 @@ const FileSharingStyle = styled.div`
 
     .fileList {
         min-height: 400px;
-        min-width: 600px;
         padding: 5px;
         margin-bottom: 10px;
         background-color: white;
 
         border-radius: 6px;
-        overflow-x: hidden;
+        overflow-x: scroll;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .fileTable {
         width: 100%;
+        min-width: 600px;
         text-align: left;
         border-spacing: 0;
-        table-layout: fixed; /* 固定表格布局，使列宽设置生效 */
     }
 
     thead {
@@ -44,6 +44,29 @@ const FileSharingStyle = styled.div`
 
     .fileItem:hover {
         background-color: rgba(211, 211, 211, 0.38);
+    }
+
+    .goBackItem {
+        height: 40px;
+    }
+
+    .goBackLabel {
+        font-size: 14px;
+        color: #666;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    .goBackItem:hover .goBackLabel {
+        color: #333;
+    }
+
+    .fileItem td:nth-child(n+3) {
+        padding-left: 12px;
+    }
+
+    thead th:nth-child(n+3) {
+        padding-left: 12px;
     }
 
 
@@ -72,6 +95,9 @@ const FileSharingStyle = styled.div`
         text-overflow: ellipsis; /* 溢出显示省略号 */
         vertical-align: top;
         box-sizing: border-box;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
     }
 
     .fileActions {
@@ -102,6 +128,36 @@ const FileSharingStyle = styled.div`
             opacity: 0.5;
             cursor: not-allowed;
         }
+    }
+
+    .context-menu {
+        position: fixed;
+        z-index: 10000;
+        background-color: var(--card-bg-color, white);
+        border: 1px solid var(--border-color, #ccc);
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        padding: 4px 0;
+        min-width: 100px;
+        font-size: 14px;
+    }
+
+    .context-menu-item {
+        padding: 8px 16px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .context-menu-item:hover {
+        background-color: var(--hover-bg-color, #f0f0f0);
+    }
+
+    .context-menu-item-danger {
+        color: #e74c3c;
+    }
+
+    .context-menu-item-danger:hover {
+        background-color: #fef0f0;
     }
 
 `;

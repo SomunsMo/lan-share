@@ -1,5 +1,5 @@
+use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
 use std::time::{SystemTime, UNIX_EPOCH};
-use chrono::{DateTime, Local, TimeZone, NaiveDateTime, Utc};
 
 /// 获取当前时间戳（毫秒）
 pub fn get_current_timestamp() -> u64 {
@@ -10,10 +10,10 @@ pub fn get_current_timestamp() -> u64 {
 }
 
 /// 格式化日期时间为人类可读格式
-/// 
+///
 /// # Arguments
 /// * `timestamp` - Unix时间戳（秒）
-/// 
+///
 /// # Returns
 /// * `String` - 格式化后的日期时间字符串，格式为 "YYYY/MM/DD HH:mm:ss"
 pub fn format_datetime(timestamp: u64) -> String {
@@ -56,7 +56,7 @@ pub fn format_datetime(timestamp: u64) -> String {
 }
 
 /// 获取当前格式化的日期时间
-/// 
+///
 /// # Returns
 /// * `String` - 当前格式化的日期时间字符串，格式为 "YYYY/MM/DD HH:mm:ss"
 pub fn get_current_formatted_datetime() -> String {
@@ -80,7 +80,7 @@ mod tests {
         let formatted = format_datetime(1609459200); // 2021/01/01 00:00:00 UTC
         println!("Formatted datetime: {}", formatted);
         assert!(formatted.contains("2021"));
-        
+
         // 测试2038年之后的时间戳（验证2038年问题修复）
         let future_timestamp = 2147483648; // 2038年之后的时间戳
         let future_formatted = format_datetime(future_timestamp);

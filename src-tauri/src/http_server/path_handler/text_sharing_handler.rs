@@ -1,18 +1,15 @@
 //! # 文本共享处理器
 
 use crate::db::dao::upload_dao;
-use crate::db::entity::UploadRecord;
-use crate::db::sqlite::get_pool;
+use crate::handler::GenericResponseBody;
 use crate::http_server::responses::{error, success_json};
 use http_body_util::BodyExt;
 use hyper::body::Incoming;
 use hyper::{Request, Response, StatusCode};
 use lan_share_http_macros::{get, post};
 use serde_json::Value::Null;
-use sqlx::Row;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use crate::handler::GenericResponseBody;
 
 /// 上传共享的文本接口
 #[post("/upload/text")]
@@ -75,9 +72,7 @@ pub async fn upload_text(
 pub async fn text_history(
     _req: Request<Incoming>,
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
-    let records = upload_dao::list_by_type(1)
-        .await
-        .unwrap();
+    let records = upload_dao::list_by_type(1).await.unwrap();
 
     // let records = sqlx::query(
     //     "
