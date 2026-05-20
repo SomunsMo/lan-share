@@ -2,7 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import FileSharingStyle from "./FileSharingStyle.js";
 import Card from "../Card/Card.js";
 import ProgressBar from "../ProgressBar/ProgressBar.jsx";
-import {getFileSharingAPI, uploadFileAPI} from "@/service/API.js";
+import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, getPermissionsAPI} from "@/service/API.js";
 import {formatFileSize, getFileSuffix} from "@/util/file.js";
 import FolderIcon from '@/assets/icon/folder.svg';
 import CodeIcon from '@/assets/icon/code.svg';
@@ -104,6 +104,13 @@ function FileSharing() {
     // 上传进度列表
     const [uploadProgresses, setUploadProgresses] = useState([]);
 
+    // 网页端权限配置
+    const [permissions, setPermissions] = useState({
+        upload_enabled: false,
+        rename_enabled: false,
+        delete_enabled: false,
+    });
+
     const preprocessSharedFileList = (sfl) => {
         sfl.forEach(v => {
             if (v.is_dir) {
@@ -193,6 +200,19 @@ function FileSharing() {
         // 调接口取文件列表
         flushSharedFileList(currentDir ? currentDir : "");
 
+        // 获取权限配置
+        const fetchPermissions = async () => {
+            try {
+                const res = await getPermissionsAPI();
+                if (res.code === 200 && res.data) {
+                    setPermissions(res.data);
+                }
+            } catch (error) {
+                console.error('获取权限配置失败:', error);
+            }
+        };
+        fetchPermissions();
+
         preprocessSharedFileList([
             {
                 is_dir: false,
@@ -251,6 +271,15 @@ function FileSharing() {
                 
                 console.log("文件上传结果：", res);
                 
+                // 检查响应中的业务状态码
+                if (res.code !== 200) {
+                    const errorMsg = res.status || '未知错误';
+                    updateProgress(fileId, `上传文件: ${file.name}`, 0, `文件 ${file.name} 上传失败`, '上传失败');
+                    setTimeout(() => { removeProgress(fileId); }, 3000);
+                    alert(`文件 ${file.name} 上传失败: ${errorMsg}`);
+                    continue;
+                }
+
                 // 上传完成后更新进度条状态
                 updateProgress(fileId, `上传文件: ${file.name}`, 100, `文件 ${file.name} 上传完成`, '上传完成');
                 
@@ -264,6 +293,9 @@ function FileSharing() {
             } catch (error) {
                 console.error('文件上传失败:', file.name, error);
                 
+                // 提取服务端返回的错误信息
+                const errorMsg = error.status || error.message || '未知错误';
+
                 // 显示错误信息
                 const fileId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                 updateProgress(fileId, `上传文件: ${file.name}`, 0, `文件 ${file.name} 上传失败`, '上传失败');
@@ -273,7 +305,7 @@ function FileSharing() {
                     removeProgress(fileId);
                 }, 3000);
                 
-                alert(`文件 ${file.name} 上传失败: ${error.message || '未知错误'}`);
+                alert(`文件 ${file.name} 上传失败: ${errorMsg}`);
             }
         }
     }
@@ -320,6 +352,47 @@ function FileSharing() {
         }
     }
 
+    // 重命名文件或文件夹
+    const renameFile = async (v) => {
+        const newName = prompt('请输入新名称：', v.name);
+        if (!newName || newName === v.name) return;
+
+        const currentDir = getCurrentDir();
+        try {
+            const res = await renameFileAPI(currentDir || '', v.name, newName);
+            if (res.code === 200) {
+                await flushSharedFileList(currentDir || '');
+            } else {
+                alert('重命名失败: ' + (res.status || '未知错误'));
+            }
+        } catch (error) {
+            console.error('重命名失败:', error);
+            alert('重命名失败: ' + (error.status || error.message || '未知错误'));
+        }
+    }
+
+    // 删除文件或文件夹
+    const deleteFile = async (v) => {
+        const confirmMsg = v.is_dir
+            ? `确定要删除文件夹 "${v.name}" 及其所有内容吗？`
+            : `确定要删除文件 "${v.name}" 吗？`;
+
+        if (!window.confirm(confirmMsg)) return;
+
+        const currentDir = getCurrentDir();
+        try {
+            const res = await deleteFileAPI(currentDir || '', v.name);
+            if (res.code === 200) {
+                await flushSharedFileList(currentDir || '');
+            } else {
+                alert('删除失败: ' + (res.status || '未知错误'));
+            }
+        } catch (error) {
+            console.error('删除失败:', error);
+            alert('删除失败: ' + (error.status || error.message || '未知错误'));
+        }
+    }
+
     return (
         <Card>
             {uploadProgresses.length > 0 && <ProgressBar progresses={uploadProgresses} />}
@@ -359,7 +432,8 @@ function FileSharing() {
                                     <td>
                                         <div className={!v.is_dir ? "fileActions" : "dirActions"}>
                                             <button onClick={() => downloadFile(v)}>下载</button>
-                                            <button>删除</button>
+                                            {permissions.rename_enabled && <button onClick={() => renameFile(v)}>重命名</button>}
+                                            {permissions.delete_enabled && <button onClick={() => deleteFile(v)}>删除</button>}
                                         </div>
                                     </td>
                                 </tr>
@@ -376,7 +450,16 @@ function FileSharing() {
                            onChange={fileSelectorHandler}
                            ref={fileSelectorRef}
                            style={{display: "none"}}/>
-                    <button onClick={() => fileSelectorRef.current.click()}>上传文件</button>
+                    <button
+                        onClick={() => {
+                            if (!permissions.upload_enabled) {
+                                alert('上传功能已被禁用');
+                                return;
+                            }
+                            fileSelectorRef.current.click();
+                        }}
+                        disabled={!permissions.upload_enabled}
+                    >上传文件</button>
                     <button>批量下载</button>
                 </div>
             </FileSharingStyle>

@@ -155,3 +155,83 @@ pub async fn set_upload_enabled(enabled: bool) -> Result<(), String> {
     log::info!("上传设置已更新为: {}", enabled);
     Ok(())
 }
+
+/// 获取重命名设置状态
+#[tauri::command]
+pub async fn get_rename_enabled() -> Result<bool, String> {
+    match config_dao::get_config_value("rename_enabled").await {
+        Ok(Some(value)) => {
+            let enabled = value.parse::<bool>().unwrap_or(false);
+            Ok(enabled)
+        }
+        Ok(None) => Ok(false),
+        Err(e) => {
+            log::warn!("获取重命名设置失败: {}", e);
+            Ok(false)
+        }
+    }
+}
+
+/// 设置重命名状态
+#[tauri::command]
+pub async fn set_rename_enabled(enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+
+    if let Err(e) = config_dao::set_config("rename_enabled", value).await {
+        log::error!("保存重命名设置到数据库失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+
+    log::info!("重命名设置已更新为: {}", enabled);
+    Ok(())
+}
+
+/// 获取删除设置状态
+#[tauri::command]
+pub async fn get_delete_enabled() -> Result<bool, String> {
+    match config_dao::get_config_value("delete_enabled").await {
+        Ok(Some(value)) => {
+            let enabled = value.parse::<bool>().unwrap_or(false);
+            Ok(enabled)
+        }
+        Ok(None) => Ok(false),
+        Err(e) => {
+            log::warn!("获取删除设置失败: {}", e);
+            Ok(false)
+        }
+    }
+}
+
+/// 设置删除状态
+#[tauri::command]
+pub async fn set_delete_enabled(enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+
+    if let Err(e) = config_dao::set_config("delete_enabled", value).await {
+        log::error!("保存删除设置到数据库失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+
+    log::info!("删除设置已更新为: {}", enabled);
+    Ok(())
+}
+
+/// 获取开机自启状态
+#[tauri::command]
+pub async fn get_autostart(app: tauri::AppHandle) -> Result<bool, String> {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch().is_enabled().map_err(|e| e.to_string())
+}
+
+/// 设置开机自启状态
+#[tauri::command]
+pub async fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    if enabled {
+        app.autolaunch().enable().map_err(|e| e.to_string())?;
+    } else {
+        app.autolaunch().disable().map_err(|e| e.to_string())?;
+    }
+    log::info!("开机自启已更新为: {}", enabled);
+    Ok(())
+}

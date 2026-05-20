@@ -90,7 +90,8 @@ button {
     box-sizing: border-box;
     flex-grow: 1;
     padding: 10px;
-    overflow: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
 }
 
 /* 更改Checkbox为开关的样式 */

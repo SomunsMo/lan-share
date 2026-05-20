@@ -10,13 +10,12 @@ use futures_util::stream::TryStreamExt;
 use http_body_util::BodyExt;
 use hyper::body::{Body, Incoming};
 use hyper::{header, Request, Response, StatusCode};
-use lan_share_http_macros::{get, post};
+use lan_share_http_macros::{delete, get, post, put};
 use log;
 use multer::Multipart;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::io;
-use std::iter::FromIterator;
 use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
 use tokio::fs;
@@ -472,4 +471,175 @@ fn create_error_response(status: StatusCode, msg: &str) -> Response<GenericRespo
         .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
         .body(body)
         .unwrap()
+}
+
+/// 重命名文件或文件夹
+#[put("/rename/file")]
+pub async fn rename_file(
+    _req: Request<Incoming>,
+    query_params: QueryParams,
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
+    // 检查重命名功能是否启用
+    let rename_enabled = match config_dao::get_config_value("rename_enabled").await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
+        Ok(None) => false,
+        Err(_) => false,
+    };
+
+    if !rename_enabled {
+        return error(StatusCode::FORBIDDEN, "文件重命名功能已被禁用");
+    }
+
+    // 解析查询参数
+    let dir_param = query_params.get("dir").map(|s| s.as_str()).unwrap_or("");
+    let old_name = match query_params.get("old_name") {
+        Some(name) if !name.is_empty() => name.clone(),
+        _ => return error(StatusCode::BAD_REQUEST, "缺少必填参数：old_name"),
+    };
+    let new_name = match query_params.get("new_name") {
+        Some(name) if !name.is_empty() => name.clone(),
+        _ => return error(StatusCode::BAD_REQUEST, "缺少必填参数：new_name"),
+    };
+
+    // 消毒新文件名
+    let safe_new_name = sanitize_filename(&new_name);
+    if safe_new_name.is_empty() {
+        return error(StatusCode::BAD_REQUEST, "新文件名不合法");
+    }
+
+    // 拼接路径
+    let root_dir = get_sharing_root().await;
+    let target_dir = if dir_param.is_empty() {
+        (*root_dir).clone()
+    } else {
+        let safe_path = sanitize_path_segment(dir_param);
+        (*root_dir).join(safe_path)
+    };
+
+    let old_path = target_dir.join(sanitize_filename(&old_name));
+    let new_path = target_dir.join(&safe_new_name);
+
+    // 验证原文件/文件夹存在
+    if !old_path.exists() {
+        return error(StatusCode::NOT_FOUND, &format!("文件或文件夹不存在：{}", old_name));
+    }
+
+    // 验证新名称不存在
+    if new_path.exists() {
+        return error(StatusCode::CONFLICT, &format!("目标名称已存在：{}", safe_new_name));
+    }
+
+    // 执行重命名
+    match fs::rename(&old_path, &new_path).await {
+        Ok(_) => {
+            log::info!("重命名成功: {} -> {}", old_name, safe_new_name);
+            success_json(())
+        }
+        Err(e) => {
+            log::error!("重命名失败: {}", e);
+            error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                &format!("重命名失败：{}", e),
+            )
+        }
+    }
+}
+
+/// 删除文件或文件夹
+#[delete("/delete/file")]
+pub async fn delete_file(
+    _req: Request<Incoming>,
+    query_params: QueryParams,
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
+    // 检查删除功能是否启用
+    let delete_enabled = match config_dao::get_config_value("delete_enabled").await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
+        Ok(None) => false,
+        Err(_) => false,
+    };
+
+    if !delete_enabled {
+        return error(StatusCode::FORBIDDEN, "文件删除功能已被禁用");
+    }
+
+    // 解析查询参数
+    let dir_param = query_params.get("dir").map(|s| s.as_str()).unwrap_or("");
+    let file_name = match query_params.get("file_name") {
+        Some(name) if !name.is_empty() => name.clone(),
+        _ => return error(StatusCode::BAD_REQUEST, "缺少必填参数：file_name"),
+    };
+
+    // 拼接路径
+    let root_dir = get_sharing_root().await;
+    let target_dir = if dir_param.is_empty() {
+        (*root_dir).clone()
+    } else {
+        let safe_path = sanitize_path_segment(dir_param);
+        (*root_dir).join(safe_path)
+    };
+
+    let safe_filename = sanitize_filename(&file_name);
+    let file_path = target_dir.join(&safe_filename);
+
+    // 验证文件/文件夹存在
+    let metadata = match tokio::fs::metadata(&file_path).await {
+        Ok(meta) => meta,
+        Err(_) => {
+            return error(StatusCode::NOT_FOUND, &format!("文件或文件夹不存在：{}", safe_filename));
+        }
+    };
+
+    // 执行删除
+    let result = if metadata.is_dir() {
+        fs::remove_dir_all(&file_path).await
+    } else {
+        fs::remove_file(&file_path).await
+    };
+
+    match result {
+        Ok(_) => {
+            log::info!("删除成功: {}", safe_filename);
+            success_json(())
+        }
+        Err(e) => {
+            log::error!("删除失败: {}", e);
+            error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                &format!("删除失败：{}", e),
+            )
+        }
+    }
+}
+
+/// 网页端权限配置
+#[derive(Serialize)]
+struct WebPermissions {
+    upload_enabled: bool,
+    rename_enabled: bool,
+    delete_enabled: bool,
+}
+
+/// 获取网页端权限配置
+#[get("/config/permissions")]
+pub async fn get_permissions(
+    _req: Request<Incoming>,
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
+    let upload_enabled = match config_dao::get_config_value("upload_enabled").await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
+        _ => false,
+    };
+    let rename_enabled = match config_dao::get_config_value("rename_enabled").await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
+        _ => false,
+    };
+    let delete_enabled = match config_dao::get_config_value("delete_enabled").await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
+        _ => false,
+    };
+
+    success_json(WebPermissions {
+        upload_enabled,
+        rename_enabled,
+        delete_enabled,
+    })
 }

@@ -29,7 +29,11 @@ const request = (options) => {
             // 如果请求的响应不正常，则返回完整响应
             return response;
         }, err => {
-            return err;
+            // 从服务端响应中提取错误信息
+            if (err.response && err.response.data) {
+                return Promise.reject(err.response.data);
+            }
+            return Promise.reject(err);
         })
 
 

@@ -6,7 +6,10 @@ import Card from "../../components/card/Card.js";
 
 function Settings() {
     const [selectedDirectory, setSelectedDirectory] = useState("点击选择目录");
-    const [uploadEnabled, setUploadEnabled] = useState(false); // 默认禁止上传
+    const [uploadEnabled, setUploadEnabled] = useState(false);
+    const [renameEnabled, setRenameEnabled] = useState(false);
+    const [deleteEnabled, setDeleteEnabled] = useState(false);
+    const [autostartEnabled, setAutostartEnabled] = useState(false);
 
     // 每次组件渲染时获取当前共享目录和上传设置
     useEffect(() => {
@@ -27,14 +30,50 @@ function Settings() {
                 setUploadEnabled(enabled);
             } catch (error) {
                 console.error('获取上传设置失败:', error);
-                // 出错时默认启用上传
-                setUploadEnabled(true);
+                setUploadEnabled(false);
+            }
+        };
+
+        const fetchRenameSetting = async () => {
+            try {
+                const enabled = await invoke('get_rename_enabled');
+                console.log('当前重命名设置是:', enabled);
+                setRenameEnabled(enabled);
+            } catch (error) {
+                console.error('获取重命名设置失败:', error);
+                setRenameEnabled(false);
+            }
+        };
+
+        const fetchDeleteSetting = async () => {
+            try {
+                const enabled = await invoke('get_delete_enabled');
+                console.log('当前删除设置是:', enabled);
+                setDeleteEnabled(enabled);
+            } catch (error) {
+                console.error('获取删除设置失败:', error);
+                setDeleteEnabled(false);
             }
         };
 
         fetchCurrentDirectory();
         fetchUploadSetting();
-    }, []); // 只在组件挂载时获取，但我们也会在selectDirectory函数中更新状态
+        fetchRenameSetting();
+        fetchDeleteSetting();
+
+        const fetchAutostartSetting = async () => {
+            try {
+                const enabled = await invoke('get_autostart');
+                console.log('当前开机自启设置是:', enabled);
+                setAutostartEnabled(enabled);
+            } catch (error) {
+                console.error('获取开机自启设置失败:', error);
+                setAutostartEnabled(false);
+            }
+        };
+
+        fetchAutostartSetting();
+    }, []);
 
 
     const clearText = () => {
@@ -78,9 +117,53 @@ function Settings() {
             console.log('上传设置已更新:', checked);
         } catch (error) {
             console.error('保存上传设置失败:', error);
-            // 如果保存失败，恢复之前的值
             setUploadEnabled(!checked);
             alert('保存上传设置失败: ' + error.message);
+        }
+    };
+
+    // 处理重命名设置变更
+    const handleRenameChange = async (event) => {
+        const checked = event.target.checked;
+        setRenameEnabled(checked);
+
+        try {
+            await invoke('set_rename_enabled', {enabled: checked});
+            console.log('重命名设置已更新:', checked);
+        } catch (error) {
+            console.error('保存重命名设置失败:', error);
+            setRenameEnabled(!checked);
+            alert('保存重命名设置失败: ' + error.message);
+        }
+    };
+
+    // 处理删除设置变更
+    const handleDeleteChange = async (event) => {
+        const checked = event.target.checked;
+        setDeleteEnabled(checked);
+
+        try {
+            await invoke('set_delete_enabled', {enabled: checked});
+            console.log('删除设置已更新:', checked);
+        } catch (error) {
+            console.error('保存删除设置失败:', error);
+            setDeleteEnabled(!checked);
+            alert('保存删除设置失败: ' + error.message);
+        }
+    };
+
+    // 处理开机自启变更
+    const handleAutostartChange = async (event) => {
+        const checked = event.target.checked;
+        setAutostartEnabled(checked);
+
+        try {
+            await invoke('set_autostart', {enabled: checked});
+            console.log('开机自启设置已更新:', checked);
+        } catch (error) {
+            console.error('保存开机自启设置失败:', error);
+            setAutostartEnabled(!checked);
+            alert('保存开机自启设置失败: ' + error.message);
         }
     };
 
@@ -99,8 +182,8 @@ function Settings() {
                     content: (
                         <input
                             type="checkbox"
-                            checked={uploadEnabled}
-                            onChange={handleUploadChange}
+                            checked={autostartEnabled}
+                            onChange={handleAutostartChange}
                         />
                     ),
                 },
@@ -123,7 +206,7 @@ function Settings() {
                     ),
                 },
                 {
-                    name: "客户端上传文件",
+                    name: "网页端上传",
                     content: (
                         <input
                             type="checkbox"
@@ -133,28 +216,28 @@ function Settings() {
                     ),
                 },
                 {
-                    name: "客户端重命名文件",
+                    name: "网页端重命名",
                     content: (
                         <input
                             type="checkbox"
-                            checked={uploadEnabled}
-                            onChange={handleUploadChange}
+                            checked={renameEnabled}
+                            onChange={handleRenameChange}
                         />
                     ),
                 },
                 {
-                    name: "客户端删除文件",
+                    name: "网页端删除",
                     content: (
                         <input
                             type="checkbox"
-                            checked={uploadEnabled}
-                            onChange={handleUploadChange}
+                            checked={deleteEnabled}
+                            onChange={handleDeleteChange}
                         />
                     ),
                 }
             ]
         }, {
-            name: "数据清理",
+            name: "数据清除",
             options: [
                 {
                     name: "文本记录",

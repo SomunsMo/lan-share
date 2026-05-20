@@ -11,6 +11,12 @@ pub fn get_cmd_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
         system::set_sharing_directory,
         system::get_sharing_directory,
         system::get_upload_enabled,
-        system::set_upload_enabled
+        system::set_upload_enabled,
+        system::get_rename_enabled,
+        system::set_rename_enabled,
+        system::get_delete_enabled,
+        system::set_delete_enabled,
+        system::get_autostart,
+        system::set_autostart
     ]
 }

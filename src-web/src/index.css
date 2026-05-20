@@ -1,3 +1,24 @@
+html {
+    overflow-y: auto;
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}
+
 :root {
     font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
 
@@ -103,7 +124,28 @@ hr {
 
 /*当系统为浅色模式时的样式*/
 @media (prefers-color-scheme: light) {
-    :root {
+    html {
+    overflow-y: auto;
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}
+
+:root {
         color: #213547;
         background-color: #ffffff;
     }

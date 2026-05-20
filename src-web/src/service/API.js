@@ -40,3 +40,34 @@ export const uploadFileAPI = (file, dir, onUploadProgress) => {
         onUploadProgress: onUploadProgress
     })
 }
+
+// 重命名文件或文件夹
+export const renameFileAPI = (dir, oldName, newName) => {
+    const params = new URLSearchParams();
+    if (dir) params.append("dir", dir);
+    params.append("old_name", oldName);
+    params.append("new_name", newName);
+    return request({
+        method: "PUT",
+        url: `/rename/file?${params.toString()}`
+    });
+}
+
+// 删除文件或文件夹
+export const deleteFileAPI = (dir, fileName) => {
+    const params = new URLSearchParams();
+    if (dir) params.append("dir", dir);
+    params.append("file_name", fileName);
+    return request({
+        method: "DELETE",
+        url: `/delete/file?${params.toString()}`
+    });
+}
+
+// 获取网页端权限配置
+export const getPermissionsAPI = () => {
+    return request({
+        method: "GET",
+        url: "/config/permissions"
+    });
+}

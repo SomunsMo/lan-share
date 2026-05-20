@@ -58,3 +58,4 @@ lan-share-http-macros = { workspace = true }
 mime_guess = "2.0.5"
 ctor = "0.6.0"
 tauri-plugin-single-instance = "2"
+tauri-plugin-autostart = "2"

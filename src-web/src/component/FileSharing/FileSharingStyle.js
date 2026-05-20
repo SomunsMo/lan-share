@@ -97,6 +97,11 @@ const FileSharingStyle = styled.div`
         gap: 10px;
 
         justify-content: center;
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     }
 
 `;

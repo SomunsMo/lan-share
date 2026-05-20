@@ -44,6 +44,7 @@ pub fn error(
     let body = GenericResponseBody::String(res_json);
 
     let mut response = Response::new(body);
+    *response.status_mut() = status;
     response.headers_mut().insert(
         header::CONTENT_TYPE,
         "application/json; charset=utf-8".parse().unwrap(),
