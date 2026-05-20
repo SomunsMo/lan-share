@@ -28,7 +28,7 @@ export const getFileSharingAPI = (dir) => {
 }
 
 // 上传文件
-export const uploadFileAPI = (file, dir) => {
+export const uploadFileAPI = (file, dir, onUploadProgress) => {
     const url = dir ? `/upload/file?dir=${encodeURIComponent(dir)}` : "/upload/file";
     return request({
         method: "POST",
@@ -36,6 +36,7 @@ export const uploadFileAPI = (file, dir) => {
         data: file,
         headers: {
             "Content-Type": "multipart/form-data",
-        }
+        },
+        onUploadProgress: onUploadProgress
     })
 }

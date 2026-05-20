@@ -39,8 +39,8 @@ pub mod utils {
 
 pub mod tray;
 
-use tauri::Manager;
 use log::error;
+use tauri::Manager;
 
 // 导出宏
 pub use lan_share_http_macros::{delete, get, post, put, request};
@@ -156,14 +156,14 @@ pub fn run() {
         .setup(|app| {
             // 构建系统托盘
             tray::create_tray_menu(&app.handle());
-            
+
             // 初始化共享根目录
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = crate::config::config::init_sharing_root_from_config().await {
                     error!("初始化共享根目录失败: {}", e);
                 }
             });
-            
+
             Ok(())
         })
         .on_menu_event(|app, event| {

@@ -2,10 +2,7 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{
-    parse_macro_input, FnArg, Ident, ItemFn, Pat, ReturnType, Type, TypePath, PathArguments, 
-    GenericArgument, Path, PathSegment
-};
+use syn::{parse_macro_input, FnArg, Ident, ItemFn, ReturnType, Type, TypePath};
 
 // 检查类型是否为特定类型
 fn is_type_matching(ty: &Type, module_segments: &[&str], target_name: &str) -> bool {
@@ -44,8 +41,6 @@ fn is_body_data_type(ty: &Type) -> bool {
     is_type_matching(ty, &[], "BodyData")
 }
 
-
-
 // 通用的属性宏处理函数
 fn http_method_macro(attr: TokenStream, item: TokenStream, method: Option<&str>) -> TokenStream {
     // 解析路径属性
@@ -78,10 +73,10 @@ fn http_method_macro(attr: TokenStream, item: TokenStream, method: Option<&str>)
             if let FnArg::Typed(pt) = arg {
                 let pat = &pt.pat;
                 let ty = &pt.ty;
-                
+
                 // 生成参数名称
                 let param_name = Ident::new(&format!("__param{}", i), fn_name.span());
-                
+
                 // 根据参数类型生成不同的注入代码
                 let param_decl = if is_query_params_type(ty) {
                     // 如果是 QueryParams 类型
@@ -105,14 +100,14 @@ fn http_method_macro(attr: TokenStream, item: TokenStream, method: Option<&str>)
                         }
                     }
                 };
-                
+
                 // 对于 Request 参数，我们直接使用 req 变量；对于其他参数，使用生成的变量
                 let param_call = if is_type_matching(ty, &[], "Request") {
                     quote! { req }
                 } else {
                     quote! { #param_name }
                 };
-                
+
                 (param_decl, param_call)
             } else {
                 panic!("Only typed arguments are supported");
@@ -125,7 +120,7 @@ fn http_method_macro(attr: TokenStream, item: TokenStream, method: Option<&str>)
         ReturnType::Type(_, ty) => quote! { #ty },
         ReturnType::Default => quote! { () },
     };
-    
+
     // 检查输出类型是否为Result，并包含std::convert::Infallible作为错误类型
     // 这是为了确保错误处理与函数签名匹配
 
@@ -154,7 +149,7 @@ fn http_method_macro(attr: TokenStream, item: TokenStream, method: Option<&str>)
         #input
 
         #[allow(non_snake_case)]
-        fn #wrapper_fn_name(mut req: ::hyper::Request<::hyper::body::Incoming>) -> 
+        fn #wrapper_fn_name(mut req: ::hyper::Request<::hyper::body::Incoming>) ->
             std::pin::Pin<Box<dyn std::future::Future<Output = #output_type> + Send>>
         {
             Box::pin(async move {

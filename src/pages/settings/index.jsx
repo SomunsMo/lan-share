@@ -94,7 +94,21 @@ function Settings() {
                 {
                     name: "Http Server端口",
                     content: <input type="number" value={3000}/>,
+                }, {
+                    name: "开机自启",
+                    content: (
+                        <input
+                            type="checkbox"
+                            checked={uploadEnabled}
+                            onChange={handleUploadChange}
+                        />
+                    ),
                 },
+            ]
+        },
+        {
+            name: "共享",
+            options: [
                 {
                     name: "共享根目录",
                     // content: <input type="text" value={"F:/"}/>,
@@ -109,7 +123,27 @@ function Settings() {
                     ),
                 },
                 {
-                    name: "是否可上传文件",
+                    name: "客户端上传文件",
+                    content: (
+                        <input
+                            type="checkbox"
+                            checked={uploadEnabled}
+                            onChange={handleUploadChange}
+                        />
+                    ),
+                },
+                {
+                    name: "客户端重命名文件",
+                    content: (
+                        <input
+                            type="checkbox"
+                            checked={uploadEnabled}
+                            onChange={handleUploadChange}
+                        />
+                    ),
+                },
+                {
+                    name: "客户端删除文件",
                     content: (
                         <input
                             type="checkbox"
@@ -119,8 +153,7 @@ function Settings() {
                     ),
                 }
             ]
-        },
-        {
+        }, {
             name: "数据清理",
             options: [
                 {

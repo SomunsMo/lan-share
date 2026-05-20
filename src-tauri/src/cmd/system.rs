@@ -1,7 +1,5 @@
 use crate::db::dao::config_dao;
 use crate::db::dao::upload_dao;
-use crate::db::sqlite::get_pool;
-use std::net::IpAddr;
 
 /// 获取本机内网IP
 #[tauri::command]

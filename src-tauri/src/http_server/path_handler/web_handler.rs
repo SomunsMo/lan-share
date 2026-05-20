@@ -28,22 +28,8 @@ pub async fn web_handler(
     {
         Some(html_content) => success(html_content),
         None => {
-            // 如果文件不存在，返回默认的关于页面
-            let html_content = r#"
-                        <!DOCTYPE html>
-                        <html>
-                        <head>
-                            <title>关于我们</title>
-                        </head>
-                        <body>
-                            <h1>关于我们</h1>
-                            <p>这是关于页面</p>
-                            <a href="/">返回首页</a>
-                        </body>
-                        </html>
-                    "#
-            .to_string();
-
+            // 文件不存在，返回404
+            let html_content = "404".to_string();
             success(html_content)
         }
     }

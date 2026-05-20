@@ -33,7 +33,13 @@ const request = (options) => {
         })
 
 
-        instance(options).then(res => {
+        // 将选项中的onUploadProgress传递给axios实例
+        const axiosOptions = {
+            ...options,
+            onUploadProgress: options.onUploadProgress
+        };
+        
+        instance(axiosOptions).then(res => {
             resolve(res);
         }).catch(err => {
             reject(err);

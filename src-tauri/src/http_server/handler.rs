@@ -1,10 +1,8 @@
 use crate::normalizer::path_normalizer::path_normalizer;
-use http_body_util::Full;
 use hyper::body::{Body, Bytes, Incoming};
-use hyper::{Method, Request, Response, StatusCode};
+use hyper::{Method, Request, Response};
 use std::collections::HashMap;
 use std::convert::Infallible;
-use std::error::Error;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{LazyLock, RwLock};

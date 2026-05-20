@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import FileSharingStyle from "./FileSharingStyle.js";
 import Card from "../Card/Card.js";
+import ProgressBar from "../ProgressBar/ProgressBar.jsx";
 import {getFileSharingAPI, uploadFileAPI} from "@/service/API.js";
 import {formatFileSize, getFileSuffix} from "@/util/file.js";
 import FolderIcon from '@/assets/icon/folder.svg';
@@ -100,6 +101,9 @@ function FileSharing() {
     // 将要上传的文件列表
     const [filesToUpload, setFilesToUpload] = useState([]);
 
+    // 上传进度列表
+    const [uploadProgresses, setUploadProgresses] = useState([]);
+
     const preprocessSharedFileList = (sfl) => {
         sfl.forEach(v => {
             if (v.is_dir) {
@@ -154,6 +158,35 @@ function FileSharing() {
         }
     }
 
+    // 添加或更新进度条
+    const updateProgress = (id, title, percent, description = '', status = '上传中') => {
+        setUploadProgresses(prev => {
+            const existingIndex = prev.findIndex(p => p.id === id);
+            const newProgress = {
+                id,
+                title,
+                percent,
+                description,
+                status
+            };
+            
+            if (existingIndex >= 0) {
+                // 更新现有进度
+                const updated = [...prev];
+                updated[existingIndex] = newProgress;
+                return updated;
+            } else {
+                // 添加新的进度条
+                return [...prev, newProgress];
+            }
+        });
+    };
+
+    // 移除进度条
+    const removeProgress = (id) => {
+        setUploadProgresses(prev => prev.filter(p => p.id !== id));
+    };
+
     useEffect(() => {
 
         let currentDir = getCurrentDir();
@@ -187,11 +220,13 @@ function FileSharing() {
         // 清除input的选择（防止下次选择同一个文件不响应onChange）
         fileSelectorRef.current.value = '';
 
-        // 显示上传进度提示
 
         // 逐个上传文件，避免并发问题
         for (const file of files) {
             try {
+                // 为每个文件创建唯一的进度ID
+                const fileId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                
                 // 获取当前目录作为上传目录
                 const currentDir = getCurrentDir();
                 
@@ -199,19 +234,48 @@ function FileSharing() {
                 let formData = new FormData();
                 formData.append("file", file);
                 
-                // 上传文件到当前目录
-                const res = await uploadFileAPI(formData, currentDir || "");
+                // 创建上传进度条
+                updateProgress(fileId, `上传文件: ${file.name}`, 0, `正在上传 ${file.name}`, '准备上传');
+                
+                // 上传文件到当前目录，添加进度事件监听
+                const res = await uploadFileAPI(formData, currentDir || "", (progressEvent) => {
+                    if (progressEvent.total) {
+                        const percentCompleted = Math.round(
+                            (progressEvent.loaded * 100) / progressEvent.total
+                        );
+                        updateProgress(fileId, `上传文件: ${file.name}`, percentCompleted, 
+                            `已上传 ${(progressEvent.loaded / 1024 / 1024).toFixed(2)}MB / ${(progressEvent.total / 1024 / 1024).toFixed(2)}MB`, 
+                            '上传中');
+                    }
+                });
+                
                 console.log("文件上传结果：", res);
+                
+                // 上传完成后更新进度条状态
+                updateProgress(fileId, `上传文件: ${file.name}`, 100, `文件 ${file.name} 上传完成`, '上传完成');
+                
+                // 2秒后自动移除进度条
+                setTimeout(() => {
+                    removeProgress(fileId);
+                }, 2000);
                 
                 // 刷新文件列表以显示新上传的文件
                 await flushSharedFileList(currentDir ? currentDir : "");
             } catch (error) {
                 console.error('文件上传失败:', file.name, error);
+                
+                // 显示错误信息
+                const fileId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                updateProgress(fileId, `上传文件: ${file.name}`, 0, `文件 ${file.name} 上传失败`, '上传失败');
+                
+                // 3秒后移除错误进度条
+                setTimeout(() => {
+                    removeProgress(fileId);
+                }, 3000);
+                
                 alert(`文件 ${file.name} 上传失败: ${error.message || '未知错误'}`);
             }
         }
-        
-        alert('文件上传完成！');
     }
 
     const itemDoubleClickHandler = async (item) => {
@@ -258,8 +322,9 @@ function FileSharing() {
 
     return (
         <Card>
+            {uploadProgresses.length > 0 && <ProgressBar progresses={uploadProgresses} />}
             <FileSharingStyle>
-                <div className={"fileList"}>
+                <div className="fileList">
                     <table className={"fileTable"}>
                         <colgroup>
                             <col width={"40px"}/>
@@ -305,7 +370,7 @@ function FileSharing() {
                     </table>
                 </div>
 
-                <div className={"batchActions"}>
+                <div className="batchActions">
                     <input type={"file"}
                            multiple
                            onChange={fileSelectorHandler}

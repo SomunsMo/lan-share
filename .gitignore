@@ -25,3 +25,4 @@ dist-ssr
 *.iml
 src-tauri/target/
 target
+/.qoder/rules/default.md
