@@ -308,12 +308,26 @@ pub async fn upload_file(
 }
 
 /// 文件名消毒函数
+/// 根据不同平台排除文件系统危险字符，保留合法的Unicode字符
 fn sanitize_filename(filename: &str) -> String {
-    filename
+    // Unix-like 系统仅不允许 / 和 \0
+    #[cfg(not(target_os = "windows"))]
+    let dangerous_chars = ['/', '\0'];
+
+    // Windows 文件系统不允许的字符: \ / : * ? " < > |
+    #[cfg(target_os = "windows")]
+    let dangerous_chars = ['\\', '/', ':', '*', '?', '"', '<', '>', '|', '\0'];
+
+    let result_filename = filename
         .chars()
-        // 只
-        .filter(|c| c.is_ascii_alphanumeric() || *c == '.' || *c == '-' || *c == '_')
-        .collect()
+        .filter(|c| !dangerous_chars.contains(c))
+        .collect();
+
+    if filename != result_filename {
+        log::info!("文件名被处理 [{}] -> [{}]", filename, result_filename);
+    }
+
+    result_filename
 }
 
 /// 路径段消毒函数，防止路径遍历攻击
