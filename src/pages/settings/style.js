@@ -41,5 +41,14 @@ const SettingsStyle = styled.div`
         text-decoration: underline;
     }
 
+    .port-text {
+        cursor: pointer;
+        display: inline-block;
+    }
+
+    .port-text:hover {
+        text-decoration: underline;
+    }
+
 `
 export default SettingsStyle;

@@ -235,3 +235,43 @@ pub async fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), S
     log::info!("开机自启已更新为: {}", enabled);
     Ok(())
 }
+
+/// 获取HTTP服务配置端口（可能还未生效，重启后才生效）
+#[tauri::command]
+pub async fn get_http_port() -> Result<u16, String> {
+    match config_dao::get_config_value("http_port").await {
+        Ok(Some(value)) => {
+            let port = value.parse::<u16>().unwrap_or(3000);
+            Ok(port)
+        }
+        Ok(None) => Ok(3000),
+        Err(e) => {
+            log::warn!("获取HTTP端口设置失败: {}", e);
+            Ok(3000)
+        }
+    }
+}
+
+/// 获取当前HTTP服务正在运行的端口
+#[tauri::command]
+pub fn get_running_port() -> u16 {
+    *crate::config::config::get_running_http_port()
+}
+
+/// 设置HTTP服务端口
+#[tauri::command]
+pub async fn set_http_port(port: u16) -> Result<(), String> {
+    if port == 0 || port > 65535 {
+        return Err("端口号必须在 1-65535 之间".to_string());
+    }
+
+    if let Err(e) = config_dao::set_config("http_port", &port.to_string()).await {
+        log::error!("保存HTTP端口设置到数据库失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+
+    log::info!("HTTP端口设置已更新为: {}", port);
+    Ok(())
+}
+
+

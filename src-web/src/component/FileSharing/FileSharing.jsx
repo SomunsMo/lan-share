@@ -243,13 +243,11 @@ function FileSharing() {
 
         // 逐个上传文件，避免并发问题
         for (const file of files) {
+            // 为每个文件创建唯一的进度ID（在try外部声明，catch中可复用）
+            const fileId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const currentDir = getCurrentDir();
+
             try {
-                // 为每个文件创建唯一的进度ID
-                const fileId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                
-                // 获取当前目录作为上传目录
-                const currentDir = getCurrentDir();
-                
                 // 文件Form表单
                 let formData = new FormData();
                 formData.append("file", file);
@@ -296,8 +294,7 @@ function FileSharing() {
                 // 提取服务端返回的错误信息
                 const errorMsg = error.status || error.message || '未知错误';
 
-                // 显示错误信息
-                const fileId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                // 复用同一个fileId更新进度条为失败状态
                 updateProgress(fileId, `上传文件: ${file.name}`, 0, `文件 ${file.name} 上传失败`, '上传失败');
                 
                 // 3秒后移除错误进度条

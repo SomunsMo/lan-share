@@ -51,6 +51,7 @@ const AppStyle = styled.div`
             height: 200px;
             opacity: 0;
             visibility: hidden;
+            pointer-events: none;
             transform: scale(0.8);
             transition: all 0.3s ease-out;
             transition-delay: 618ms;
@@ -90,6 +91,7 @@ const AppStyle = styled.div`
     .qrPopupContainer:hover {
         opacity: 1;
         visibility: visible;
+        pointer-events: auto;
         transform: scale(1);
         transition: all 150ms ease-in;
         transition-delay: 0ms;

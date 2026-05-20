@@ -10,6 +10,7 @@ function Settings() {
     const [renameEnabled, setRenameEnabled] = useState(false);
     const [deleteEnabled, setDeleteEnabled] = useState(false);
     const [autostartEnabled, setAutostartEnabled] = useState(false);
+    const [httpPort, setHttpPort] = useState(3000);
 
     // 每次组件渲染时获取当前共享目录和上传设置
     useEffect(() => {
@@ -73,13 +74,51 @@ function Settings() {
         };
 
         fetchAutostartSetting();
+
+        const fetchHttpPort = async () => {
+            try {
+                const port = await invoke('get_http_port');
+                console.log('当前HTTP端口设置是:', port);
+                setHttpPort(port);
+            } catch (error) {
+                console.error('获取HTTP端口设置失败:', error);
+                setHttpPort(3000);
+            }
+        };
+
+        fetchHttpPort();
     }, []);
 
 
     const clearText = () => {
+        if (!window.confirm('确定要清空所有文本记录吗？此操作不可撤销。')) return;
         let resultCount = invoke("clear_sharing_text");
         console.log("清空共享文本成功：", resultCount);
     }
+
+    // 处理端口变更（点击后弹出输入框）
+    const handlePortClick = async () => {
+        const input = window.prompt('请输入新的端口号（1-65535）：', httpPort.toString());
+        if (input === null) return; // 用户取消
+
+        const newPort = parseInt(input, 10);
+        if (isNaN(newPort) || newPort < 1 || newPort > 65535) {
+            alert('端口号无效，请输入 1-65535 之间的数字');
+            return;
+        }
+
+        if (newPort === httpPort) return; // 端口未变化
+
+        try {
+            await invoke('set_http_port', {port: newPort});
+            setHttpPort(newPort);
+            console.log('HTTP端口设置已更新:', newPort);
+            alert('端口设置已保存，重启应用后生效');
+        } catch (error) {
+            console.error('保存HTTP端口设置失败:', error);
+            alert('保存端口设置失败: ' + error);
+        }
+    };
 
     const selectDirectory = async () => {
         try {
@@ -176,7 +215,15 @@ function Settings() {
             options: [
                 {
                     name: "Http Server端口",
-                    content: <input type="number" value={3000}/>,
+                    content: (
+                        <span
+                            className="port-text"
+                            onClick={handlePortClick}
+                            title="点击修改端口"
+                        >
+                            {httpPort}
+                        </span>
+                    ),
                 }, {
                     name: "开机自启",
                     content: (
@@ -245,7 +292,11 @@ function Settings() {
                 },
                 {
                     name: "文件记录",
-                    content: <button className={"clear-text"}>清空</button>,
+                    content: <button className={"clear-text"} onClick={() => {
+                        if (window.confirm('确定要清空所有文件记录吗？此操作不可撤销。')) {
+                            console.log('清空文件记录（功能待实现）');
+                        }
+                    }}>清空</button>,
                 }
             ]
         },

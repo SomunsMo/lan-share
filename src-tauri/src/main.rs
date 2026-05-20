@@ -4,8 +4,8 @@
 use colored::Colorize;
 use directories::BaseDirs;
 use env_logger::{Builder, Env};
-use lan_share_lib::config::config::{get_config_dir, CONFIG_DIR, FILE_SHARING_ROOT_DIR};
-use lan_share_lib::db::dao::config_dao::get_config;
+use lan_share_lib::config::config::{get_config_dir, CONFIG_DIR};
+use lan_share_lib::db::dao::config_dao;
 use lan_share_lib::db::sqlite;
 use lan_share_lib::http_server;
 use log::Level;
@@ -21,7 +21,15 @@ async fn main() {
 
     // 异步启动HttpServer
     spawn(async move {
-        http_server::http_server::start_server(3000)
+        let port = config_dao::get_config_value("http_port")
+            .await
+            .ok()
+            .flatten()
+            .and_then(|v| v.parse::<u16>().ok())
+            .unwrap_or(3000);
+        // 记录当前运行端口（重启后才变更）
+        let _ = lan_share_lib::config::config::RUNNING_HTTP_PORT.set(port);
+        http_server::http_server::start_server(port)
             .await
             .expect("HTTP Server startup failed");
     });
@@ -52,7 +60,7 @@ async fn init() {
     // ====================【↓DB初始化后才能执行的代码】====================
 
     //TODO 文件共享根目录 - 使用新的初始化方法
-    let fs_rd = get_config("file_sharing_root_dir")
+    let fs_rd = config_dao::get_config("file_sharing_root_dir")
         .await
         .map(|cfg| PathBuf::from(cfg.cfg_value)) // 直接转换
         .unwrap_or_else(|e| {

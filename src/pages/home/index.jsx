@@ -12,10 +12,11 @@ function Home() {
         });
     }, []);
 
-    // 获取本机IP
+    // 获取本机IP和当前运行端口
     const getLocalIp = async () => {
         const ip = await invoke("get_local_ip");
-        setWebUrl(`http://${ip}:3000/web`);
+        const port = await invoke("get_running_port");
+        setWebUrl(`http://${ip}:${port}/web`);
 
         console.log("得到本机IP:", ip);
     }

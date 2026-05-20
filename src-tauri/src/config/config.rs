@@ -9,6 +9,12 @@ pub fn get_config_dir() -> &'static PathBuf {
     CONFIG_DIR.get().unwrap()
 }
 
+/// 当前HTTP服务运行端口（启动时设定，重启后才变更）
+pub static RUNNING_HTTP_PORT: OnceLock<u16> = OnceLock::new();
+pub fn get_running_http_port() -> &'static u16 {
+    RUNNING_HTTP_PORT.get().unwrap_or(&3000)
+}
+
 lazy_static::lazy_static! {
     /// 文件共享根目录  
     /// **注意：用户不能访问当前目录的更高级目录**
