@@ -13,9 +13,9 @@ dist-ssr
 *.local
 
 # Editor directories and files
-.vscode/*
-!.vscode/extensions.json
 .idea
+.qoder
+.vscode
 .DS_Store
 *.suo
 *.ntvs*
@@ -25,4 +25,3 @@ dist-ssr
 *.iml
 src-tauri/target/
 target
-/.qoder/rules/default.md
