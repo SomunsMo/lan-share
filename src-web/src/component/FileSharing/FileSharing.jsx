@@ -4,6 +4,8 @@ import Card from "../Card/Card.js";
 import ProgressBar from "../ProgressBar/ProgressBar.jsx";
 import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, getPermissionsAPI} from "@/service/API.js";
 import {formatFileSize, getFileSuffix} from "@/util/file.js";
+import {useToast} from "@/component/Toast/index.jsx";
+import {useDialog} from "@/component/Dialog/index.jsx";
 import FolderIcon from '@/assets/icon/folder.svg';
 import CodeIcon from '@/assets/icon/code.svg';
 import DocIcon from '@/assets/icon/doc.svg';
@@ -92,6 +94,8 @@ const getFileIcon = (suffix) => {
 function FileSharing() {
     // 文件选择器元素
     const fileSelectorRef = useRef(null);
+    const { showToast } = useToast();
+    const { showDialog } = useDialog();
     // 被共享的文件列表
     const [sharedFileList, setSharedFileList] = useState([
         {is_dir: true, modified: "1729437814", name: "TestFolder", size: 0},
@@ -274,7 +278,7 @@ function FileSharing() {
                     const errorMsg = res.status || '未知错误';
                     updateProgress(fileId, `上传文件: ${file.name}`, 0, `文件 ${file.name} 上传失败`, '上传失败');
                     setTimeout(() => { removeProgress(fileId); }, 3000);
-                    alert(`文件 ${file.name} 上传失败: ${errorMsg}`);
+                    showToast({ message: `文件 ${file.name} 上传失败: ${errorMsg}`, type: 'error' });
                     continue;
                 }
 
@@ -302,7 +306,7 @@ function FileSharing() {
                     removeProgress(fileId);
                 }, 3000);
                 
-                alert(`文件 ${file.name} 上传失败: ${errorMsg}`);
+                showToast({ message: `文件 ${file.name} 上传失败: ${errorMsg}`, type: 'error' });
             }
         }
     }
@@ -345,13 +349,17 @@ function FileSharing() {
             window.open(downloadUrl, '_blank');
         } catch (error) {
             console.error('文件下载失败:', error);
-            alert('文件下载失败: ' + (error.message || '未知错误'));
+            showToast({ message: '文件下载失败: ' + (error.message || '未知错误'), type: 'error' });
         }
     }
 
     // 重命名文件或文件夹
     const renameFile = async (v) => {
-        const newName = prompt('请输入新名称：', v.name);
+        const newName = await showDialog({
+            title: '重命名',
+            content: `请输入新名称：`,
+            input: { defaultValue: v.name, placeholder: '请输入新名称' },
+        });
         if (!newName || newName === v.name) return;
 
         const currentDir = getCurrentDir();
@@ -359,12 +367,13 @@ function FileSharing() {
             const res = await renameFileAPI(currentDir || '', v.name, newName);
             if (res.code === 200) {
                 await flushSharedFileList(currentDir || '');
+                showToast({ message: '重命名成功', type: 'success' });
             } else {
-                alert('重命名失败: ' + (res.status || '未知错误'));
+                showToast({ message: '重命名失败: ' + (res.status || '未知错误'), type: 'error' });
             }
         } catch (error) {
             console.error('重命名失败:', error);
-            alert('重命名失败: ' + (error.status || error.message || '未知错误'));
+            showToast({ message: '重命名失败: ' + (error.status || error.message || '未知错误'), type: 'error' });
         }
     }
 
@@ -374,19 +383,28 @@ function FileSharing() {
             ? `确定要删除文件夹 "${v.name}" 及其所有内容吗？`
             : `确定要删除文件 "${v.name}" 吗？`;
 
-        if (!window.confirm(confirmMsg)) return;
+        const confirmed = await showDialog({
+            title: '确认删除',
+            content: confirmMsg,
+            buttons: [
+                { label: '取消', value: false },
+                { label: '删除', value: true, primary: true, danger: true },
+            ],
+        });
+        if (!confirmed) return;
 
         const currentDir = getCurrentDir();
         try {
             const res = await deleteFileAPI(currentDir || '', v.name);
             if (res.code === 200) {
                 await flushSharedFileList(currentDir || '');
+                showToast({ message: '删除成功', type: 'success' });
             } else {
-                alert('删除失败: ' + (res.status || '未知错误'));
+                showToast({ message: '删除失败: ' + (res.status || '未知错误'), type: 'error' });
             }
         } catch (error) {
             console.error('删除失败:', error);
-            alert('删除失败: ' + (error.status || error.message || '未知错误'));
+            showToast({ message: '删除失败: ' + (error.status || error.message || '未知错误'), type: 'error' });
         }
     }
 
@@ -450,7 +468,7 @@ function FileSharing() {
                     <button
                         onClick={() => {
                             if (!permissions.upload_enabled) {
-                                alert('上传功能已被禁用');
+                                showToast({ message: '上传功能已被禁用', type: 'warning' });
                                 return;
                             }
                             fileSelectorRef.current.click();

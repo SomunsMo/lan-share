@@ -3,6 +3,8 @@ import FileSharing from "./component/FileSharing/index.js";
 import {QRCodeSVG} from "qrcode.react";
 import TextSharing from "./component/TextSharing/TextSharing.jsx";
 import BarcodeIconSvg from './assets/icon/barcode.svg';
+import { DialogProvider } from "./component/Dialog/index.jsx";
+import { ToastProvider } from "./component/Toast/index.jsx";
 
 function App() {
 
@@ -12,27 +14,30 @@ function App() {
     }
 
     return (
-        <AppStyle>
-            <main>
-                <h1 className="appTitle">LAN Share</h1>
-                <p className="appSubtitle">基于HTTP的局域网文件传输工具</p>
-                <div className="qrCodeArea">
-                    <img className="qrIcon" src={BarcodeIconSvg} alt="二维码"/>
-                    <div className="qrPopupContainer">
-                        <div className="qrContentWrapper">
-                            <QRCodeSVG className="qrImage" value={getQrCodeUrl()} fgColor="#213547"/>
-                            <p className="qrUrlDisplay">{getQrCodeUrl()}</p>
+        <DialogProvider>
+            <ToastProvider>
+                <AppStyle>
+                    <main>
+                        <h1 className="appTitle">LAN Share</h1>
+                        <p className="appSubtitle">基于HTTP的局域网文件传输工具</p>
+                        <div className="qrCodeArea">
+                            <img className="qrIcon" src={BarcodeIconSvg} alt="二维码"/>
+                            <div className="qrPopupContainer">
+                                <div className="qrContentWrapper">
+                                    <QRCodeSVG className="qrImage" value={getQrCodeUrl()} fgColor="#213547"/>
+                                    <p className="qrUrlDisplay">{getQrCodeUrl()}</p>
+                                </div>
+                            </div>
                         </div>
+                    </main>
+
+                    <div className="content">
+                        <TextSharing/>
+                        <FileSharing/>
                     </div>
-                </div>
-            </main>
-
-            <div className="content">
-                <TextSharing/>
-                <FileSharing/>
-            </div>
-
-        </AppStyle>
+                </AppStyle>
+            </ToastProvider>
+        </DialogProvider>
     )
 }
 

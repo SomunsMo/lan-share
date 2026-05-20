@@ -4,6 +4,8 @@ import "./AppDark.css";
 import Navbar from "./components/navbar/index.jsx";
 import {useRoutes} from "react-router";
 import {routes} from "./pages/_router-map.jsx";
+import { DialogProvider } from "./components/dialog/index.jsx";
+import { ToastProvider } from "./components/toast/index.jsx";
 
 function App() {
     // 屏蔽右键菜单
@@ -23,12 +25,16 @@ function App() {
     }, []);
 
     return (
-        <div className="container">
-            <Navbar/>
-            <main className={"content"}>
-                {useRoutes(routes)}
-            </main>
-        </div>
+        <DialogProvider>
+            <ToastProvider>
+                <div className="container">
+                    <Navbar/>
+                    <main className={"content"}>
+                        {useRoutes(routes)}
+                    </main>
+                </div>
+            </ToastProvider>
+        </DialogProvider>
     );
 }
 
