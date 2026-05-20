@@ -71,7 +71,9 @@ fn http_method_macro(attr: TokenStream, item: TokenStream, method: Option<&str>)
         .enumerate()
         .map(|(i, arg)| {
             if let FnArg::Typed(pt) = arg {
-                let pat = &pt.pat;
+                // 一般指参数名称（如 let x=1 中的x; let (a,b):(i32,String) 中的(a,b)）
+                // let pat = &pt.pat;
+                // 参数类型
                 let ty = &pt.ty;
 
                 // 生成参数名称

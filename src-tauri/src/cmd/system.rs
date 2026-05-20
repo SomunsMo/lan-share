@@ -261,7 +261,8 @@ pub fn get_running_port() -> u16 {
 /// 设置HTTP服务端口
 #[tauri::command]
 pub async fn set_http_port(port: u16) -> Result<(), String> {
-    if port == 0 || port > 65535 {
+    // u16类型范围是 0-65535，所以不用判断是否超出
+    if port < 1 {
         return Err("端口号必须在 1-65535 之间".to_string());
     }
 

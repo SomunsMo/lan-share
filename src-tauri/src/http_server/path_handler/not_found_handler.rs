@@ -1,7 +1,7 @@
 //! 到接口找不到对应处理器的时候就调用该模块内的函数
 
 use crate::handler::GenericResponseBody;
-use crate::http_server::responses::{success_json, success};
+use crate::http_server::responses::success;
 use crate::request;
 use hyper::body::Incoming;
 use hyper::{Request, Response};

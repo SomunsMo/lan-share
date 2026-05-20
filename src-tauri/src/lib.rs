@@ -96,9 +96,6 @@ mod param_extractor {
         }
     }
 
-    // 为原始请求创建一个别名
-    pub type HttpRequest<'a> = &'a Request<Incoming>;
-
     impl<T: DeserializeOwned + Send + 'static> BodyData<T> {
         // 由于Incoming body只能消费一次，我们不提供自动注入
         // 用户需要手动解析body
@@ -128,7 +125,6 @@ pub use param_extractor::{extract_json_body, BodyData, QueryParams};
 pub use ::ctor::ctor;
 pub use http_server::handler;
 use include_dir::{include_dir, Dir};
-use lazy_static::lazy_static;
 
 // 打包静态资源到可执行文件
 pub static STATIC_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/static");

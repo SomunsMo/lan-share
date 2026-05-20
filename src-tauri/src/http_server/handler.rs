@@ -26,16 +26,14 @@ impl Body for GenericResponseBody {
         _cx: &mut std::task::Context<'_>,
     ) -> Poll<Option<Result<hyper::body::Frame<Self::Data>, Self::Error>>> {
         use std::mem;
-        
+
         // 检查是否已经是Empty状态（已发送）
         match mem::replace(self.as_mut().get_mut(), GenericResponseBody::Empty) {
             GenericResponseBody::String(s) => {
                 let bytes = Bytes::from(s);
                 Poll::Ready(Some(Ok(hyper::body::Frame::data(bytes))))
             }
-            GenericResponseBody::Bytes(b) => {
-                Poll::Ready(Some(Ok(hyper::body::Frame::data(b))))
-            }
+            GenericResponseBody::Bytes(b) => Poll::Ready(Some(Ok(hyper::body::Frame::data(b)))),
             GenericResponseBody::Empty => {
                 // 已经发送过了，返回 None 表示流结束
                 Poll::Ready(None)
@@ -47,11 +45,7 @@ impl Body for GenericResponseBody {
 // 定义处理函数返回的 Boxed 和 Pinned 的 Future 类型
 // 现在支持通用响应体类型
 pub type BoxedHandlerFuture = Pin<
-    Box<
-        (dyn Future<Output = Result<Response<GenericResponseBody>, Infallible>>
-             + Send
-             + 'static),
-    >,
+    Box<dyn Future<Output = Result<Response<GenericResponseBody>, Infallible>> + Send + 'static>,
 >;
 
 // 定义可以存储在 BaseHandler 中的函数指针类型
@@ -70,7 +64,10 @@ pub struct BaseHandler {
 }
 
 impl BaseHandler {
-    pub async fn handle(&self, req: Request<Incoming>) -> Result<Response<GenericResponseBody>, Infallible> {
+    pub async fn handle(
+        &self,
+        req: Request<Incoming>,
+    ) -> Result<Response<GenericResponseBody>, Infallible> {
         // 1. 调用 handler_func，得到一个 BoxedHandlerFuture
         let future = (self.handler_func)(req);
         // 2. 立即等待（await）这个 Future

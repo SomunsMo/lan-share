@@ -8,7 +8,7 @@ use crate::QueryParams;
 use form_urlencoded;
 use futures_util::stream::TryStreamExt;
 use http_body_util::BodyExt;
-use hyper::body::{Body, Incoming};
+use hyper::body::Incoming;
 use hyper::{header, Request, Response, StatusCode};
 use lan_share_http_macros::{delete, get, post, put};
 use log;
@@ -16,7 +16,6 @@ use multer::Multipart;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::io;
-use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
 use tokio::fs;
 use tokio::fs::File;
@@ -219,7 +218,6 @@ pub async fn upload_file(
         }
     }
 
-    let mut write_dir: PathBuf = target_dir;
     let mut uploaded: Vec<String> = Vec::new();
 
     // 5. 核心逻辑：支持任意字段顺序，边解析边上传
@@ -248,7 +246,7 @@ pub async fn upload_file(
                     None => return error(StatusCode::BAD_REQUEST, "Missing filename"),
                 };
                 let safe_filename = sanitize_filename(&filename);
-                let file_path = write_dir.join(&safe_filename);
+                let file_path = target_dir.join(&safe_filename);
 
                 // 直接创建文件并写入（边解析边写，无锁竞争）
                 let mut file = match File::create(&file_path).await {
@@ -520,12 +518,18 @@ pub async fn rename_file(
 
     // 验证原文件/文件夹存在
     if !old_path.exists() {
-        return error(StatusCode::NOT_FOUND, &format!("文件或文件夹不存在：{}", old_name));
+        return error(
+            StatusCode::NOT_FOUND,
+            &format!("文件或文件夹不存在：{}", old_name),
+        );
     }
 
     // 验证新名称不存在
     if new_path.exists() {
-        return error(StatusCode::CONFLICT, &format!("目标名称已存在：{}", safe_new_name));
+        return error(
+            StatusCode::CONFLICT,
+            &format!("目标名称已存在：{}", safe_new_name),
+        );
     }
 
     // 执行重命名
@@ -584,7 +588,10 @@ pub async fn delete_file(
     let metadata = match tokio::fs::metadata(&file_path).await {
         Ok(meta) => meta,
         Err(_) => {
-            return error(StatusCode::NOT_FOUND, &format!("文件或文件夹不存在：{}", safe_filename));
+            return error(
+                StatusCode::NOT_FOUND,
+                &format!("文件或文件夹不存在：{}", safe_filename),
+            );
         }
     };
 

@@ -8,11 +8,13 @@ use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
 use crate::http_server::handler;
+use crate::http_server::handler::GenericResponseBody;
 use local_ip_address::local_ip;
-use crate::http_server::handler::{BoxedHandlerFuture, GenericResponseBody};
 
 // 处理HTTP请求的异步函数
-async fn handle_request(req: Request<Incoming>) -> Result<Response<GenericResponseBody>, Infallible> {
+async fn handle_request(
+    req: Request<Incoming>,
+) -> Result<Response<GenericResponseBody>, Infallible> {
     let path = req.uri().path();
     let method = req.method().clone();
 
