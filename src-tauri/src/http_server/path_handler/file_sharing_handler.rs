@@ -220,6 +220,17 @@ pub async fn upload_file(
 
     let mut uploaded: Vec<String> = Vec::new();
 
+    // 检查磁盘剩余空间是否足够
+    if let Some(content_length) = headers.get(header::CONTENT_LENGTH) {
+        if let Ok(length_str) = content_length.to_str() {
+            if let Ok(upload_size) = length_str.parse::<u64>() {
+                if !check_disk_space(upload_size, &target_dir) {
+                    return error(StatusCode::INSUFFICIENT_STORAGE, "磁盘剩余空间不足");
+                }
+            }
+        }
+    }
+
     // 5. 核心逻辑：支持任意字段顺序，边解析边上传
     loop {
         let mut field = match multipart.next_field().await {
@@ -648,4 +659,16 @@ pub async fn get_permissions(
         rename_enabled,
         delete_enabled,
     })
+}
+
+/// 检查磁盘剩余空间是否足够容纳指定大小的文件
+/// 返回 true 表示空间充足，false 表示空间不足
+fn check_disk_space(upload_size: u64, target_dir: &std::path::Path) -> bool {
+    match fs4::available_space(target_dir) {
+        Ok(available) => upload_size <= available,
+        Err(e) => {
+            log::warn!("无法获取磁盘可用空间: {}", e);
+            true
+        }
+    }
 }
