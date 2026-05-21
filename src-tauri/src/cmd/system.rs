@@ -216,6 +216,36 @@ pub async fn set_delete_enabled(enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
+/// 获取上传覆盖设置状态
+#[tauri::command]
+pub async fn get_upload_overwrite_enabled() -> Result<bool, String> {
+    match config_dao::get_config_value("upload_overwrite_enabled").await {
+        Ok(Some(value)) => {
+            let enabled = value.parse::<bool>().unwrap_or(false);
+            Ok(enabled)
+        }
+        Ok(None) => Ok(false),
+        Err(e) => {
+            log::warn!("获取上传覆盖设置失败: {}", e);
+            Ok(false)
+        }
+    }
+}
+
+/// 设置上传覆盖状态
+#[tauri::command]
+pub async fn set_upload_overwrite_enabled(enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+
+    if let Err(e) = config_dao::set_config("upload_overwrite_enabled", value).await {
+        log::error!("保存上传覆盖设置到数据库失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+
+    log::info!("上传覆盖设置已更新为: {}", enabled);
+    Ok(())
+}
+
 /// 获取开机自启状态
 #[tauri::command]
 pub async fn get_autostart(app: tauri::AppHandle) -> Result<bool, String> {

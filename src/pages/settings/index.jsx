@@ -11,6 +11,7 @@ function Settings() {
     const [uploadEnabled, setUploadEnabled] = useState(false);
     const [renameEnabled, setRenameEnabled] = useState(false);
     const [deleteEnabled, setDeleteEnabled] = useState(false);
+    const [uploadOverwriteEnabled, setUploadOverwriteEnabled] = useState(false);
     const [autostartEnabled, setAutostartEnabled] = useState(false);
     const [httpPort, setHttpPort] = useState(3000);
     const {showToast} = useToast();
@@ -65,6 +66,19 @@ function Settings() {
         fetchUploadSetting();
         fetchRenameSetting();
         fetchDeleteSetting();
+
+        const fetchUploadOverwriteSetting = async () => {
+            try {
+                const enabled = await invoke('get_upload_overwrite_enabled');
+                console.log('当前上传覆盖设置是:', enabled);
+                setUploadOverwriteEnabled(enabled);
+            } catch (error) {
+                console.error('获取上传覆盖设置失败:', error);
+                setUploadOverwriteEnabled(false);
+            }
+        };
+
+        fetchUploadOverwriteSetting();
 
         const fetchAutostartSetting = async () => {
             try {
@@ -208,6 +222,21 @@ function Settings() {
         }
     };
 
+    // 处理上传覆盖设置变更
+    const handleUploadOverwriteChange = async (event) => {
+        const checked = event.target.checked;
+        setUploadOverwriteEnabled(checked);
+
+        try {
+            await invoke('set_upload_overwrite_enabled', {enabled: checked});
+            console.log('上传覆盖设置已更新:', checked);
+        } catch (error) {
+            console.error('保存上传覆盖设置失败:', error);
+            setUploadOverwriteEnabled(!checked);
+            showToast({message: '保存上传覆盖设置失败: ' + error.message, type: 'error'});
+        }
+    };
+
     // 处理开机自启变更
     const handleAutostartChange = async (event) => {
         const checked = event.target.checked;
@@ -275,6 +304,16 @@ function Settings() {
                             type="checkbox"
                             checked={uploadEnabled}
                             onChange={handleUploadChange}
+                        />
+                    ),
+                },
+                {
+                    name: "上传可覆盖",
+                    content: (
+                        <input
+                            type="checkbox"
+                            checked={uploadOverwriteEnabled}
+                            onChange={handleUploadOverwriteChange}
                         />
                     ),
                 },

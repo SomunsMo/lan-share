@@ -2,7 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import FileSharingStyle from "./FileSharingStyle.js";
 import Card from "../Card/Card.js";
 import ProgressBar from "../ProgressBar/ProgressBar.jsx";
-import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, getPermissionsAPI, getDiskSpaceAPI} from "@/service/API.js";
+import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, getPermissionsAPI, getDiskSpaceAPI, checkFileExistsAPI} from "@/service/API.js";
 import {formatFileSize, getFileSuffix} from "@/util/file.js";
 import {useToast} from "@/component/Toast/index.jsx";
 import {useDialog} from "@/component/Dialog/index.jsx";
@@ -279,6 +279,23 @@ function FileSharing() {
             const currentDir = getCurrentDir();
 
             try {
+                // 检查文件是否存在
+                const checkRes = await checkFileExistsAPI(currentDir || "", file.name);
+                if (checkRes.code === 200 && checkRes.data.exists) {
+                    if (!checkRes.data.overwrite_enabled) {
+                        showToast({message: '上传覆盖已禁用', type: 'warning'});
+                        continue;
+                    }
+                    const confirmed = await showDialog({
+                        title: '确认覆盖',
+                        content: `文件 "${file.name}" 已存在，是否覆盖上传？`,
+                        buttons: [
+                            {label: '取消', value: false},
+                            {label: '覆盖', value: true, primary: true, danger: true},
+                        ],
+                    });
+                    if (!confirmed) continue;
+                }
                 // 文件Form表单
                 let formData = new FormData();
                 formData.append("file", file);

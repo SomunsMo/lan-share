@@ -259,6 +259,20 @@ pub async fn upload_file(
                 let safe_filename = sanitize_filename(&filename);
                 let file_path = target_dir.join(&safe_filename);
 
+                // 检查同名文件是否存在，若存在且上传覆盖已禁用则返回错误
+                if file_path.exists() {
+                    let overwrite_enabled = match config_dao::get_config_value("upload_overwrite_enabled").await {
+                        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
+                        _ => false,
+                    };
+                    if !overwrite_enabled {
+                        return error(
+                            StatusCode::CONFLICT,
+                            &format!("文件 '{}' 已存在（上传覆盖已禁用）", safe_filename),
+                        );
+                    }
+                }
+
                 // 直接创建文件并写入（边解析边写，无锁竞争）
                 let mut file = match File::create(&file_path).await {
                     Ok(f) => f,
@@ -634,6 +648,7 @@ struct WebPermissions {
     upload_enabled: bool,
     rename_enabled: bool,
     delete_enabled: bool,
+    upload_overwrite_enabled: bool,
 }
 
 /// 获取网页端权限配置
@@ -653,11 +668,59 @@ pub async fn get_permissions(
         Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
         _ => false,
     };
+    let upload_overwrite_enabled = match config_dao::get_config_value("upload_overwrite_enabled").await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
+        _ => false,
+    };
 
     success_json(WebPermissions {
         upload_enabled,
         rename_enabled,
         delete_enabled,
+        upload_overwrite_enabled,
+    })
+}
+
+/// 文件存在性检查响应
+#[derive(Serialize)]
+struct FileExistCheck {
+    exists: bool,
+    overwrite_enabled: bool,
+}
+
+/// 检查文件是否存在，并返回是否允许覆盖上传
+#[get("/upload/file/exists")]
+pub async fn check_file_exists(
+    _req: Request<Incoming>,
+    query_params: QueryParams,
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
+    let dir_param = query_params.get("dir").map(|s| s.as_str()).unwrap_or("");
+    let file_name = match query_params.get("file_name") {
+        Some(name) if !name.is_empty() => name.clone(),
+        _ => return error(StatusCode::BAD_REQUEST, "缺少必填参数：file_name"),
+    };
+
+    let root_dir = get_sharing_root().await;
+    let target_dir = if dir_param.is_empty() {
+        (*root_dir).clone()
+    } else {
+        let safe_path = sanitize_path_segment(dir_param);
+        (*root_dir).join(safe_path)
+    };
+
+    let safe_filename = sanitize_filename(&file_name);
+    let file_path = target_dir.join(&safe_filename);
+
+    let exists = file_path.exists();
+
+    let overwrite_enabled = match config_dao::get_config_value("upload_overwrite_enabled").await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
+        _ => false,
+    };
+
+    success_json(FileExistCheck {
+        exists,
+        overwrite_enabled,
     })
 }
 

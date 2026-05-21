@@ -79,3 +79,14 @@ export const getDiskSpaceAPI = () => {
         url: "/config/disk-space"
     });
 }
+
+// 检查文件是否存在
+export const checkFileExistsAPI = (dir, fileName) => {
+    const params = new URLSearchParams();
+    if (dir) params.append("dir", dir);
+    params.append("file_name", fileName);
+    return request({
+        method: "GET",
+        url: `/upload/file/exists?${params.toString()}`
+    });
+}

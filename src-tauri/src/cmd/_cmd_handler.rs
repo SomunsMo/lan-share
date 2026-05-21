@@ -16,6 +16,8 @@ pub fn get_cmd_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
         system::set_rename_enabled,
         system::get_delete_enabled,
         system::set_delete_enabled,
+        system::get_upload_overwrite_enabled,
+        system::set_upload_overwrite_enabled,
         system::get_autostart,
         system::set_autostart,
         system::get_http_port,
