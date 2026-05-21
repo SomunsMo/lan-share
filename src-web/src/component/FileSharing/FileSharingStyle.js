@@ -3,6 +3,39 @@ import styled from "styled-components";
 const FileSharingStyle = styled.div`
     display: contents;
 
+    .diskSpaceBar {
+        padding: 8px 12px;
+        margin-bottom: 8px;
+    }
+
+    .diskSpaceInfo {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+        font-size: 13px;
+        color: #555;
+    }
+
+    .diskSpaceDetail {
+        color: #888;
+    }
+
+    .diskSpaceProgress {
+        width: 100%;
+        height: 8px;
+        background-color: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .diskSpaceProgressFill {
+        height: 100%;
+        background-color: #4a90d9;
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+
     .fileList {
         min-height: 400px;
         padding: 5px;

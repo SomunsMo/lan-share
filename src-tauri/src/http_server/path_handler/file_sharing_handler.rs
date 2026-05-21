@@ -661,6 +661,35 @@ pub async fn get_permissions(
     })
 }
 
+/// 磁盘空间信息
+#[derive(Serialize)]
+struct DiskSpaceInfo {
+    total_space: u64,
+    available_space: u64,
+}
+
+/// 获取共享根目录所在分区的磁盘空间信息
+#[get("/config/disk-space")]
+pub async fn get_disk_space(
+    _req: Request<Incoming>,
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
+    let sharing_root = get_sharing_root().await;
+
+    match fs4::statvfs(&*sharing_root) {
+        Ok(stats) => success_json(DiskSpaceInfo {
+            total_space: stats.total_space(),
+            available_space: stats.available_space(),
+        }),
+        Err(e) => {
+            log::error!("获取磁盘空间信息失败: {}", e);
+            error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                &format!("获取磁盘空间信息失败：{}", e),
+            )
+        }
+    }
+}
+
 /// 检查磁盘剩余空间是否足够容纳指定大小的文件
 /// 返回 true 表示空间充足，false 表示空间不足
 fn check_disk_space(upload_size: u64, target_dir: &std::path::Path) -> bool {

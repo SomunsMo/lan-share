@@ -2,7 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import FileSharingStyle from "./FileSharingStyle.js";
 import Card from "../Card/Card.js";
 import ProgressBar from "../ProgressBar/ProgressBar.jsx";
-import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, getPermissionsAPI} from "@/service/API.js";
+import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, getPermissionsAPI, getDiskSpaceAPI} from "@/service/API.js";
 import {formatFileSize, getFileSuffix} from "@/util/file.js";
 import {useToast} from "@/component/Toast/index.jsx";
 import {useDialog} from "@/component/Dialog/index.jsx";
@@ -126,6 +126,9 @@ function FileSharing() {
     // 选中的文件集合
     const [selectedFiles, setSelectedFiles] = useState(new Set());
 
+    // 磁盘空间信息
+    const [diskSpace, setDiskSpace] = useState({total_space: 0, available_space: 0});
+
     const preprocessSharedFileList = (sfl) => {
         sfl.forEach(v => {
             if (v.is_dir) {
@@ -227,6 +230,19 @@ function FileSharing() {
             }
         };
         fetchPermissions();
+
+        // 获取磁盘空间信息
+        const fetchDiskSpace = async () => {
+            try {
+                const res = await getDiskSpaceAPI();
+                if (res.code === 200 && res.data) {
+                    setDiskSpace(res.data);
+                }
+            } catch (error) {
+                console.error('获取磁盘空间信息失败:', error);
+            }
+        };
+        fetchDiskSpace();
 
         preprocessSharedFileList([
             {
@@ -540,6 +556,22 @@ function FileSharing() {
         <Card>
             {uploadProgresses.length > 0 && <ProgressBar progresses={uploadProgresses}/>}
             <FileSharingStyle>
+                {diskSpace.total_space > 0 && (
+                    <div className="diskSpaceBar">
+                        <div className="diskSpaceInfo">
+                            <span>存储空间</span>
+                            <span className="diskSpaceDetail">
+                                {formatFileSize(diskSpace.available_space)} 可用 / {formatFileSize(diskSpace.total_space)} 总计
+                            </span>
+                        </div>
+                        <div className="diskSpaceProgress">
+                            <div
+                                className="diskSpaceProgressFill"
+                                style={{width: `${((diskSpace.total_space - diskSpace.available_space) / diskSpace.total_space * 100).toFixed(1)}%`}}
+                            />
+                        </div>
+                    </div>
+                )}
                 <div className="fileList">
                     <table className={"fileTable"}>
                         <colgroup>

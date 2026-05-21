@@ -71,3 +71,11 @@ export const getPermissionsAPI = () => {
         url: "/config/permissions"
     });
 }
+
+// 获取磁盘空间信息
+export const getDiskSpaceAPI = () => {
+    return request({
+        method: "GET",
+        url: "/config/disk-space"
+    });
+}
