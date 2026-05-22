@@ -40,7 +40,15 @@ pub mod utils {
 pub mod tray;
 
 use log::error;
-use tauri::Manager;
+use tauri::{Emitter, Listener, Manager};
+
+/// 使用 listeners crate 检测端口是否被占用
+fn is_port_occupied(port: u16) -> bool {
+    match listeners::get_process_by_port(port, listeners::Protocol::TCP) {
+        Ok(_process) => true,
+        Err(_) => false,
+    }
+}
 
 // 导出宏
 pub use lan_share_http_macros::{delete, get, post, put, request};
@@ -161,6 +169,44 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = crate::config::config::init_sharing_root_from_config().await {
                     error!("初始化共享根目录失败: {}", e);
+                }
+            });
+
+            // ===== 使用 listeners crate 检测端口占用 =====
+            let port = *crate::config::config::get_configured_http_port();
+            let _ = crate::config::config::RUNNING_HTTP_PORT.set(port);
+
+            if is_port_occupied(port) {
+                log::error!("端口 {} 已被占用", port);
+                let _ = crate::config::config::OCCUPIED_PORT.set(port);
+            } else {
+                log::info!("端口 {} 可用，准备启动HTTP服务器", port);
+                match std::net::TcpListener::bind(("0.0.0.0", port)) {
+                    Ok(std_listener) => {
+                        match tokio::net::TcpListener::from_std(std_listener) {
+                            Ok(tokio_listener) => {
+                                tauri::async_runtime::spawn(async move {
+                                    if let Err(e) = crate::http_server::http_server::start_server(tokio_listener, port).await {
+                                        log::error!("HTTP Server运行错误: {}", e);
+                                    }
+                                });
+                            }
+                            Err(e) => {
+                                log::error!("转换TcpListener失败: {}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("绑定端口 {} 失败: {}", port, e);
+                    }
+                }
+            }
+
+            // 监听前端app-ready事件：前端加载完成后通知端口占用
+            let app_handle = app.handle().clone();
+            app.listen("app-ready", move |_event| {
+                if let Some(&occupied) = crate::config::config::OCCUPIED_PORT.get() {
+                    let _ = app_handle.emit("port-occupied", occupied);
                 }
             });
 

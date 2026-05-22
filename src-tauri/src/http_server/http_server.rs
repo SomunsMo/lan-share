@@ -4,7 +4,6 @@ use hyper::{Method, Request, Response};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto;
 use std::convert::Infallible;
-use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
 use crate::http_server::handler;
@@ -41,11 +40,8 @@ async fn handle_request(
     }
 }
 
-// 启动HTTP服务器的主函数
-pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    let listener = TcpListener::bind(addr).await?;
-
+/// 启动HTTP服务器（使用预绑定的TcpListener）
+pub async fn start_server(listener: TcpListener, port: u16) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("========================================");
     println!("✅ Lan Share 服务启动成功");
     println!("📍 访问地址: http://{}:{}", local_ip()?, port);

@@ -58,6 +58,7 @@ lan-share-http-macros = { workspace = true }
 mime_guess = "2.0.5"
 # 获取磁盘可用空间
 fs4 = { version = "0.13", features = ["tokio"] }
+listeners = "0.5"
 ctor = "0.6.0"
 tauri-plugin-single-instance = "2"
 tauri-plugin-autostart = "2"

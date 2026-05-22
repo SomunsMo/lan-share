@@ -7,35 +7,20 @@ use env_logger::{Builder, Env};
 use lan_share_lib::config::config::{get_config_dir, CONFIG_DIR};
 use lan_share_lib::db::dao::config_dao;
 use lan_share_lib::db::sqlite;
-use lan_share_lib::http_server;
 use log::Level;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
-use tokio::spawn;
 
 #[tokio::main]
 async fn main() {
     // 软件初始化
     init().await;
 
-    // 异步启动HttpServer
-    spawn(async move {
-        let port = config_dao::get_config_value("http_port")
-            .await
-            .ok()
-            .flatten()
-            .and_then(|v| v.parse::<u16>().ok())
-            .unwrap_or(3000);
-        // 记录当前运行端口（重启后才变更）
-        let _ = lan_share_lib::config::config::RUNNING_HTTP_PORT.set(port);
-        http_server::http_server::start_server(port)
-            .await
-            .expect("HTTP Server startup failed");
-    });
-
     // 初始化UI
     lan_share_lib::run();
+
+    // HTTP服务器在Tauri setup回调中启动，以便获取AppHandle发送事件
 }
 
 // 软件初始化
@@ -72,6 +57,15 @@ async fn init() {
     if let Err(e) = lan_share_lib::config::config::set_sharing_root_new(fs_rd).await {
         log::error!("设置共享根目录失败: {}", e);
     }
+
+    // 读取HTTP端口配置，存入全局供setup使用
+    let port = config_dao::get_config_value("http_port")
+        .await
+        .ok()
+        .flatten()
+        .and_then(|v| v.parse::<u16>().ok())
+        .unwrap_or(3000);
+    let _ = lan_share_lib::config::config::CONFIGURED_HTTP_PORT.set(port);
 }
 
 // 初始化日志系统

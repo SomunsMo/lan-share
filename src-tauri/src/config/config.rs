@@ -15,6 +15,15 @@ pub fn get_running_http_port() -> &'static u16 {
     RUNNING_HTTP_PORT.get().unwrap_or(&3000)
 }
 
+/// 配置的HTTP端口（在init中从DB读取，供setup同步使用）
+pub static CONFIGURED_HTTP_PORT: OnceLock<u16> = OnceLock::new();
+pub fn get_configured_http_port() -> &'static u16 {
+    CONFIGURED_HTTP_PORT.get().unwrap_or(&3000)
+}
+
+/// 被占用的端口号（setup同步检测后设置，前端发app-ready时读取并通知）
+pub static OCCUPIED_PORT: OnceLock<u16> = OnceLock::new();
+
 lazy_static::lazy_static! {
     /// 文件共享根目录  
     /// **注意：用户不能访问当前目录的更高级目录**
