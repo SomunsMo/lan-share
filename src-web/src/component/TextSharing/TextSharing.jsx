@@ -2,9 +2,11 @@ import React, {useEffect, useState} from 'react';
 import Card from "../Card/Card.js";
 import TextSharingStyle from "./TextSharingStyle.js";
 import {getTextSharingAPI, uploadTextAPI} from "../../service/API.js";
+import {useToast} from "@/component/Toast/index.jsx";
 import copy from "copy-to-clipboard";
 
 function TextSharing() {
+    const {showToast} = useToast();
     // 将被上传的文本
     const [uploadText, setUploadText] = useState("");
     // 已被上传的文本列表
@@ -33,9 +35,13 @@ function TextSharing() {
         getTextSharingAPI().then(res => {
             if (res.code !== 200) {
                 console.error("获取历史文本异常")
+                showToast({message: '获取历史文本失败: ' + (res.status || '未知错误'), type: 'error'});
                 return;
             }
             setTextHistory(res.data);
+        }).catch(error => {
+            console.error("获取历史文本异常", error);
+            showToast({message: '获取历史文本失败: ' + (error.status || error.message || '未知错误'), type: 'error'});
         })
     }
 
@@ -51,6 +57,7 @@ function TextSharing() {
 
                 if (res.code !== 200) {
                     console.error("发送文本到服务器失败")
+                    showToast({message: '发送文本失败: ' + (res.status || '未知错误'), type: 'error'});
                     return;
                 }
 
@@ -58,6 +65,9 @@ function TextSharing() {
                 setUploadText("");
                 // 刷新历史列表
                 flushHistoryList();
+            }).catch(error => {
+                console.error("发送文本到服务器失败", error);
+                showToast({message: '发送文本失败: ' + (error.status || error.message || '未知错误'), type: 'error'});
             });
     }
 

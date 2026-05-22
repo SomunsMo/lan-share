@@ -55,17 +55,14 @@ pub async fn get_file_list(
             if !metadata.is_dir() {
                 return error(
                     StatusCode::UNPROCESSABLE_ENTITY,
-                    &format!(
-                        "Path '{}' exists but is not a directory",
-                        target_dir.display()
-                    ),
+                    &format!("Path '{}' exists but is not a directory", dir_param),
                 );
             }
         }
         Err(_) => {
             return error(
                 StatusCode::UNPROCESSABLE_ENTITY,
-                &format!("Directory '{}' does not exist", target_dir.display()),
+                &format!("Directory '{}' does not exist", dir_param),
             );
         }
     }
@@ -77,7 +74,7 @@ pub async fn get_file_list(
         Err(_) => {
             return error(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                &format!("Failed to read directory: {}", target_dir.display()),
+                &format!("Failed to read directory: {}", dir_param),
             );
         }
     };
@@ -261,10 +258,11 @@ pub async fn upload_file(
 
                 // 检查同名文件是否存在，若存在且上传覆盖已禁用则返回错误
                 if file_path.exists() {
-                    let overwrite_enabled = match config_dao::get_config_value("upload_overwrite_enabled").await {
-                        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
-                        _ => false,
-                    };
+                    let overwrite_enabled =
+                        match config_dao::get_config_value("upload_overwrite_enabled").await {
+                            Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
+                            _ => false,
+                        };
                     if !overwrite_enabled {
                         return error(
                             StatusCode::CONFLICT,
@@ -668,10 +666,11 @@ pub async fn get_permissions(
         Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
         _ => false,
     };
-    let upload_overwrite_enabled = match config_dao::get_config_value("upload_overwrite_enabled").await {
-        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
-        _ => false,
-    };
+    let upload_overwrite_enabled =
+        match config_dao::get_config_value("upload_overwrite_enabled").await {
+            Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
+            _ => false,
+        };
 
     success_json(WebPermissions {
         upload_enabled,

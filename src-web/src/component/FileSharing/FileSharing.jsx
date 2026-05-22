@@ -171,6 +171,7 @@ function FileSharing() {
             const res = await getFileSharingAPI(dir);
             if (res.code !== 200) {
                 console.error("获取文件列表异常");
+                showToast({message: '获取文件列表失败: ' + (res.status || '未知错误'), type: 'error'});
                 return false;
             }
 
@@ -179,6 +180,7 @@ function FileSharing() {
             return true;
         } catch (error) {
             console.error("获取文件列表异常", error);
+            showToast({message: '获取文件列表失败: ' + (error.status || error.message || '未知错误'), type: 'error'});
             return false;
         }
     }
@@ -224,9 +226,12 @@ function FileSharing() {
                 const res = await getPermissionsAPI();
                 if (res.code === 200 && res.data) {
                     setPermissions(res.data);
+                } else {
+                    showToast({message: '获取权限配置失败: ' + (res.status || '未知错误'), type: 'error'});
                 }
             } catch (error) {
                 console.error('获取权限配置失败:', error);
+                showToast({message: '获取权限配置失败: ' + (error.status || error.message || '未知错误'), type: 'error'});
             }
         };
         fetchPermissions();
@@ -237,9 +242,12 @@ function FileSharing() {
                 const res = await getDiskSpaceAPI();
                 if (res.code === 200 && res.data) {
                     setDiskSpace(res.data);
+                } else {
+                    showToast({message: '获取磁盘空间信息失败: ' + (res.status || '未知错误'), type: 'error'});
                 }
             } catch (error) {
                 console.error('获取磁盘空间信息失败:', error);
+                showToast({message: '获取磁盘空间信息失败: ' + (error.status || error.message || '未知错误'), type: 'error'});
             }
         };
         fetchDiskSpace();
@@ -281,7 +289,11 @@ function FileSharing() {
             try {
                 // 检查文件是否存在
                 const checkRes = await checkFileExistsAPI(currentDir || "", file.name);
-                if (checkRes.code === 200 && checkRes.data.exists) {
+                if (checkRes.code !== 200) {
+                    showToast({message: `检查文件 ${file.name} 是否存在失败: ` + (checkRes.status || '未知错误'), type: 'error'});
+                    continue;
+                }
+                if (checkRes.data.exists) {
                     if (!checkRes.data.overwrite_enabled) {
                         showToast({message: '上传覆盖已禁用', type: 'warning'});
                         continue;
