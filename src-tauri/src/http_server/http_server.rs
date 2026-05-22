@@ -1,13 +1,15 @@
 use hyper::body::Incoming;
 use hyper::service::service_fn;
-use hyper::{Method, Request, Response};
+use hyper::{Request, Response};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto;
 use std::convert::Infallible;
+use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
 use crate::http_server::handler;
 use crate::http_server::handler::GenericResponseBody;
+use crate::http_server::responses;
 use local_ip_address::local_ip;
 
 // 处理HTTP请求的异步函数
@@ -25,23 +27,16 @@ async fn handle_request(
         }
         None => {
             log::error!("❌ 未找到处理器: {}", path);
-            // 返回 404 页面
-            if let Some(not_found_handler) = handler::get_handler("/404", &Method::GET) {
-                not_found_handler.handle(req).await
-            } else {
-                // 如果连404处理器都没有，返回默认错误响应
-                Ok(Response::builder()
-                    .status(404)
-                    .header("Content-Type", "text/plain")
-                    .body(GenericResponseBody::String("Not Found".to_string()))
-                    .unwrap())
-            }
+            responses::not_found()
         }
     }
 }
 
-/// 启动HTTP服务器（使用预绑定的TcpListener）
-pub async fn start_server(listener: TcpListener, port: u16) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+/// 启动HTTP服务器
+pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let listener = TcpListener::bind(addr).await?;
+
     println!("========================================");
     println!("✅ Lan Share 服务启动成功");
     println!("📍 访问地址: http://{}:{}", local_ip()?, port);

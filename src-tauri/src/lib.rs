@@ -22,7 +22,6 @@ pub mod http_server {
     pub mod responses;
     pub mod path_handler {
         pub mod file_sharing_handler;
-        pub mod not_found_handler;
         pub mod text_sharing_handler;
         pub mod user_handler;
         pub mod web_handler;
@@ -181,25 +180,11 @@ pub fn run() {
                 let _ = crate::config::config::OCCUPIED_PORT.set(port);
             } else {
                 log::info!("端口 {} 可用，准备启动HTTP服务器", port);
-                match std::net::TcpListener::bind(("0.0.0.0", port)) {
-                    Ok(std_listener) => {
-                        match tokio::net::TcpListener::from_std(std_listener) {
-                            Ok(tokio_listener) => {
-                                tauri::async_runtime::spawn(async move {
-                                    if let Err(e) = crate::http_server::http_server::start_server(tokio_listener, port).await {
-                                        log::error!("HTTP Server运行错误: {}", e);
-                                    }
-                                });
-                            }
-                            Err(e) => {
-                                log::error!("转换TcpListener失败: {}", e);
-                            }
-                        }
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = crate::http_server::http_server::start_server(port).await {
+                        log::error!("HTTP Server运行错误: {}", e);
                     }
-                    Err(e) => {
-                        log::error!("绑定端口 {} 失败: {}", port, e);
-                    }
-                }
+                });
             }
 
             // 监听前端app-ready事件：前端加载完成后通知端口占用
