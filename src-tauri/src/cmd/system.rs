@@ -78,9 +78,9 @@ pub async fn set_sharing_directory(directory_path: String) -> Result<(), String>
         return Err("请选择一个有效的目录".to_string());
     }
 
-    // 保存到数据库配置
+    // 保存到数据库配置（统一正斜杠）
     if let Err(e) =
-        config_dao::set_config("file_sharing_root_dir", path.to_str().unwrap_or("")).await
+        config_dao::set_config("file_sharing_root_dir", &crate::utils::path::normalize_path(&path)).await
     {
         log::error!("保存共享根目录到数据库失败: {}", e);
         return Err(format!("保存配置失败: {}", e));
@@ -109,14 +109,14 @@ pub async fn get_sharing_directory() -> Result<String, String> {
         Ok(None) => {
             // 如果数据库中没有配置，返回当前的全局配置
             let sharing_root = config::get_sharing_root().await;
-            log::info!("当前配置: {:?}", (*sharing_root));
-            Ok((*sharing_root).to_string_lossy().to_string())
+            log::info!("当前配置: {}", crate::utils::path::normalize_path(&(*sharing_root)));
+            Ok(crate::utils::path::normalize_path(&(*sharing_root)))
         }
         Err(e) => {
             log::warn!("获取共享根目录配置失败: {}", e);
             // 返回当前的全局配置
             let sharing_root = config::get_sharing_root().await;
-            Ok((*sharing_root).to_string_lossy().to_string())
+            Ok(crate::utils::path::normalize_path(&(*sharing_root)))
         }
     }
 }

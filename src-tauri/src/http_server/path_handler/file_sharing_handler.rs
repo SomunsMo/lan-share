@@ -233,14 +233,14 @@ pub async fn upload_file(
             if !metadata.is_dir() {
                 return error(
                     StatusCode::UNPROCESSABLE_ENTITY,
-                    &format!("Path '{}' exists but is not a directory", target_dir.display()),
+                    &format!("Path '{}' exists but is not a directory", crate::utils::path::normalize_path(&target_dir)),
                 );
             }
         }
         Err(_) => {
             return error(
                 StatusCode::UNPROCESSABLE_ENTITY,
-                &format!("Directory '{}' does not exist", target_dir.display()),
+                &format!("Directory '{}' does not exist", crate::utils::path::normalize_path(&target_dir)),
             );
         }
     }
@@ -372,7 +372,7 @@ pub async fn upload_file(
     // 7. 将文件上传记录写入数据库
     for (i, filename) in uploaded.iter().enumerate() {
         let file_absolute_path = target_dir.join(filename);
-        let absolute_path_str = file_absolute_path.to_string_lossy().to_string();
+        let absolute_path_str = crate::utils::path::normalize_path(&file_absolute_path);
         let is_overwrite = *overwrite_flags.get(i).unwrap_or(&false);
         if let Err(e) = upload_dao::add(2, &absolute_path_str, &client_ip, is_overwrite).await {
             log::error!("记录文件上传历史失败: {}", e);
@@ -482,7 +482,7 @@ pub async fn download_file(
         Err(_) => {
             let error_response = create_error_response(
                 StatusCode::NOT_FOUND,
-                &format!("文件不存在：{}", full_file_path.display()),
+                &format!("文件不存在：{}", crate::utils::path::normalize_path(&full_file_path)),
             );
             return Ok(error_response);
         }

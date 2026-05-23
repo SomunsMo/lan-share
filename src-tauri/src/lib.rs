@@ -33,6 +33,7 @@ pub mod normalizer {
 
 pub mod utils {
     pub mod datetime;
+    pub mod path;
 }
 
 pub mod tray;
