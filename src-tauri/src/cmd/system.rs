@@ -48,7 +48,7 @@ pub async fn share_text_to_lan(text_data: String) -> Result<(), String> {
     log::info!("来自[{}]的文本：{}", local_ip, text_data);
 
     // 将文本保存到数据库
-    match upload_dao::add(1, &text_data, &local_ip).await {
+    match upload_dao::add(1, &text_data, &local_ip, false).await {
         Ok(_) => {
             log::info!("文本分享成功");
             Ok(())
@@ -303,4 +303,48 @@ pub async fn set_http_port(port: u16) -> Result<(), String> {
 
     log::info!("HTTP端口设置已更新为: {}", port);
     Ok(())
+}
+
+/// 清空文件上传记录
+#[tauri::command]
+pub async fn clear_sharing_file() -> u64 {
+    let result_count = upload_dao::remove_all(2).await.unwrap_or(0);
+    log::info!("清空文件上传记录{}条", result_count);
+    result_count
+}
+
+/// 获取文件上传历史记录
+#[tauri::command]
+pub async fn get_file_sharing_history() -> Result<Vec<crate::db::entity::UploadRecord>, String> {
+    match upload_dao::list_by_type(2).await {
+        Ok(records) => Ok(records),
+        Err(err) => {
+            log::error!("获取文件上传历史记录失败: {}", err);
+            Err(err.to_string())
+        }
+    }
+}
+
+/// 删除指定的文件上传记录
+#[tauri::command]
+pub async fn delete_file_sharing_record(id: i64) -> Result<u64, String> {
+    match upload_dao::remove(id).await {
+        Ok(count) => Ok(count),
+        Err(err) => {
+            log::error!("删除文件上传记录失败: {}", err);
+            Err(err.to_string())
+        }
+    }
+}
+
+/// 获取所有上传历史记录（文本+文件）
+#[tauri::command]
+pub async fn get_all_upload_history() -> Result<Vec<crate::db::entity::UploadRecord>, String> {
+    match upload_dao::list_all().await {
+        Ok(records) => Ok(records),
+        Err(err) => {
+            log::error!("获取所有上传历史记录失败: {}", err);
+            Err(err.to_string())
+        }
+    }
 }

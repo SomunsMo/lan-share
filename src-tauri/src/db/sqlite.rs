@@ -70,6 +70,7 @@ async fn init_table() {
             upload_type INTEGER NOT NULL , -- 上传类型（1=文本 | 2=文件）
             content TEXT, -- 上传的文本（上传类型是文本时使用）
             ip TEXT NOT NULL, -- 上传者的IP地址
+            is_overwrite INTEGER NOT NULL DEFAULT 0, -- 是否覆盖了已有文件（0=否 | 1=是）
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP -- 创建时间
         )",
     )

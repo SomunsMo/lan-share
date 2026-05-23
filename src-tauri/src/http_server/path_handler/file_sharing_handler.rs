@@ -2,6 +2,7 @@
 
 use crate::config::config::get_sharing_root;
 use crate::db::dao::config_dao;
+use crate::db::dao::upload_dao;
 use crate::http_server::handler::GenericResponseBody;
 use crate::http_server::responses::{error, success_json};
 use crate::QueryParams;
@@ -16,6 +17,7 @@ use multer::Multipart;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::io;
+use std::net::SocketAddr;
 use std::time::UNIX_EPOCH;
 use tokio::fs;
 use tokio::fs::File;
@@ -183,6 +185,13 @@ pub async fn upload_file(
 
     let headers = _req.headers().clone();
 
+    // 从 extensions 中获取客户端地址（必须在 into_body() 之前提取）
+    let client_ip = _req
+        .extensions()
+        .get::<SocketAddr>()
+        .map(|addr| addr.ip().to_string())
+        .unwrap_or_else(|| "Unknown IP".to_string());
+
     // 1. 检查 Content-Type
     let content_type = match headers.get(header::CONTENT_TYPE) {
         Some(ct) => match ct.to_str() {
@@ -249,6 +258,8 @@ pub async fn upload_file(
     }
 
     let mut uploaded: Vec<String> = Vec::new();
+    // 记录每个文件是否覆盖了已有文件
+    let mut overwrite_flags: Vec<bool> = Vec::new();
 
     // 检查磁盘剩余空间是否足够
     if let Some(content_length) = headers.get(header::CONTENT_LENGTH) {
@@ -290,7 +301,8 @@ pub async fn upload_file(
                 let file_path = target_dir.join(&safe_filename);
 
                 // 检查同名文件是否存在，若存在且上传覆盖已禁用则返回错误
-                if file_path.exists() {
+                let file_existed = file_path.exists();
+                if file_existed {
                     let overwrite_enabled =
                         match config_dao::get_config_value("upload_overwrite_enabled").await {
                             Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
@@ -344,6 +356,7 @@ pub async fn upload_file(
                     );
                 }
                 uploaded.push(safe_filename);
+                overwrite_flags.push(file_existed);
             }
 
             // 忽略其他字段
@@ -354,6 +367,16 @@ pub async fn upload_file(
     // 6. 验证上传结果
     if uploaded.is_empty() {
         return error(StatusCode::BAD_REQUEST, "No files uploaded");
+    }
+
+    // 7. 将文件上传记录写入数据库
+    for (i, filename) in uploaded.iter().enumerate() {
+        let file_absolute_path = target_dir.join(filename);
+        let absolute_path_str = file_absolute_path.to_string_lossy().to_string();
+        let is_overwrite = *overwrite_flags.get(i).unwrap_or(&false);
+        if let Err(e) = upload_dao::add(2, &absolute_path_str, &client_ip, is_overwrite).await {
+            log::error!("记录文件上传历史失败: {}", e);
+        }
     }
 
     success_json(())

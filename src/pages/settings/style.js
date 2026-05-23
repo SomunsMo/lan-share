@@ -6,11 +6,6 @@ const SettingsStyle = styled.div`
 
     user-select: none;
 
-    .clear-text {
-        background-color: red;
-        color: white;
-    }
-
     .block-title {
         margin: 0 0 15px;
     }

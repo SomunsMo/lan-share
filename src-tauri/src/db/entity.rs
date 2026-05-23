@@ -16,5 +16,6 @@ pub struct UploadRecord {
     pub(crate) upload_type: i64,
     pub(crate) content: String,
     pub(crate) ip: String,
+    pub(crate) is_overwrite: i64,
     pub(crate) created_at: String,
 }

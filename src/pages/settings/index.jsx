@@ -108,20 +108,6 @@ function Settings() {
     }, []);
 
 
-    const clearText = async () => {
-        const confirmed = await showDialog({
-            title: '确认清空',
-            content: '确定要清空所有文本记录吗？此操作不可撤销。',
-            buttons: [
-                {label: '取消', value: false},
-                {label: '清空', value: true, primary: true, danger: true},
-            ],
-        });
-        if (!confirmed) return;
-        let resultCount = invoke("clear_sharing_text");
-        console.log("清空共享文本成功：", resultCount);
-        showToast({message: '文本记录已清空', type: 'success'});
-    }
 
     // 处理端口变更（点击后弹出输入框）
     const handlePortClick = async () => {
@@ -339,31 +325,6 @@ function Settings() {
                 }
             ]
         }, {
-            name: "数据清除",
-            options: [
-                {
-                    name: "文本记录",
-                    content: <button className={"clear-text"} onClick={clearText}>清空</button>,
-                },
-                {
-                    name: "文件记录",
-                    content: <button className={"clear-text"} onClick={async () => {
-                        const confirmed = await showDialog({
-                            title: '确认清空',
-                            content: '确定要清空所有文件记录吗？此操作不可撤销。',
-                            buttons: [
-                                {label: '取消', value: false},
-                                {label: '清空', value: true, primary: true, danger: true},
-                            ],
-                        });
-                        if (confirmed) {
-                            console.log('清空文件记录（功能待实现）');
-                        }
-                    }}>清空</button>,
-                }
-            ]
-        },
-        {
             name: "主题",
             options: [
                 {
