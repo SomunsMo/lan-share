@@ -23,6 +23,7 @@ pub fn get_cmd_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
         system::get_http_port,
         system::set_http_port,
         system::get_running_port,
+        system::get_server_status,
         system::clear_sharing_file,
         system::get_file_sharing_history,
         system::delete_file_sharing_record,

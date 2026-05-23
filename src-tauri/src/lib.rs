@@ -39,7 +39,7 @@ pub mod utils {
 pub mod tray;
 
 use log::error;
-use tauri::{Emitter, Listener, Manager};
+use tauri::Manager;
 
 /// 使用 listeners crate 检测端口是否被占用
 fn is_port_occupied(port: u16) -> bool {
@@ -186,14 +186,6 @@ pub fn run() {
                     }
                 });
             }
-
-            // 监听前端app-ready事件：前端加载完成后通知端口占用
-            let app_handle = app.handle().clone();
-            app.listen("app-ready", move |_event| {
-                if let Some(&occupied) = crate::config::config::OCCUPIED_PORT.get() {
-                    let _ = app_handle.emit("port-occupied", occupied);
-                }
-            });
 
             Ok(())
         })

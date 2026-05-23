@@ -288,6 +288,18 @@ pub fn get_running_port() -> u16 {
     *crate::config::config::get_running_http_port()
 }
 
+/// 获取HTTP服务器运行状态（前端主动查询）
+/// 返回 Ok(端口号) 表示服务器正常运行，Err(端口号) 表示端口被占用
+#[tauri::command]
+pub fn get_server_status() -> Result<u16, u16> {
+    let port = *crate::config::config::get_running_http_port();
+    if crate::config::config::OCCUPIED_PORT.get().is_some() {
+        Err(port)
+    } else {
+        Ok(port)
+    }
+}
+
 /// 设置HTTP服务端口
 #[tauri::command]
 pub async fn set_http_port(port: u16) -> Result<(), String> {
