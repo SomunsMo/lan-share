@@ -26,8 +26,6 @@ env_logger = "0.11.8"
 chrono = "0.4.42"
 # 异步运行时
 tokio = { version = "1.46.1", features = ["full"] }
-# 打包目录文件
-include_dir = "0.7.4"
 # 获取机器内网IP
 
 # 本地宏

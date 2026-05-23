@@ -37,6 +37,11 @@ pub mod utils {
 
 pub mod tray;
 
+/// 由 build.rs 构建 src-web 并嵌入的 HTML
+pub mod embedded {
+    include!(concat!(env!("OUT_DIR"), "/frontend_html.rs"));
+}
+
 use log::error;
 use tauri::Manager;
 
@@ -130,10 +135,6 @@ pub use param_extractor::{extract_json_body, BodyData, QueryParams};
 // 模块构造函数支持
 pub use ::ctor::ctor;
 pub use http_server::handler;
-use include_dir::{include_dir, Dir};
-
-// 打包静态资源到可执行文件
-pub static STATIC_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/static");
 
 use cmd::_cmd_handler::get_cmd_handler;
 

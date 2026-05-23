@@ -18,7 +18,7 @@ export default defineConfig({
         host: true
     },
     build: {
-        // 将打包的单html文件输出到rust下的静态资源目录中
-        outDir: "../src-tauri/static/frontend"
+        // 打包后的 HTML 由 build.rs 读取并嵌入到可执行程序
+        outDir: "dist"
     }
 })
