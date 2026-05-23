@@ -217,20 +217,11 @@ pub async fn upload_file(
         None => return error(StatusCode::BAD_REQUEST, "No boundary found"),
     };
 
-    // 3. 处理请求体流（保持不变）
-    let body_stream = _req
-        .into_body()
-        .into_data_stream()
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e));
-
-    let mut multipart = Multipart::new(body_stream, boundary);
-
-    // 4. 定义变量
+    // 3. 在消费 body 之前完成所有校验
     let root_dir = get_sharing_root().await;
     let target_dir = if dir_param.is_empty() {
         (*root_dir).clone()
     } else {
-        // 消毒路径，防止路径遍历攻击
         let safe_path = sanitize_path_segment(dir_param);
         (*root_dir).join(safe_path)
     };
@@ -242,10 +233,7 @@ pub async fn upload_file(
             if !metadata.is_dir() {
                 return error(
                     StatusCode::UNPROCESSABLE_ENTITY,
-                    &format!(
-                        "Path '{}' exists but is not a directory",
-                        target_dir.display()
-                    ),
+                    &format!("Path '{}' exists but is not a directory", target_dir.display()),
                 );
             }
         }
@@ -257,20 +245,32 @@ pub async fn upload_file(
         }
     }
 
-    let mut uploaded: Vec<String> = Vec::new();
-    // 记录每个文件是否覆盖了已有文件
-    let mut overwrite_flags: Vec<bool> = Vec::new();
-
-    // 检查磁盘剩余空间是否足够
-    if let Some(content_length) = headers.get(header::CONTENT_LENGTH) {
-        if let Ok(length_str) = content_length.to_str() {
-            if let Ok(upload_size) = length_str.parse::<u64>() {
-                if !check_disk_space(upload_size, &target_dir) {
-                    return error(StatusCode::INSUFFICIENT_STORAGE, "磁盘剩余空间不足");
+    // 检查 Content-Length 和磁盘空间
+    match headers.get(header::CONTENT_LENGTH) {
+        Some(content_length) => {
+            if let Ok(length_str) = content_length.to_str() {
+                if let Ok(upload_size) = length_str.parse::<u64>() {
+                    if !check_disk_space(upload_size, &target_dir) {
+                        return error(StatusCode::INSUFFICIENT_STORAGE, "磁盘剩余空间不足，无法存储上传的文件");
+                    }
                 }
             }
         }
+        None => {
+            return error(StatusCode::LENGTH_REQUIRED, "请求缺少 Content-Length 头");
+        }
     }
+
+    // 4. 所有校验通过后才消费 body
+    let body_stream = _req
+        .into_body()
+        .into_data_stream()
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e));
+
+    let mut multipart = Multipart::new(body_stream, boundary);
+
+    let mut uploaded: Vec<String> = Vec::new();
+    let mut overwrite_flags: Vec<bool> = Vec::new();
 
     // 5. 核心逻辑：支持任意字段顺序，边解析边上传
     loop {
