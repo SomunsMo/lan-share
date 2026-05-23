@@ -1,8 +1,8 @@
 import styled from "styled-components";
 
 const SettingsStyle = styled.div`
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
 
     user-select: none;
 
