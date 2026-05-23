@@ -23,7 +23,6 @@ pub mod http_server {
     pub mod path_handler {
         pub mod file_sharing_handler;
         pub mod text_sharing_handler;
-        pub mod user_handler;
         pub mod web_handler;
     }
 }

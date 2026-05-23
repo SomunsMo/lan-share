@@ -35,7 +35,7 @@ function TextSharing() {
         getTextSharingAPI().then(res => {
             if (res.code !== 200) {
                 console.error("获取历史文本异常")
-                showToast({message: '获取历史文本失败: ' + (res.status || '未知错误'), type: 'error'});
+                showToast({message: '获取历史文本失败: ' + (res.msg || '未知错误'), type: 'error'});
                 return;
             }
             setTextHistory(res.data);
@@ -57,7 +57,7 @@ function TextSharing() {
 
                 if (res.code !== 200) {
                     console.error("发送文本到服务器失败")
-                    showToast({message: '发送文本失败: ' + (res.status || '未知错误'), type: 'error'});
+                    showToast({message: '发送文本失败: ' + (res.msg || '未知错误'), type: 'error'});
                     return;
                 }
 

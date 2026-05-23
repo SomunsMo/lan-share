@@ -171,7 +171,7 @@ function FileSharing() {
             const res = await getFileSharingAPI(dir);
             if (res.code !== 200) {
                 console.error("获取文件列表异常");
-                showToast({message: '获取文件列表失败: ' + (res.status || '未知错误'), type: 'error'});
+                showToast({message: '获取文件列表失败: ' + (res.msg || '未知错误'), type: 'error'});
                 return false;
             }
 
@@ -268,7 +268,7 @@ function FileSharing() {
                 // 检查文件是否存在
                 const checkRes = await checkFileExistsAPI(currentDir || "", file.name);
                 if (checkRes.code !== 200) {
-                    showToast({message: `检查文件 ${file.name} 是否存在失败: ` + (checkRes.status || '未知错误'), type: 'error'});
+                    showToast({message: `检查文件 ${file.name} 是否存在失败: ` + (checkRes.msg || '未知错误'), type: 'error'});
                     continue;
                 }
                 if (!checkRes.data.upload_enabled) {
@@ -313,7 +313,7 @@ function FileSharing() {
 
                 // 检查响应中的业务状态码
                 if (res.code !== 200) {
-                    const errorMsg = res.status || '未知错误';
+                    const errorMsg = res.msg || '未知错误';
                     updateProgress(fileId, `上传文件: ${file.name}`, 0, `文件 ${file.name} 上传失败`, '上传失败');
                     setTimeout(() => {
                         removeProgress(fileId);
@@ -409,7 +409,7 @@ function FileSharing() {
                 await flushSharedFileList(currentDir || '');
                 showToast({message: '重命名成功', type: 'success'});
             } else {
-                showToast({message: '重命名失败: ' + (res.status || '未知错误'), type: 'error'});
+                showToast({message: '重命名失败: ' + (res.msg || '未知错误'), type: 'error'});
             }
         } catch (error) {
             console.error('重命名失败:', error);
@@ -440,7 +440,7 @@ function FileSharing() {
                 await flushSharedFileList(currentDir || '');
                 showToast({message: '删除成功', type: 'success'});
             } else {
-                showToast({message: '删除失败: ' + (res.status || '未知错误'), type: 'error'});
+                showToast({message: '删除失败: ' + (res.msg || '未知错误'), type: 'error'});
             }
         } catch (error) {
             console.error('删除失败:', error);

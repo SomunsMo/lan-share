@@ -19,7 +19,7 @@ pub fn success_json<T: serde::Serialize>(
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
     let res_json = serde_json::json!({
         "code": 200,
-        "status": "success",
+        "msg": "success",
         "data": data
     })
     .to_string();
@@ -39,7 +39,7 @@ pub fn error(
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
     let res_json = serde_json::json!( {
         "code": status.as_u16(),
-        "status": msg
+        "msg": msg
     })
     .to_string();
 

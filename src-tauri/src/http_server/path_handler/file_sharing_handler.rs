@@ -536,7 +536,7 @@ pub async fn download_file(
 fn create_error_response(status: StatusCode, msg: &str) -> Response<GenericResponseBody> {
     let res_json = serde_json::json!( {
         "code": status.as_u16(),
-        "status": msg
+        "msg": msg
     })
     .to_string();
 
