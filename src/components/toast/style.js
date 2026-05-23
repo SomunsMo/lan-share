@@ -25,7 +25,7 @@ export const ToastContainerWrapper = styled.div`
 `;
 
 export const ToastItemOuter = styled.div`
-  overflow: hidden;
+  overflow: ${props => props.$collapsing ? 'hidden' : 'visible'};
   transition: height 0.3s ease, margin 0.3s ease;
   height: ${props => props.$collapsing ? '0px' : props.$height ? `${props.$height}px` : 'auto'};
   margin-bottom: ${props => props.$collapsing ? '0px' : '8px'};
@@ -116,14 +116,23 @@ export const ToastCloseBtn = styled.button`
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0 0 0 12px;
+  margin-left: 12px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   font-size: 14px;
   line-height: 1;
   opacity: 0.5;
   color: inherit;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s, background 0.2s;
+  border-radius: 4px;
 
-  &:hover {
+  &&:hover {
     opacity: 1;
+    background-color: rgba(0, 0, 0, 0.06);
   }
 `;

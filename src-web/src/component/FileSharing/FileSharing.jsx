@@ -271,6 +271,10 @@ function FileSharing() {
                     showToast({message: `检查文件 ${file.name} 是否存在失败: ` + (checkRes.status || '未知错误'), type: 'error'});
                     continue;
                 }
+                if (!checkRes.data.upload_enabled) {
+                    showToast({message: '上传功能已被禁用', type: 'warning'});
+                    continue;
+                }
                 if (checkRes.data.exists) {
                     if (!checkRes.data.overwrite_enabled) {
                         showToast({message: '上传覆盖已禁用', type: 'warning'});

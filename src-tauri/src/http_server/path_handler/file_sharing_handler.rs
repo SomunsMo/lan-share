@@ -737,6 +737,7 @@ async fn fetch_permissions() -> WebPermissions {
 #[derive(Serialize)]
 struct FileExistCheck {
     exists: bool,
+    upload_enabled: bool,
     overwrite_enabled: bool,
 }
 
@@ -770,8 +771,14 @@ pub async fn check_file_exists(
         _ => false,
     };
 
+    let upload_enabled = match config_dao::get_config_value("upload_enabled").await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
+        _ => false,
+    };
+
     success_json(FileExistCheck {
         exists,
+        upload_enabled,
         overwrite_enabled,
     })
 }
