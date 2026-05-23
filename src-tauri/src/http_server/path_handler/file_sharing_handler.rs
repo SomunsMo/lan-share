@@ -30,7 +30,18 @@ enum FileInfo {
     String(String), // 用于 name
 }
 
-/// 获取共享的文件列表
+/// 响应结构
+#[derive(Serialize)]
+struct FileListResponse {
+    // 文件列表
+    files: Vec<HashMap<String, FileInfo>>,
+    // 权限配置
+    permissions: WebPermissions,
+    // 磁盘空间
+    disk_space: DiskSpaceInfo,
+}
+
+/// 获取共享的文件列表（含权限配置和磁盘空间信息）
 #[get("/upload/file")]
 pub async fn get_file_list(
     _req: Request<Incoming>,
@@ -123,8 +134,30 @@ pub async fn get_file_list(
         file_list.push(file_info);
     }
 
-    // 构建响应
-    success_json(file_list)
+    // 获取权限配置
+    let permissions = fetch_permissions().await;
+
+    // 获取磁盘空间信息
+    let disk_space = match fs4::statvfs(&target_dir) {
+        Ok(stats) => DiskSpaceInfo {
+            total_space: stats.total_space(),
+            available_space: stats.available_space(),
+        },
+        Err(e) => {
+            log::error!("获取磁盘空间信息失败: {}", e);
+            DiskSpaceInfo {
+                total_space: 0,
+                available_space: 0,
+            }
+        }
+    };
+
+    // 构建合并响应
+    success_json(FileListResponse {
+        files: file_list,
+        permissions,
+        disk_space,
+    })
 }
 
 /// 上传被共享的文件
@@ -649,11 +682,8 @@ struct WebPermissions {
     upload_overwrite_enabled: bool,
 }
 
-/// 获取网页端权限配置
-#[get("/config/permissions")]
-pub async fn get_permissions(
-    _req: Request<Incoming>,
-) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
+/// 获取权限配置（内部辅助函数）
+async fn fetch_permissions() -> WebPermissions {
     let upload_enabled = match config_dao::get_config_value("upload_enabled").await {
         Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
         _ => false,
@@ -672,12 +702,12 @@ pub async fn get_permissions(
             _ => false,
         };
 
-    success_json(WebPermissions {
+    WebPermissions {
         upload_enabled,
         rename_enabled,
         delete_enabled,
         upload_overwrite_enabled,
-    })
+    }
 }
 
 /// 文件存在性检查响应
@@ -728,28 +758,6 @@ pub async fn check_file_exists(
 struct DiskSpaceInfo {
     total_space: u64,
     available_space: u64,
-}
-
-/// 获取共享根目录所在分区的磁盘空间信息
-#[get("/config/disk-space")]
-pub async fn get_disk_space(
-    _req: Request<Incoming>,
-) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
-    let sharing_root = get_sharing_root().await;
-
-    match fs4::statvfs(&*sharing_root) {
-        Ok(stats) => success_json(DiskSpaceInfo {
-            total_space: stats.total_space(),
-            available_space: stats.available_space(),
-        }),
-        Err(e) => {
-            log::error!("获取磁盘空间信息失败: {}", e);
-            error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                &format!("获取磁盘空间信息失败：{}", e),
-            )
-        }
-    }
 }
 
 /// 检查磁盘剩余空间是否足够容纳指定大小的文件

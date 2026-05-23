@@ -64,22 +64,6 @@ export const deleteFileAPI = (dir, fileName) => {
     });
 }
 
-// 获取网页端权限配置
-export const getPermissionsAPI = () => {
-    return request({
-        method: "GET",
-        url: "/config/permissions"
-    });
-}
-
-// 获取磁盘空间信息
-export const getDiskSpaceAPI = () => {
-    return request({
-        method: "GET",
-        url: "/config/disk-space"
-    });
-}
-
 // 检查文件是否存在
 export const checkFileExistsAPI = (dir, fileName) => {
     const params = new URLSearchParams();

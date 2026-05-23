@@ -2,7 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import FileSharingStyle from "./FileSharingStyle.js";
 import Card from "../Card/Card.js";
 import ProgressBar from "../ProgressBar/ProgressBar.jsx";
-import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, getPermissionsAPI, getDiskSpaceAPI, checkFileExistsAPI} from "@/service/API.js";
+import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, checkFileExistsAPI} from "@/service/API.js";
 import {formatFileSize, getFileSuffix} from "@/util/file.js";
 import {useToast} from "@/component/Toast/index.jsx";
 import {useDialog} from "@/component/Dialog/index.jsx";
@@ -165,7 +165,7 @@ function FileSharing() {
         return new URLSearchParams(window.location.search).get("dir");
     }
 
-    // 调用接口，获取并更新文件列表
+    // 调用接口，获取并更新文件列表（含权限配置和磁盘空间）
     const flushSharedFileList = async (dir) => {
         try {
             const res = await getFileSharingAPI(dir);
@@ -176,7 +176,17 @@ function FileSharing() {
             }
 
             let data = res.data;
-            preprocessSharedFileList(data);
+            // 更新权限配置
+            if (data.permissions) {
+                setPermissions(data.permissions);
+            }
+            // 更新磁盘空间信息
+            if (data.disk_space) {
+                setDiskSpace(data.disk_space);
+            }
+            // 更新文件列表
+            let files = data.files || [];
+            preprocessSharedFileList(files);
             return true;
         } catch (error) {
             console.error("获取文件列表异常", error);
@@ -217,40 +227,8 @@ function FileSharing() {
     useEffect(() => {
 
         let currentDir = getCurrentDir();
-        // 调接口取文件列表
+        // 调接口取文件列表（含权限配置和磁盘空间）
         flushSharedFileList(currentDir ? currentDir : "");
-
-        // 获取权限配置
-        const fetchPermissions = async () => {
-            try {
-                const res = await getPermissionsAPI();
-                if (res.code === 200 && res.data) {
-                    setPermissions(res.data);
-                } else {
-                    showToast({message: '获取权限配置失败: ' + (res.status || '未知错误'), type: 'error'});
-                }
-            } catch (error) {
-                console.error('获取权限配置失败:', error);
-                showToast({message: '获取权限配置失败: ' + (error.status || error.message || '未知错误'), type: 'error'});
-            }
-        };
-        fetchPermissions();
-
-        // 获取磁盘空间信息
-        const fetchDiskSpace = async () => {
-            try {
-                const res = await getDiskSpaceAPI();
-                if (res.code === 200 && res.data) {
-                    setDiskSpace(res.data);
-                } else {
-                    showToast({message: '获取磁盘空间信息失败: ' + (res.status || '未知错误'), type: 'error'});
-                }
-            } catch (error) {
-                console.error('获取磁盘空间信息失败:', error);
-                showToast({message: '获取磁盘空间信息失败: ' + (error.status || error.message || '未知错误'), type: 'error'});
-            }
-        };
-        fetchDiskSpace();
 
         preprocessSharedFileList([
             {
