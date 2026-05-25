@@ -103,7 +103,7 @@ function History() {
             const formattedRecords = records.map(record => ({
                 id: record.id,
                 type: record.upload_type,
-                time: new Date(record.created_at).toISOString().slice(0, 19).replace('T', ' '),
+                time: record.created_at.replace(/-/g, '/'),
                 ip: record.ip,
                 content: record.content,
                 isOverwrite: record.is_overwrite === 1

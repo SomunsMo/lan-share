@@ -23,15 +23,17 @@ const request = (options) => {
 
         //响应拦截
         instance.interceptors.response.use(response => {
-            // 如果请求的相应正常，则返回响应体（避免调用时每次都添加.data）
             if (response.status === 200) return response.data;
-
-            // 如果请求的响应不正常，则返回完整响应
             return response;
         }, err => {
-            // 从服务端响应中提取错误信息
             if (err.response && err.response.data) {
-                return Promise.reject(err.response.data);
+                const data = err.response.data;
+                // 标准化错误对象：确保 message 和 status 始终可用
+                return Promise.reject({
+                    ...data,
+                    message: data.msg || data.message || '未知错误',
+                    status: data.code || err.response.status,
+                });
             }
             return Promise.reject(err);
         })

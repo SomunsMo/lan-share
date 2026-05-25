@@ -98,7 +98,7 @@ function TextSharingManager(props) {
             // 将数据库记录转换为前端所需的格式
             const formattedRecords = records.map(record => ({
                 id: record.id,
-                time: new Date(record.created_at).toISOString().slice(0, 19).replace('T', ' '),
+                time: record.created_at.replace(/-/g, '/'),
                 ip: record.ip,
                 content: record.content
             }));

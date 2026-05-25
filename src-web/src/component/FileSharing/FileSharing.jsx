@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import FileSharingStyle, {FileCard} from "./FileSharingStyle.js";
 import ProgressBar from "../ProgressBar/ProgressBar.jsx";
-import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, checkFileExistsAPI} from "@/service/API.js";
+import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, preUploadCheckAPI} from "@/service/API.js";
 import {formatFileSize, getFileSuffix} from "@/util/file.js";
 import {useToast} from "@/component/Toast/index.jsx";
 import {useDialog} from "@/component/Dialog/index.jsx";
@@ -189,7 +189,7 @@ function FileSharing() {
             return true;
         } catch (error) {
             console.error("获取文件列表异常", error);
-            showToast({message: '获取文件列表失败: ' + (error.status || error.message || '未知错误'), type: 'error'});
+            showToast({message: '获取文件列表失败: ' + (error.message || '未知错误'), type: 'error'});
             return false;
         }
     }
@@ -265,13 +265,24 @@ function FileSharing() {
 
             try {
                 // 检查文件是否存在
-                const checkRes = await checkFileExistsAPI(currentDir || "", file.name);
+                const checkRes = await preUploadCheckAPI(currentDir || "", file.name);
                 if (checkRes.code !== 200) {
-                    showToast({message: `检查文件 ${file.name} 是否存在失败: ` + (checkRes.msg || '未知错误'), type: 'error'});
+                    showToast({
+                        message: `检查文件 ${file.name} 是否存在失败: ` + (checkRes.msg || '未知错误'),
+                        type: 'error'
+                    });
                     continue;
                 }
                 if (!checkRes.data.upload_enabled) {
                     showToast({message: '上传功能已被禁用', type: 'warning'});
+                    continue;
+                }
+                // 检查磁盘剩余空间是否足够
+                if (checkRes.data.available_space && file.size > checkRes.data.available_space) {
+                    showToast({
+                        message: `磁盘剩余空间不足，无法存储文件 "${file.name}"。需要 ${formatFileSize(file.size)}，可用 ${formatFileSize(checkRes.data.available_space)}`,
+                        type: 'error'
+                    });
                     continue;
                 }
                 if (checkRes.data.exists) {
@@ -335,7 +346,7 @@ function FileSharing() {
                 console.error('文件上传失败:', file.name, error);
 
                 // 提取服务端返回的错误信息
-                const errorMsg = error.status || error.message || '未知错误';
+                const errorMsg = error.message || '未知错误';
 
                 // 复用同一个fileId更新进度条为失败状态
                 updateProgress(fileId, `上传文件: ${file.name}`, 0, `文件 ${file.name} 上传失败`, '上传失败');
@@ -412,7 +423,7 @@ function FileSharing() {
             }
         } catch (error) {
             console.error('重命名失败:', error);
-            showToast({message: '重命名失败: ' + (error.status || error.message || '未知错误'), type: 'error'});
+            showToast({message: '重命名失败: ' + (error.message || '未知错误'), type: 'error'});
         }
     }
 
@@ -443,7 +454,7 @@ function FileSharing() {
             }
         } catch (error) {
             console.error('删除失败:', error);
-            showToast({message: '删除失败: ' + (error.status || error.message || '未知错误'), type: 'error'});
+            showToast({message: '删除失败: ' + (error.message || '未知错误'), type: 'error'});
         }
     }
 
@@ -684,7 +695,8 @@ function FileSharing() {
                                 });
                                 setSelectedFiles(new Set());
                             }}
-                    >批量下载</button>
+                    >批量下载
+                    </button>
                 </div>
 
                 {/* 右键菜单 */}

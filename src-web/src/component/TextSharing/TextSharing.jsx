@@ -43,7 +43,7 @@ function TextSharing() {
             setTextHistory(res.data);
         }).catch(error => {
             console.error("获取历史文本异常", error);
-            showToast({message: '获取历史文本失败: ' + (error.status || error.message || '未知错误'), type: 'error'});
+            showToast({message: '获取历史文本失败: ' + (error.message || '未知错误'), type: 'error'});
         })
     }
 
@@ -69,7 +69,7 @@ function TextSharing() {
                 flushHistoryList();
             }).catch(error => {
                 console.error("发送文本到服务器失败", error);
-                showToast({message: '发送文本失败: ' + (error.status || error.message || '未知错误'), type: 'error'});
+                showToast({message: '发送文本失败: ' + (error.message || '未知错误'), type: 'error'});
             });
     }
 
@@ -134,7 +134,7 @@ function TextSharing() {
                                     if (contextMenu.visible) hideContextMenu();
                                 }}>
                                 <p>{v.content}</p>
-                                <p className="metaInfo">{v.created_at} | {v.ip}</p>
+                                <p className="metaInfo">{v.created_at.replace(/-/g, '/')} | {v.ip}</p>
                             </li>
                         )
                     })}

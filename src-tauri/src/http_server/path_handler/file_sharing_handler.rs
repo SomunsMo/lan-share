@@ -233,14 +233,20 @@ pub async fn upload_file(
             if !metadata.is_dir() {
                 return error(
                     StatusCode::UNPROCESSABLE_ENTITY,
-                    &format!("Path '{}' exists but is not a directory", crate::utils::path::normalize_path(&target_dir)),
+                    &format!(
+                        "Path '{}' exists but is not a directory",
+                        crate::utils::path::normalize_path(&target_dir)
+                    ),
                 );
             }
         }
         Err(_) => {
             return error(
                 StatusCode::UNPROCESSABLE_ENTITY,
-                &format!("Directory '{}' does not exist", crate::utils::path::normalize_path(&target_dir)),
+                &format!(
+                    "Directory '{}' does not exist",
+                    crate::utils::path::normalize_path(&target_dir)
+                ),
             );
         }
     }
@@ -251,7 +257,10 @@ pub async fn upload_file(
             if let Ok(length_str) = content_length.to_str() {
                 if let Ok(upload_size) = length_str.parse::<u64>() {
                     if !check_disk_space(upload_size, &target_dir) {
-                        return error(StatusCode::INSUFFICIENT_STORAGE, "磁盘剩余空间不足，无法存储上传的文件");
+                        return error(
+                            StatusCode::INSUFFICIENT_STORAGE,
+                            "磁盘剩余空间不足，无法存储上传的文件",
+                        );
                     }
                 }
             }
@@ -332,6 +341,15 @@ pub async fn upload_file(
                     match field.chunk().await {
                         Ok(Some(chunk)) => {
                             if let Err(e) = file.write_all(&chunk).await {
+                                // 清理未写完的文件
+                                let _ = tokio::fs::remove_file(&file_path).await;
+                                // 检查是否是磁盘空间不足
+                                if !check_disk_space(1, &target_dir) {
+                                    return error(
+                                        StatusCode::INSUFFICIENT_STORAGE,
+                                        "磁盘剩余空间不足，无法存储上传的文件",
+                                    );
+                                }
                                 return error(
                                     StatusCode::INTERNAL_SERVER_ERROR,
                                     &format!("Failed to write file '{}': {}", safe_filename, e),
@@ -350,6 +368,13 @@ pub async fn upload_file(
 
                 // 刷新并记录上传结果
                 if let Err(e) = file.flush().await {
+                    let _ = tokio::fs::remove_file(&file_path).await;
+                    if !check_disk_space(1, &target_dir) {
+                        return error(
+                            StatusCode::INSUFFICIENT_STORAGE,
+                            "磁盘剩余空间不足，无法存储上传的文件",
+                        );
+                    }
                     return error(
                         StatusCode::INTERNAL_SERVER_ERROR,
                         &format!("Failed to flush file '{}': {}", safe_filename, e),
@@ -482,7 +507,10 @@ pub async fn download_file(
         Err(_) => {
             let error_response = create_error_response(
                 StatusCode::NOT_FOUND,
-                &format!("文件不存在：{}", crate::utils::path::normalize_path(&full_file_path)),
+                &format!(
+                    "文件不存在：{}",
+                    crate::utils::path::normalize_path(&full_file_path)
+                ),
             );
             return Ok(error_response);
         }
@@ -733,17 +761,18 @@ async fn fetch_permissions() -> WebPermissions {
     }
 }
 
-/// 文件存在性检查响应
+/// 上传前检测：获取文件是否存在、上传功能、覆盖权限、磁盘剩余空间
 #[derive(Serialize)]
-struct FileExistCheck {
+struct PreUploadCheck {
     exists: bool,
     upload_enabled: bool,
     overwrite_enabled: bool,
+    /// 目标目录所在磁盘的剩余空间（字节），0 表示无法获取
+    available_space: u64,
 }
 
-/// 检查文件是否存在，并返回是否允许覆盖上传
-#[get("/upload/file/exists")]
-pub async fn check_file_exists(
+#[get("/upload/file/check")]
+pub async fn pre_upload_check(
     _req: Request<Incoming>,
     query_params: QueryParams,
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
@@ -776,10 +805,13 @@ pub async fn check_file_exists(
         _ => false,
     };
 
-    success_json(FileExistCheck {
+    let available_space = fs4::available_space(&target_dir).unwrap_or(0);
+
+    success_json(PreUploadCheck {
         exists,
         upload_enabled,
         overwrite_enabled,
+        available_space,
     })
 }
 
@@ -796,8 +828,8 @@ fn check_disk_space(upload_size: u64, target_dir: &std::path::Path) -> bool {
     match fs4::available_space(target_dir) {
         Ok(available) => upload_size <= available,
         Err(e) => {
-            log::warn!("无法获取磁盘可用空间: {}", e);
-            true
+            log::error!("无法获取磁盘可用空间: {}", e);
+            false // 无法确认空间充足时，拒绝上传（安全优先）
         }
     }
 }
