@@ -3,7 +3,6 @@ import {
     ToastContainerWrapper,
     ToastItemOuter,
     ToastItemInner,
-    ToastIcon,
     ToastMessage,
     ToastCloseBtn,
 } from './ToastStyle';
@@ -12,12 +11,6 @@ const ToastContext = createContext(null);
 
 let nextId = 0;
 
-const ICONS = {
-    success: '\u2713',
-    error: '\u2717',
-    warning: '\u26A0',
-    info: '\u2139',
-};
 
 export function ToastProvider({ children }) {
     const [toasts, setToasts] = useState([]);
@@ -110,7 +103,6 @@ function ToastItem({ toast, onClose }) {
     return (
         <ToastItemOuter $collapsing={isCollapsing} $height={height}>
             <ToastItemInner ref={innerRef} $type={toast.type} $exiting={isExiting}>
-                <ToastIcon $type={toast.type}>{ICONS[toast.type] || ICONS.info}</ToastIcon>
                 <ToastMessage>{toast.message}</ToastMessage>
                 <ToastCloseBtn onClick={() => onClose(toast.id)}>✕</ToastCloseBtn>
             </ToastItemInner>

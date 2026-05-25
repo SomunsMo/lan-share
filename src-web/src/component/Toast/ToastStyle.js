@@ -33,10 +33,10 @@ export const ToastItemOuter = styled.div`
 `;
 
 const TYPE_COLORS = {
-  success: { bg: 'var(--bg-toast-success, #f0fdf4)', border: 'var(--border-toast-success, #86efac)', icon: 'var(--toast-success, #16a34a)' },
-  error:   { bg: 'var(--bg-toast-error, #fef2f2)', border: 'var(--border-toast-error, #fca5a5)', icon: 'var(--toast-error, #dc2626)' },
-  warning: { bg: 'var(--bg-toast-warning, #fefce8)', border: 'var(--border-toast-warning, #fde047)', icon: 'var(--toast-warning, #ca8a04)' },
-  info:    { bg: 'var(--bg-toast-info, #eff6ff)', border: 'var(--border-toast-info, #93c5fd)', icon: 'var(--toast-info, #2563eb)' },
+  success: { bg: 'var(--bg-toast-success, #f0fdf4)', border: 'var(--border-toast-success, #86efac)' },
+  error:   { bg: 'var(--bg-toast-error, #fef2f2)', border: 'var(--border-toast-error, #fca5a5)' },
+  warning: { bg: 'var(--bg-toast-warning, #fefce8)', border: 'var(--border-toast-warning, #fde047)' },
+  info:    { bg: 'var(--bg-toast-info, #eff6ff)', border: 'var(--border-toast-info, #93c5fd)' },
 };
 
 export const ToastItemInner = styled.div`
@@ -57,14 +57,6 @@ export const ToastItemInner = styled.div`
   font-size: 0.82rem;
   line-height: 1.5;
   word-break: break-word;
-`;
-
-export const ToastIcon = styled.span`
-  margin-right: 8px;
-  font-size: 15px;
-  flex-shrink: 0;
-  font-style: normal;
-  color: ${p => TYPE_COLORS[p.$type]?.icon || 'inherit'};
 `;
 
 export const ToastMessage = styled.span`

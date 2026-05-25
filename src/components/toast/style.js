@@ -33,10 +33,10 @@ export const ToastItemOuter = styled.div`
 `;
 
 const TYPE_COLORS = {
-  success: { bg: 'var(--toast-success-bg)', border: 'var(--toast-success-border)', icon: 'var(--toast-success-text)' },
-  error:   { bg: 'var(--toast-error-bg)',   border: 'var(--toast-error-border)',   icon: 'var(--toast-error-text)' },
-  warning: { bg: 'var(--toast-warning-bg)', border: 'var(--toast-warning-border)', icon: 'var(--toast-warning-text)' },
-  info:    { bg: 'var(--toast-info-bg)',    border: 'var(--toast-info-border)',    icon: 'var(--toast-info-text)' },
+  success: { bg: 'var(--toast-success-bg)', border: 'var(--toast-success-border)' },
+  error:   { bg: 'var(--toast-error-bg)',   border: 'var(--toast-error-border)' },
+  warning: { bg: 'var(--toast-warning-bg)', border: 'var(--toast-warning-border)' },
+  info:    { bg: 'var(--toast-info-bg)',    border: 'var(--toast-info-border)' },
 };
 
 export const ToastItemInner = styled.div`
@@ -57,14 +57,6 @@ export const ToastItemInner = styled.div`
   font-size: 0.82rem;
   line-height: 1.5;
   word-break: break-word;
-`;
-
-export const ToastIcon = styled.span`
-  margin-right: 8px;
-  font-size: 15px;
-  flex-shrink: 0;
-  font-style: normal;
-  color: ${props => TYPE_COLORS[props.$type]?.icon || 'inherit'};
 `;
 
 export const ToastMessage = styled.span`
