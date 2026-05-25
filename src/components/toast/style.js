@@ -32,6 +32,13 @@ export const ToastItemOuter = styled.div`
   pointer-events: auto;
 `;
 
+const TYPE_COLORS = {
+  success: { bg: 'var(--toast-success-bg)', border: 'var(--toast-success-border)', icon: 'var(--toast-success-text)' },
+  error:   { bg: 'var(--toast-error-bg)',   border: 'var(--toast-error-border)',   icon: 'var(--toast-error-text)' },
+  warning: { bg: 'var(--toast-warning-bg)', border: 'var(--toast-warning-border)', icon: 'var(--toast-warning-text)' },
+  info:    { bg: 'var(--toast-info-bg)',    border: 'var(--toast-info-border)',    icon: 'var(--toast-info-text)' },
+};
+
 export const ToastItemInner = styled.div`
   display: flex;
   align-items: center;
@@ -41,30 +48,9 @@ export const ToastItemInner = styled.div`
   max-width: 480px;
   box-shadow: var(--shadow-md);
   animation: ${slideInDown} 0.25s ease forwards;
-  background: ${props => {
-    switch (props.$type) {
-      case 'success': return 'var(--toast-success-bg)';
-      case 'error': return 'var(--toast-error-bg)';
-      case 'warning': return 'var(--toast-warning-bg)';
-      case 'info': default: return 'var(--toast-info-bg)';
-    }
-  }};
-  border: 1px solid ${props => {
-    switch (props.$type) {
-      case 'success': return 'var(--toast-success-border)';
-      case 'error': return 'var(--toast-error-border)';
-      case 'warning': return 'var(--toast-warning-border)';
-      case 'info': default: return 'var(--toast-info-border)';
-    }
-  }};
-  color: ${props => {
-    switch (props.$type) {
-      case 'success': return 'var(--toast-success-text)';
-      case 'error': return 'var(--toast-error-text)';
-      case 'warning': return 'var(--toast-warning-text)';
-      case 'info': default: return 'var(--toast-info-text)';
-    }
-  }};
+  background: ${props => TYPE_COLORS[props.$type]?.bg || 'var(--bg-card)'};
+  border: 1px solid ${props => TYPE_COLORS[props.$type]?.border || 'var(--border)'};
+  color: var(--text-primary);
   opacity: ${props => props.$exiting ? 0 : 1};
   transform: ${props => props.$exiting ? 'translateY(-20px)' : 'translateY(0)'};
   transition: opacity 0.25s ease, transform 0.25s ease;
@@ -78,6 +64,7 @@ export const ToastIcon = styled.span`
   font-size: 15px;
   flex-shrink: 0;
   font-style: normal;
+  color: ${props => TYPE_COLORS[props.$type]?.icon || 'inherit'};
 `;
 
 export const ToastMessage = styled.span`

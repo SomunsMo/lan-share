@@ -63,6 +63,33 @@ const TextSharingStyle = styled.div`
     .cardTips::before {
         content: "说明：";
     }
+
+    .sendBtnWrapper {
+        text-align: center;
+    }
+
+    .context-menu {
+        position: fixed;
+        z-index: 10001;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-lg);
+        min-width: 100px;
+        padding: 4px 0;
+    }
+
+    .context-menu-item {
+        padding: 8px 16px;
+        cursor: pointer;
+        font-size: 0.82rem;
+        color: var(--text-primary);
+        white-space: nowrap;
+    }
+
+    .context-menu-item:hover {
+        background-color: var(--bg-hover);
+    }
 `
 
 export default TextSharingStyle;

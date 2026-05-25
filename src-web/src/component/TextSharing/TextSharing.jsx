@@ -9,6 +9,8 @@ function TextSharing() {
     const {showToast} = useToast();
     // 将被上传的文本
     const [uploadText, setUploadText] = useState("");
+    // 右键菜单状态
+    const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, content: '' });
     // 已被上传的文本列表
     const [textHistory, setTextHistory] = useState([
         {
@@ -71,9 +73,42 @@ function TextSharing() {
             });
     }
 
+    // 显示右键菜单
+    const showContextMenu = (e, content) => {
+        e.preventDefault();
+        const x = Math.min(e.clientX, window.innerWidth - 120);
+        const y = Math.min(e.clientY, window.innerHeight - 40);
+        setContextMenu({ visible: true, x, y, content });
+    };
+
+    // 隐藏右键菜单
+    const hideContextMenu = () => {
+        setContextMenu({ visible: false, x: 0, y: 0, content: '' });
+    };
+
+    // 点击其他区域或滚动时关闭菜单
+    useEffect(() => {
+        const handleClick = (e) => {
+            if (!contextMenu.visible) return;
+            if (e.target.closest('.context-menu')) return;
+            hideContextMenu();
+        };
+
+        const handleScroll = () => {
+            if (contextMenu.visible) hideContextMenu();
+        };
+
+        document.addEventListener('click', handleClick);
+        window.addEventListener('scroll', handleScroll, true);
+        return () => {
+            document.removeEventListener('click', handleClick);
+            window.removeEventListener('scroll', handleScroll, true);
+        };
+    }, [contextMenu.visible]);
+
     const copyText = (text) => {
-        console.log(123)
         copy(text);
+        showToast({message: '文本已复制', type: 'success'});
     }
 
 
@@ -82,7 +117,7 @@ function TextSharing() {
             <Card>
                 {/*文本上传区域*/}
                 <textarea id="textInput" value={uploadText} onChange={uploadTextOnChange}></textarea>
-                <div>
+                <div className="sendBtnWrapper">
                     <button onClick={sendText}>发送文本</button>
                 </div>
             </Card>
@@ -94,7 +129,10 @@ function TextSharing() {
                         return (
                             <li key={v.id} onDoubleClick={() => {
                                 copyText(v.content)
-                            }}>
+                            }} onContextMenu={(e) => showContextMenu(e, v.content)}
+                                onMouseEnter={() => {
+                                    if (contextMenu.visible) hideContextMenu();
+                                }}>
                                 <p>{v.content}</p>
                                 <p className="metaInfo">{v.created_at} | {v.ip}</p>
                             </li>
@@ -103,6 +141,16 @@ function TextSharing() {
                 </ul>
                 <p className="cardTips">双击文本复制</p>
             </Card>
+
+            {contextMenu.visible && (
+                <div className="context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}
+                     onClick={(e) => e.stopPropagation()}>
+                    <div className="context-menu-item" onClick={() => {
+                        copyText(contextMenu.content);
+                        hideContextMenu();
+                    }}>复制</div>
+                </div>
+            )}
         </TextSharingStyle>
     );
 }

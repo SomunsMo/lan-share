@@ -32,6 +32,13 @@ export const ToastItemOuter = styled.div`
   pointer-events: auto;
 `;
 
+const TYPE_COLORS = {
+  success: { bg: 'var(--bg-toast-success, #f0fdf4)', border: 'var(--border-toast-success, #86efac)', icon: 'var(--toast-success, #16a34a)' },
+  error:   { bg: 'var(--bg-toast-error, #fef2f2)', border: 'var(--border-toast-error, #fca5a5)', icon: 'var(--toast-error, #dc2626)' },
+  warning: { bg: 'var(--bg-toast-warning, #fefce8)', border: 'var(--border-toast-warning, #fde047)', icon: 'var(--toast-warning, #ca8a04)' },
+  info:    { bg: 'var(--bg-toast-info, #eff6ff)', border: 'var(--border-toast-info, #93c5fd)', icon: 'var(--toast-info, #2563eb)' },
+};
+
 export const ToastItemInner = styled.div`
   display: flex;
   align-items: center;
@@ -41,8 +48,8 @@ export const ToastItemInner = styled.div`
   max-width: 480px;
   box-shadow: var(--shadow-md);
   animation: ${slideInDown} 0.25s ease forwards;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: ${p => TYPE_COLORS[p.$type]?.bg || 'var(--bg-card)'};
+  border: 1px solid ${p => TYPE_COLORS[p.$type]?.border || 'var(--border)'};
   color: var(--text-primary);
   opacity: ${props => props.$exiting ? 0 : 1};
   transform: ${props => props.$exiting ? 'translateY(-20px)' : 'translateY(0)'};
@@ -57,6 +64,7 @@ export const ToastIcon = styled.span`
   font-size: 15px;
   flex-shrink: 0;
   font-style: normal;
+  color: ${p => TYPE_COLORS[p.$type]?.icon || 'inherit'};
 `;
 
 export const ToastMessage = styled.span`

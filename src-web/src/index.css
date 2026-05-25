@@ -7,6 +7,19 @@
     --bg-danger-hover: #fef0f0;
     --bg-progress: #e9ecef;
 
+    --bg-toast-success: #f0fdf4;
+    --bg-toast-error: #fef2f2;
+    --bg-toast-warning: #fefce8;
+    --bg-toast-info: #eff6ff;
+    --border-toast-success: #86efac;
+    --border-toast-error: #fca5a5;
+    --border-toast-warning: #fde047;
+    --border-toast-info: #93c5fd;
+    --toast-success: #16a34a;
+    --toast-error: #dc2626;
+    --toast-warning: #ca8a04;
+    --toast-info: #2563eb;
+
     --text-primary: #213547;
     --text-secondary: #5a6b7a;
     --text-tertiary: #9aa6b2;
@@ -39,6 +52,19 @@
         --bg-danger-hover: #3a1a1a;
         --bg-progress: #505050;
 
+        --bg-toast-success: #1a3a2a;
+        --bg-toast-error: #3a1a1a;
+        --bg-toast-warning: #3a3a1a;
+        --bg-toast-info: #1a2a3a;
+        --border-toast-success: #2d6a4f;
+        --border-toast-error: #6a2d2d;
+        --border-toast-warning: #6a6a2d;
+        --border-toast-info: #2d4f6a;
+        --toast-success: #67c23a;
+        --toast-error: #f56c6c;
+        --toast-warning: #e6c23a;
+        --toast-info: #5dd9e8;
+
         --text-primary: #f6f6f6;
         --text-secondary: #b0b0b0;
         --text-tertiary: #808080;
@@ -69,8 +95,20 @@ html.dark {
     --bg-danger-hover: #3a1a1a;
     --bg-progress: #505050;
 
-    --text-primary: #f6f6f6;
-    --text-secondary: #b0b0b0;
+    --bg-toast-success: #1a3a2a;
+    --bg-toast-error: #3a1a1a;
+    --bg-toast-warning: #3a3a1a;
+    --bg-toast-info: #1a2a3a;
+    --border-toast-success: #2d6a4f;
+    --border-toast-error: #6a2d2d;
+    --border-toast-warning: #6a6a2d;
+    --border-toast-info: #2d4f6a;
+    --toast-success: #67c23a;
+    --toast-error: #f56c6c;
+    --toast-warning: #e6c23a;
+    --toast-info: #5dd9e8;
+
+    --text-primary: #f6f6f6;    --text-secondary: #b0b0b0;
     --text-tertiary: #808080;
     --text-accent: #1a1a1a;
 

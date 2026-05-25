@@ -110,7 +110,7 @@ function ToastItem({ toast, onClose }) {
     return (
         <ToastItemOuter $collapsing={isCollapsing} $height={height}>
             <ToastItemInner ref={innerRef} $type={toast.type} $exiting={isExiting}>
-                <ToastIcon>{ICONS[toast.type] || ICONS.info}</ToastIcon>
+                <ToastIcon $type={toast.type}>{ICONS[toast.type] || ICONS.info}</ToastIcon>
                 <ToastMessage>{toast.message}</ToastMessage>
                 <ToastCloseBtn onClick={() => onClose(toast.id)}>✕</ToastCloseBtn>
             </ToastItemInner>
