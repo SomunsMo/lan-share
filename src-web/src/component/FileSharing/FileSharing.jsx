@@ -564,6 +564,7 @@ function FileSharing() {
 
     return (
         <FileCard>
+            {uploadProgresses.length > 0 && <ProgressBar progresses={uploadProgresses}/>}
             <FileSharingStyle>
                 {diskSpace.total_space > 0 && (
                     <div className="diskSpaceBar">
