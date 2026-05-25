@@ -1,6 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import FileSharingStyle from "./FileSharingStyle.js";
-import Card from "../Card/Card.js";
+import FileSharingStyle, {FileCard} from "./FileSharingStyle.js";
 import ProgressBar from "../ProgressBar/ProgressBar.jsx";
 import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, checkFileExistsAPI} from "@/service/API.js";
 import {formatFileSize, getFileSuffix} from "@/util/file.js";
@@ -564,8 +563,7 @@ function FileSharing() {
     };
 
     return (
-        <Card>
-            {uploadProgresses.length > 0 && <ProgressBar progresses={uploadProgresses}/>}
+        <FileCard>
             <FileSharingStyle>
                 {diskSpace.total_space > 0 && (
                     <div className="diskSpaceBar">
@@ -757,7 +755,7 @@ function FileSharing() {
                     );
                 })()}
             </FileSharingStyle>
-        </Card>
+        </FileCard>
     );
 }
 

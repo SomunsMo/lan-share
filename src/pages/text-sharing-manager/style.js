@@ -5,29 +5,50 @@ const TextSharingManagerStyle = styled.div`
     flex-direction: column;
     width: 100%;
     height: 100%;
+    min-height: 0;
 
     .textEdit {
+        flex: 1;
         width: 100%;
-        height: 260px;
+        min-height: 100px;
         resize: none;
         border: none;
+        background: transparent;
+        padding: 0;
+        font-size: 0.92rem;
+        line-height: 1.6;
+        white-space: nowrap;
+        overflow-x: auto;
+    }
+
+    .textEdit:focus {
+        border-color: transparent;
     }
 
     .textEditActions {
-        padding: 8px 5px 0;
+        padding-top: 10px;
         text-align: right;
-        border-top: 1px solid lightgrey;
+        margin-top: 10px;
     }
 
     .textEditActions button {
-        padding: 8px 26px;
+        padding: 7px 24px;
+    }
+
+    > :first-child {
+        flex-shrink: 0;
     }
 
     .sharingHistory {
         width: 100%;
-        height: 100%;
+        flex: 1;
+        min-height: 0;
         overflow-y: auto;
-        display: block;
+    }
+
+    > :nth-child(2) {
+        min-height: 0;
+        overflow: hidden;
     }
 
     .historyTable {
@@ -40,74 +61,66 @@ const TextSharingManagerStyle = styled.div`
     thead {
         position: sticky;
         top: 0;
-        background-color: white;
+        background-color: var(--bg-table-header);
         z-index: 10;
-        height: 60px;
-        transition: box-shadow 0.3s ease;
-    }
-
-    /* 当tbody中有多个行且第一个行不在视图中时显示阴影 */
-
-    .historyTable.sticky-shadow thead {
-        box-shadow: 0 10px 20px -10px rgba(0, 0, 0, 0.15);
+        height: 44px;
     }
 
     th {
         text-align: left;
-        word-wrap: break-word;
-        word-break: break-word;
+        font-weight: 500;
+        font-size: 0.82rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 0.65em 0.4em 0.5em;
     }
 
     .historyRow {
-        box-sizing: border-box;
-        height: 46px;
-        padding: 5px;
-
-        border-radius: 14px;
-
-        overflow: hidden;
+        height: 40px;
 
         td {
             vertical-align: middle;
-            height: 46px;
-            line-height: 1.5em;
+            line-height: 1.5;
+            font-size: 0.88rem;
+            padding: 0.5em 0.4em;
         }
     }
 
     .historyRow:hover {
-        background-color: rgba(128, 128, 128, 0.43);
+        background-color: var(--bg-hover);
     }
 
     .hisContent {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        line-height: 1.5em;
+        line-height: 1.5;
         word-break: break-word;
     }
 
     .context-menu {
         position: fixed;
         z-index: 10000;
-        background-color: var(--card-bg-color, white);
-        border: 1px solid var(--border-color, #ccc);
-        border-radius: 4px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        background-color: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-md);
         padding: 4px 0;
-        min-width: 100px;
-        font-size: 14px;
+        min-width: 110px;
+        font-size: 0.82rem;
     }
 
     .context-menu-item {
-        padding: 8px 16px;
+        padding: 7px 16px;
         cursor: pointer;
-        transition: background-color 0.2s;
+        color: var(--text-primary);
+        transition: background-color 0.12s;
     }
 
     .context-menu-item:hover {
-        background-color: var(--hover-bg-color, #f0f0f0);
+        background-color: var(--bg-hover);
     }
-
 `
 
 export default TextSharingManagerStyle;

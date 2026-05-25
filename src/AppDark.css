@@ -1,20 +1,49 @@
 @media (prefers-color-scheme: dark) {
     :root {
-        color: #f6f6f6;
-        background-color: #2f2f2f;
-    }
+        --bg-page: #2f2f2f;
+        --bg-card: #383838;
+        --bg-hover: rgba(255, 255, 255, 0.06);
+        --bg-input: #1e1e1e;
+        --bg-toggle: #505050;
+        --bg-sidebar: #383838;
+        --bg-table-header: #383838;
+        --bg-danger-hover: #3a1a1a;
 
-    a:hover {
-        color: #24c8db;
-    }
+        --text-primary: #f6f6f6;
+        --text-secondary: #b0b0b0;
+        --text-tertiary: #808080;
+        --text-accent: #1a1a1a;
 
-    input,
-    button {
-        color: #ffffff;
-        background-color: #0f0f0f98;
-    }
+        --border: #444;
+        --border-input: #505050;
 
-    button:active {
-        background-color: #0f0f0f69;
+        --accent: #24c8db;
+        --accent-hover: #5dd9e8;
+        --danger: #f56c6c;
+        --danger-hover: #f78989;
+        --success: #67c23a;
+        --warning-bg: #3a2a1a;
+        --warning-border: #5a3a2a;
+        --warning-text: #eebe77;
+        --warning-icon: #eebe77;
+        --warning-title: #eebe77;
+        --warning-strong: #f89898;
+
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+
+        --color-scheme: dark;
+
+        --toast-success-bg: #1a3a1a;
+        --toast-success-border: #2a5a2a;
+        --toast-success-text: #95d475;
+        --toast-error-bg: #3a1a1a;
+        --toast-error-border: #5a2a2a;
+        --toast-error-text: #f89898;
+        --toast-warning-bg: #3a2a1a;
+        --toast-warning-border: #5a3a2a;
+        --toast-warning-text: #eebe77;
+        --toast-info-bg: #1a2a3a;
+        --toast-info-border: #2a3a5a;
+        --toast-info-text: #79bbff;
     }
 }

@@ -6,6 +6,21 @@ import {QRCodeSVG} from "qrcode.react";
 function Home() {
     const [webUrl, setWebUrl] = useState("");
     const [portOccupied, setPortOccupied] = useState(null); // null=loading, number=被占用的端口号, false=正常
+    const [qrFgColor, setQrFgColor] = useState("#213547");
+
+    // 监听主题变化，更新二维码配色
+    useEffect(() => {
+        const updateColor = () => {
+            const html = document.documentElement;
+            if (html.classList.contains('dark')) setQrFgColor('#f6f6f6');
+            else if (html.classList.contains('light')) setQrFgColor('#213547');
+            else setQrFgColor(window.matchMedia('(prefers-color-scheme: dark)').matches ? '#f6f6f6' : '#213547');
+        };
+        updateColor();
+        const observer = new MutationObserver(updateColor);
+        observer.observe(document.documentElement, {attributes: true, attributeFilter: ['class']});
+        return () => observer.disconnect();
+    }, []);
 
     useEffect(() => {
         fetchServerStatus().catch(e => {
@@ -35,7 +50,7 @@ function Home() {
                 {portOccupied === false ? (
                     <div className={"codeArea"}>
                         <p className={"scanTips"}>在其他设备浏览器扫码</p>
-                        <QRCodeSVG className={"qrcode"} value={webUrl} fgColor={"#213547"}/>
+                        <QRCodeSVG className={"qrcode"} value={webUrl} fgColor={qrFgColor} bgColor={"transparent"}/>
                         <p className={"urlTips"}>或访问</p>
                         <p className={"qrcodeUrl"}>{webUrl}</p>
                     </div>

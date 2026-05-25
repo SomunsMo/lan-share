@@ -149,7 +149,7 @@ function TextSharingManager(props) {
 
     return (
         <TextSharingManagerStyle>
-            <Card>
+            <Card fillSpace>
                 <textarea
                     className={"textEdit"}
                     value={textValue}
@@ -160,7 +160,7 @@ function TextSharingManager(props) {
                     <button onClick={shareTextViaTauri}>共享</button>
                 </div>
             </Card>
-            <Card fillSpace>
+            <Card>
                 <div className={"sharingHistory"} ref={historyContainerRef}>
                     <table className={`historyTable ${history.length > 0 ? 'sticky-shadow' : ''}`}>
                         <colgroup>

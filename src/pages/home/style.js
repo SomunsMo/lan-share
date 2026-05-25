@@ -5,7 +5,7 @@ const HomeStyle = styled.div`
     width: 100%;
     height: 100%;
 
-    color: #213547;
+    color: var(--text-primary);
     justify-content: center;
     align-items: center;
 
@@ -34,15 +34,15 @@ const HomeStyle = styled.div`
         justify-content: center;
         align-items: center;
 
-        background-color: white;
-        border-radius: 6px;
+        background-color: var(--bg-card);
+        border-radius: var(--radius-sm);
         overflow: hidden;
     }
 
     .scanTips {
         padding: 0;
         margin: 10px 0 0;
-        color: grey;
+        color: var(--text-secondary);
         font-size: 0.8rem;
     }
 
@@ -52,7 +52,7 @@ const HomeStyle = styled.div`
     .urlTips {
         padding: 0;
         margin: 15px 0 0;
-        color: grey;
+        color: var(--text-secondary);
         font-size: 0.8rem;
         line-height: 0.8rem;
     }
@@ -71,23 +71,23 @@ const HomeStyle = styled.div`
         margin: 0 auto;
         padding: 20px 24px;
 
-        background-color: #fff3cd;
-        border: 1px solid #ffc107;
-        border-radius: 8px;
+        background-color: var(--warning-bg);
+        border: 1px solid var(--warning-border);
+        border-radius: var(--radius-sm);
 
         text-align: left;
-        color: #664d03;
+        color: var(--warning-text);
     }
 
     .warningIcon {
         font-size: 2rem;
         margin-bottom: 4px;
-        color: #e67e00;
+        color: var(--warning-icon);
     }
 
     .warningTitle {
         margin: 0 0 8px;
-        color: #996600;
+        color: var(--warning-title);
     }
 
     .warningDesc {
@@ -96,7 +96,7 @@ const HomeStyle = styled.div`
         line-height: 1.5;
 
         strong {
-            color: #cc3300;
+            color: var(--warning-strong);
         }
     }
 
@@ -121,7 +121,7 @@ const HomeStyle = styled.div`
         code {
             background-color: rgba(0,0,0,0.08);
             padding: 1px 5px;
-            border-radius: 3px;
+            border-radius: var(--radius);
             font-size: 0.82rem;
         }
     }

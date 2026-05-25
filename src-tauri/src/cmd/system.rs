@@ -360,3 +360,30 @@ pub async fn get_all_upload_history() -> Result<Vec<crate::db::entity::UploadRec
         }
     }
 }
+
+/// 获取主题设置
+#[tauri::command]
+pub async fn get_theme_setting() -> Result<String, String> {
+    match config_dao::get_config_value("theme_setting").await {
+        Ok(Some(value)) => Ok(value),
+        Ok(None) => Ok("system".to_string()),
+        Err(e) => {
+            log::warn!("获取主题设置失败: {}", e);
+            Ok("system".to_string())
+        }
+    }
+}
+
+/// 设置主题
+#[tauri::command]
+pub async fn set_theme_setting(theme: String) -> Result<(), String> {
+    if theme != "system" && theme != "light" && theme != "dark" {
+        return Err("无效的主题设置".to_string());
+    }
+    if let Err(e) = config_dao::set_config("theme_setting", &theme).await {
+        log::error!("保存主题设置到数据库失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+    log::info!("主题设置已更新为: {}", theme);
+    Ok(())
+}

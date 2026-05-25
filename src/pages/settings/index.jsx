@@ -14,6 +14,7 @@ function Settings() {
     const [uploadOverwriteEnabled, setUploadOverwriteEnabled] = useState(false);
     const [autostartEnabled, setAutostartEnabled] = useState(false);
     const [httpPort, setHttpPort] = useState(3000);
+    const [themeSetting, setThemeSetting] = useState("system");
     const {showToast} = useToast();
     const {showDialog} = useDialog();
 
@@ -93,6 +94,19 @@ function Settings() {
 
         fetchAutostartSetting();
 
+        const fetchThemeSetting = async () => {
+            try {
+                const theme = await invoke('get_theme_setting');
+                console.log('当前主题设置是:', theme);
+                setThemeSetting(theme);
+            } catch (error) {
+                console.error('获取主题设置失败:', error);
+                setThemeSetting("system");
+            }
+        };
+
+        fetchThemeSetting();
+
         const fetchHttpPort = async () => {
             try {
                 const port = await invoke('get_http_port');
@@ -108,6 +122,24 @@ function Settings() {
     }, []);
 
 
+    // 处理主题变更（下拉选择）
+    const handleThemeChange = async (event) => {
+        const newTheme = event.target.value;
+        if (newTheme === themeSetting) return;
+
+        try {
+            await invoke('set_theme_setting', {theme: newTheme});
+            setThemeSetting(newTheme);
+            const html = document.documentElement;
+            html.classList.remove('dark', 'light');
+            if (newTheme === 'dark') html.classList.add('dark');
+            else if (newTheme === 'light') html.classList.add('light');
+            showToast({message: '主题已切换', type: 'success'});
+        } catch (error) {
+            console.error('保存主题设置失败:', error);
+            showToast({message: '保存主题设置失败: ' + error, type: 'error'});
+        }
+    };
 
     // 处理端口变更（点击后弹出输入框）
     const handlePortClick = async () => {
@@ -261,9 +293,24 @@ function Settings() {
                     content: (
                         <input
                             type="checkbox"
+                            className="toggle"
                             checked={autostartEnabled}
                             onChange={handleAutostartChange}
                         />
+                    ),
+                },
+                {
+                    name: "主题",
+                    content: (
+                        <select
+                            className="theme-select"
+                            value={themeSetting}
+                            onChange={handleThemeChange}
+                        >
+                            <option value="system">跟随系统</option>
+                            <option value="light">浅色</option>
+                            <option value="dark">深色</option>
+                        </select>
                     ),
                 },
             ]
@@ -288,6 +335,7 @@ function Settings() {
                     content: (
                         <input
                             type="checkbox"
+                            className="toggle"
                             checked={uploadEnabled}
                             onChange={handleUploadChange}
                         />
@@ -298,6 +346,7 @@ function Settings() {
                     content: (
                         <input
                             type="checkbox"
+                            className="toggle"
                             checked={uploadOverwriteEnabled}
                             onChange={handleUploadOverwriteChange}
                         />
@@ -308,6 +357,7 @@ function Settings() {
                     content: (
                         <input
                             type="checkbox"
+                            className="toggle"
                             checked={renameEnabled}
                             onChange={handleRenameChange}
                         />
@@ -318,26 +368,13 @@ function Settings() {
                     content: (
                         <input
                             type="checkbox"
+                            className="toggle"
                             checked={deleteEnabled}
                             onChange={handleDeleteChange}
                         />
                     ),
                 }
-            ]
-        }, {
-            name: "主题",
-            options: [
-                {
-                    name: "暗色模式",
-                    content: <input type="checkbox"/>,
-                },
-                {
-                    name: "主题色",
-                    content: <input type="color"/>,
-                }
-            ]
-        }
-
+            ]},
     ];
 
     return (

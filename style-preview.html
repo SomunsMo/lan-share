@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAN Share — 样式预览</title>
+<style>
+  /* ===== CSS Custom Properties ===== */
+  html {
+    --bg-page: rgb(244, 246, 249);
+    --bg-card: #ffffff;
+    --bg-hover: rgba(33, 53, 71, 0.06);
+    --bg-input: #ffffff;
+    --bg-toggle: #e6e6e6;
+    --bg-sidebar: #ffffff;
+    --bg-table-header: #ffffff;
+
+    --text-primary: #213547;
+    --text-secondary: #5a6b7a;
+    --text-tertiary: #9aa6b2;
+    --text-accent: #ffffff;
+
+    --border: #dde1e6;
+    --border-input: #d0d5da;
+
+    --accent: dodgerblue;
+    --accent-hover: #42a5f5;
+    --danger: #e74c3c;
+    --danger-hover: #c0392b;
+    --success: #27ae60;
+
+    --radius: 4px;
+    --radius-sm: 6px;
+
+    --color-scheme: light;
+  }
+
+  /* Dark via class (JS toggle) */
+  html.dark {
+    --bg-page: #2f2f2f;
+    --bg-card: #383838;
+    --bg-hover: rgba(255, 255, 255, 0.06);
+    --bg-input: #1e1e1e;
+    --bg-toggle: #505050;
+    --bg-sidebar: #383838;
+    --bg-table-header: #383838;
+    --text-primary: #f6f6f6;
+    --text-secondary: #b0b0b0;
+    --text-tertiary: #808080;
+    --text-accent: #1a1a1a;
+    --border: #444;
+    --border-input: #505050;
+    --accent: #24c8db;
+    --accent-hover: #5dd9e8;
+    --danger: #f56c6c;
+    --color-scheme: dark;
+  }
+
+  /* System dark fallback: only applies when no class */
+  @media (prefers-color-scheme: dark) {
+    html:not(.light):not(.dark) {
+      --bg-page: #2f2f2f;
+      --bg-card: #383838;
+      --bg-hover: rgba(255, 255, 255, 0.06);
+      --bg-input: #1e1e1e;
+      --bg-toggle: #505050;
+      --bg-sidebar: #383838;
+      --bg-table-header: #383838;
+      --text-primary: #f6f6f6;
+      --text-secondary: #b0b0b0;
+      --text-tertiary: #808080;
+      --text-accent: #1a1a1a;
+      --border: #444;
+      --border-input: #505050;
+      --accent: #24c8db;
+      --accent-hover: #5dd9e8;
+      --danger: #f56c6c;
+      --color-scheme: dark;
+    }
+  }
+
+  /* ===== Base ===== */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { height: 100%; color-scheme: var(--color-scheme); }
+  body {
+    font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+    font-size: clamp(15px, 0.5vw + 12px, 20px);
+    line-height: 1.5;
+    font-weight: 400;
+    color: var(--text-primary);
+    background-color: var(--bg-page);
+    height: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ===== Dark Mode Toggle ===== */
+  .theme-toggle {
+    position: fixed;
+    top: 16px;
+    right: 20px;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s, border-color 0.15s;
+    font-family: inherit;
+  }
+  .theme-toggle:hover {
+    border-color: var(--accent);
+  }
+  .theme-toggle svg {
+    width: 16px;
+    height: 16px;
+    stroke: var(--text-secondary);
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  html.dark .theme-toggle svg.sun,
+  html:not(.dark) .theme-toggle svg.moon {
+    display: none;
+  }
+
+  /* ===== Layout ===== */
+  .app { display: flex; height: 100vh; }
+
+  /* ===== Sidebar ===== */
+  .sidebar {
+    width: 180px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 10px 0;
+    flex-shrink: 0;
+  }
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    margin: 1px 8px;
+    border-radius: var(--radius);
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    color: var(--text-primary);
+  }
+  .sidebar-item:hover { background: var(--bg-hover); }
+  .sidebar-item.active { background: var(--bg-hover); font-weight: 500; }
+  .sidebar-item .icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .sidebar-item .icon svg {
+    width: 18px;
+    height: 18px;
+    stroke: var(--text-secondary);
+    fill: none;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .sidebar-item.active .icon svg {
+    stroke: var(--text-primary);
+  }
+  .sidebar-spacer { flex: 1; }
+  .sidebar-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 6px 16px;
+  }
+
+  /* ===== Main Content ===== */
+  .main {
+    flex: 1;
+    padding: 24px 32px;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  /* ===== Section ===== */
+  .section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+  }
+
+  /* ===== Card ===== */
+  .card {
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+  .card:last-child { margin-bottom: 0; }
+  .card-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+  }
+
+  /* ===== Typography ===== */
+  .typo-h1 {
+    font-size: 1.8rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+  }
+  .typo-sub {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+  }
+  .typo-body { font-size: 0.88rem; line-height: 1.6; }
+  .typo-secondary { font-size: 0.8rem; color: var(--text-secondary); }
+  .typo-tertiary { font-size: 0.78rem; color: var(--text-tertiary); }
+  .typo-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+
+  hr.sep { border: none; margin: 28px 0; }
+
+  /* ===== Buttons ===== */
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5em 1.5em;
+    font-size: 0.88rem;
+    font-weight: 500;
+    font-family: inherit;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+    color: var(--text-accent);
+    background: var(--accent);
+  }
+  .btn:hover { background: var(--accent-hover); }
+  .btn:active { opacity: 0.85; }
+  .btn-sm { padding: 0.35em 1em; font-size: 0.75rem; }
+  .btn-danger { background: var(--danger); }
+  .btn-danger:hover { background: var(--danger-hover); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: var(--bg-hover); border-color: transparent; }
+
+  /* ===== Toggle Switch ===== */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 6px 0;
+  }
+  .toggle-label { font-size: 0.9rem; color: var(--text-primary); cursor: pointer; }
+  .toggle {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    background-color: var(--bg-toggle);
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.25s;
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    top: 50%;
+    left: 3px;
+    transform: translateY(-50%);
+    transition: left 0.25s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+  .toggle:checked { background-color: var(--accent); }
+  .toggle:checked::after { left: 23px; }
+  .toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ===== Input ===== */
+  .input {
+    padding: 0.45em 0.65em;
+    font-size: 0.9rem;
+    font-family: inherit;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    background: var(--bg-input);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .input:hover, .input:focus { border-color: var(--accent); }
+  .input-group { display: flex; flex-direction: column; gap: 6px; }
+  .input-group label { font-size: 0.82rem; color: var(--text-secondary); }
+
+  /* ===== Textarea ===== */
+  .textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 0.45em 0.65em;
+    font-size: 0.9rem;
+    font-family: inherit;
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    background: var(--bg-input);
+    outline: none;
+    resize: vertical;
+    transition: border-color 0.15s;
+  }
+  .textarea:hover, .textarea:focus { border-color: var(--accent); }
+
+  /* ===== Table ===== */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; text-align: left; }
+  thead { position: sticky; top: 0; background: var(--bg-table-header); }
+  th {
+    font-size: 0.82rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    padding: 0.65em 0.4em 0.5em;
+  }
+  td { padding: 0.5em 0.4em; font-size: 0.88rem; border: none; }
+  tbody tr { transition: background 0.12s; }
+  tbody tr:hover { background: var(--bg-hover); }
+
+  /* ===== Context Menu ===== */
+  .context-menu-mock {
+    display: inline-flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    padding: 4px 0;
+    min-width: 120px;
+  }
+  .context-menu-mock .item {
+    padding: 0.45em 1em;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background 0.12s;
+    color: var(--text-primary);
+  }
+  .context-menu-mock .item:hover { background: var(--bg-hover); }
+  .context-menu-mock .item.danger { color: var(--danger); }
+
+  /* ===== Layout demo ===== */
+  .two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .two-col .card { margin: 0; }
+
+  /* ===== Scrollbar ===== */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
+</style>
+</head>
+<body>
+
+<!-- ===== Theme Toggle ===== -->
+<button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">
+  <svg class="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+  <svg class="moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  <span id="themeLabel">跟随系统</span>
+</button>
+
+<div class="app">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar">
+    <div class="sidebar-item active">
+      <span class="icon"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+      <span>主页</span>
+    </div>
+    <div class="sidebar-item">
+      <span class="icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg></span>
+      <span>文本共享</span>
+    </div>
+    <div class="sidebar-item">
+      <span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+      <span>历史记录</span>
+    </div>
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-item">
+      <span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+      <span>设置</span>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <main class="main">
+
+    <!-- ===== TYPOGRAPHY ===== -->
+    <h2 class="section-title">Typography</h2>
+
+    <div class="card">
+      <p class="typo-h1">LAN Share</p>
+      <p class="typo-sub">基于 HTTP 的局域网文件传输工具</p>
+      <div style="margin-top:20px">
+        <p class="typo-body">
+          这是一段正文内容。字体使用 Inter, Avenir, Helvetica, Arial 回退栈，
+          大小 0.88rem，行高 1.6。跨分辨率自适应根字体 clamp(15px, 0.5vw + 12px, 20px)。
+        </p>
+        <p class="typo-secondary" style="margin-top:4px">
+          辅助文字 0.8rem — 用于表格时间、IP、说明等次要信息。
+        </p>
+        <p class="typo-tertiary" style="margin-top:2px">
+          弱提示文字 0.78rem — 用于最次要的标签、占位提示。
+        </p>
+      </div>
+      <div style="margin-top:16px; display:flex; gap:24px; flex-wrap:wrap">
+        <div>
+          <p style="font-size:1.8rem; font-weight:600; letter-spacing:-0.01em">1.8rem</p>
+          <p class="typo-secondary">Heading 1</p>
+        </div>
+        <div>
+          <p style="font-size:1.1rem; font-weight:600">1.1rem</p>
+          <p class="typo-secondary">Section Title</p>
+        </div>
+        <div>
+          <p style="font-size:0.88rem">0.88rem</p>
+          <p class="typo-secondary">Body / Table</p>
+        </div>
+        <div>
+          <p style="font-size:0.82rem; text-transform:uppercase; letter-spacing:0.05em">0.82rem label</p>
+          <p class="typo-secondary">Label / Card Title</p>
+        </div>
+      </div>
+    </div>
+
+    <hr class="sep">
+
+    <!-- ===== CARDS ===== -->
+    <h2 class="section-title">Cards（无描边，靠间距区分）</h2>
+
+    <div class="card">
+      <p class="typo-body" style="margin-bottom:4px"><strong>共享根目录</strong></p>
+      <p class="typo-secondary">/Users/username/LanShare</p>
+      <p class="typo-tertiary" style="margin-top:4px">点击可修改共享目录路径</p>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+        <p class="typo-label" style="margin:0">共享文件夹</p>
+      </div>
+      <p class="typo-body" style="color:var(--text-tertiary)">暂无共享文件，点击上方按钮上传。</p>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+        <p class="typo-label" style="margin:0">共享文本</p>
+      </div>
+      <p class="typo-tertiary">双击文本复制到剪贴板</p>
+    </div>
+
+    <hr class="sep">
+
+    <!-- ===== BUTTONS ===== -->
+    <h2 class="section-title">Buttons</h2>
+
+    <div class="card">
+      <p class="typo-label">尺寸变体</p>
+      <div class="btn-row" style="margin-bottom:16px">
+        <button class="btn">主要按钮</button>
+        <button class="btn btn-sm">小按钮</button>
+        <button class="btn btn-ghost">次要按钮</button>
+        <button class="btn btn-sm btn-ghost">次要小</button>
+      </div>
+
+      <p class="typo-label">语义变体</p>
+      <div class="btn-row" style="margin-bottom:16px">
+        <button class="btn">发送文本</button>
+        <button class="btn btn-danger">删除</button>
+        <button class="btn btn-sm btn-danger">清空记录</button>
+      </div>
+
+      <p class="typo-label">禁用状态</p>
+      <div class="btn-row">
+        <button class="btn" disabled style="opacity:0.5;cursor:not-allowed">上传文件</button>
+        <button class="btn btn-sm btn-ghost" disabled style="opacity:0.5;cursor:not-allowed">批量下载</button>
+      </div>
+    </div>
+
+    <hr class="sep">
+
+    <!-- ===== TOGGLE SWITCH ===== -->
+    <h2 class="section-title">Toggle Switch</h2>
+
+    <div class="card">
+      <div class="toggle-row">
+        <input type="checkbox" class="toggle" id="t1" checked>
+        <label for="t1" class="toggle-label">网页端上传</label>
+      </div>
+      <div class="toggle-row">
+        <input type="checkbox" class="toggle" id="t2">
+        <label for="t2" class="toggle-label">网页端重命名</label>
+      </div>
+      <div class="toggle-row">
+        <input type="checkbox" class="toggle" id="t3">
+        <label for="t3" class="toggle-label">网页端删除</label>
+      </div>
+      <div class="toggle-row">
+        <input type="checkbox" class="toggle" id="t4" disabled>
+        <label for="t4" class="toggle-label" style="color:var(--text-tertiary)">禁用项</label>
+      </div>
+      <p class="typo-tertiary" style="margin-top:8px">
+        滑块 18px，左间隙 3px。选中色 var(--accent)。
+      </p>
+    </div>
+
+    <hr class="sep">
+
+    <!-- ===== INPUTS ===== -->
+    <h2 class="section-title">Inputs</h2>
+
+    <div class="two-col">
+      <div class="card">
+        <p class="typo-label">文本输入</p>
+        <div class="input-group">
+          <label>HTTP Server 端口</label>
+          <input class="input" type="number" value="3000" style="max-width:140px">
+        </div>
+      </div>
+      <div class="card">
+        <p class="typo-label">文本域</p>
+        <textarea class="textarea" placeholder="请输入要分享的文本...">这是一段已分享的文本内容。</textarea>
+      </div>
+    </div>
+
+    <hr class="sep">
+
+    <!-- ===== TABLE ===== -->
+    <h2 class="section-title">Table（无分割线，悬停变色）</h2>
+
+    <div class="card" style="padding:16px 24px">
+      <div class="table-wrap">
+        <table>
+          <colgroup>
+            <col width="45px">
+            <col width="150px">
+            <col width="130px">
+            <col width="auto">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>类型</th>
+              <th>时间</th>
+              <th>来源 IP</th>
+              <th>内容</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span style="font-weight:500">文本</span></td>
+              <td class="typo-secondary">2025-10-30 21:00:00</td>
+              <td class="typo-secondary">192.168.31.1</td>
+              <td>这是一个共享的文本内容示例</td>
+            </tr>
+            <tr>
+              <td><span style="font-weight:500">文本</span></td>
+              <td class="typo-secondary">2025-10-30 22:00:00</td>
+              <td class="typo-secondary">192.168.31.2</td>
+              <td>第二段共享文本内容</td>
+            </tr>
+            <tr>
+              <td><span style="font-weight:500">文件</span></td>
+              <td class="typo-secondary">2025-10-31 08:30:00</td>
+              <td class="typo-secondary">10.0.0.5</td>
+              <td>report_final_v2.pdf</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <hr class="sep">
+
+    <!-- ===== FILE LIST ===== -->
+    <h2 class="section-title">文件列表（card 内）</h2>
+
+    <div class="card" style="padding:16px 24px">
+      <div class="table-wrap">
+        <table>
+          <colgroup>
+            <col width="40px">
+            <col width="auto">
+            <col width="160px">
+            <col width="80px">
+          </colgroup>
+          <thead>
+            <tr>
+              <th></th>
+              <th>名称</th>
+              <th>修改时间</th>
+              <th>大小</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="text-align:center; font-size:1em">📁</td>
+              <td>Documents</td>
+              <td class="typo-secondary">2025-11-01 14:30</td>
+              <td class="typo-secondary">-</td>
+            </tr>
+            <tr>
+              <td style="text-align:center; font-size:1em">📄</td>
+              <td>readme.txt</td>
+              <td class="typo-secondary">2025-10-28 09:15</td>
+              <td class="typo-secondary">2.4 KB</td>
+            </tr>
+            <tr>
+              <td style="text-align:center; font-size:1em">📄</td>
+              <td>photo_2025.jpg</td>
+              <td class="typo-secondary">2025-10-20 16:42</td>
+              <td class="typo-secondary">3.2 MB</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex; gap:8px; justify-content:center; margin-top:14px">
+        <button class="btn btn-sm">上传文件</button>
+        <button class="btn btn-sm btn-ghost" disabled style="opacity:0.5;cursor:not-allowed">批量下载</button>
+      </div>
+    </div>
+
+    <hr class="sep">
+
+    <!-- ===== SETTINGS LAYOUT ===== -->
+    <h2 class="section-title">设置页布局示例</h2>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(400px, 1fr)); gap:16px">
+      <div class="card" style="margin:0">
+        <p class="typo-label" style="margin-bottom:12px">基础</p>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0">
+          <span class="typo-body">Http Server端口</span>
+          <span style="color:var(--accent); font-weight:600; cursor:pointer; font-size:0.9rem">3000</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0">
+          <span class="typo-body">开机自启</span>
+          <input type="checkbox" class="toggle" checked>
+        </div>
+      </div>
+
+      <div class="card" style="margin:0">
+        <p class="typo-label" style="margin-bottom:12px">共享</p>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0">
+          <span class="typo-body">共享根目录</span>
+          <span style="color:var(--accent); cursor:pointer; font-size:0.84rem; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">/Users/lan/Share</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0">
+          <span class="typo-body">网页端上传</span>
+          <input type="checkbox" class="toggle" checked>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0">
+          <span class="typo-body">上传可覆盖</span>
+          <input type="checkbox" class="toggle">
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0">
+          <span class="typo-body">网页端重命名</span>
+          <input type="checkbox" class="toggle">
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0">
+          <span class="typo-body">网页端删除</span>
+          <input type="checkbox" class="toggle">
+        </div>
+      </div>
+    </div>
+
+    <hr class="sep">
+
+    <!-- ===== CONTEXT MENU ===== -->
+    <h2 class="section-title">Context Menu</h2>
+
+    <div class="card">
+      <div style="display:flex; gap:16px; flex-wrap:wrap">
+        <div class="context-menu-mock">
+          <div class="item">下载</div>
+          <div class="item">复制文件名</div>
+          <div class="item">重命名</div>
+          <div class="item danger">删除</div>
+        </div>
+        <div class="context-menu-mock">
+          <div class="item">复制内容</div>
+          <div class="item">删除记录</div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="sep">
+
+    <!-- ===== TWO-COL TEXT SHARING ===== -->
+    <h2 class="section-title">文本共享 — 双卡流式布局</h2>
+
+    <div class="two-col">
+      <div class="card" style="display:flex; flex-direction:column">
+        <p class="typo-label" style="margin-bottom:12px">分享文本</p>
+        <textarea class="textarea" style="flex:1" placeholder="请输入要分享的文本..."></textarea>
+        <div style="margin-top:10px; text-align:right">
+          <button class="btn btn-sm">共享</button>
+        </div>
+      </div>
+
+      <div class="card" style="display:flex; flex-direction:column">
+        <p class="typo-label" style="margin-bottom:12px">分享历史</p>
+        <div style="flex:1">
+          <div style="padding:8px 10px; border-radius:var(--radius); transition:background 0.12s; cursor:pointer" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
+            <p style="font-size:0.88rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">第一段共享文本内容</p>
+            <p class="typo-tertiary" style="margin-top:2px">2025-10-30 21:00:00 | 192.168.31.1</p>
+          </div>
+          <div style="padding:8px 10px; border-radius:var(--radius); transition:background 0.12s; cursor:pointer" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
+            <p style="font-size:0.88rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">第二段共享文本内容</p>
+            <p class="typo-tertiary" style="margin-top:2px">2025-10-30 22:00:00 | 192.168.31.2</p>
+          </div>
+        </div>
+        <p class="typo-tertiary" style="margin-top:8px; text-align:left">双击文本复制</p>
+      </div>
+    </div>
+
+    <div style="height:40px"></div>
+
+  </main>
+</div>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const label = document.getElementById('themeLabel');
+
+  if (html.classList.contains('dark')) {
+    html.classList.remove('dark');
+    html.classList.add('light');
+    label.textContent = '浅色';
+  } else if (html.classList.contains('light')) {
+    html.classList.remove('light');
+    label.textContent = '跟随系统';
+  } else {
+    html.classList.add('dark');
+    label.textContent = '深色';
+  }
+}
+</script>
+</body>
+</html>

@@ -3,67 +3,66 @@ import styled from "styled-components";
 const TextSharingStyle = styled.div`
     display: contents;
 
-
     #textInput {
         display: flex;
-        padding: 5px;
+        padding: 0;
         margin-bottom: 10px;
         flex-grow: 1;
-
-        background-color: white;
-        font-size: large;
-
+        min-height: 90px;
+        background: transparent;
+        font-size: 0.92rem;
+        line-height: 1.6;
         resize: none;
-        outline: none;
         border: none;
-        border-radius: 6px;
+        outline: none;
     }
-
 
     .textHistory {
         width: 100%;
         padding: 0;
-        margin: 0;
+        margin: 0 0 8px;
         list-style-type: none;
         flex-grow: 1;
-
         cursor: default;
         overflow-y: auto;
 
         li {
-            display: flex;
-            height: 40px;
-            padding: 10px;
-            margin: 5px 0;
-            flex-direction: column;
-
-            text-align: left;
-
-            border-radius: 4px;
+            padding: 8px 10px;
+            margin: 2px 0;
+            border-radius: var(--radius);
             cursor: pointer;
+            transition: background-color 0.1s;
 
             p {
                 margin: 0;
-
-                /* 禁止换行 */
                 white-space: nowrap;
-                /* 隐藏溢出内容 */
                 overflow: hidden;
-                /* 显示省略号 */
                 text-overflow: ellipsis;
+                font-size: 0.88rem;
             }
 
             .metaInfo {
-                font-size: small;
-                color: dimgrey;
+                font-size: 0.78rem;
+                color: var(--text-tertiary);
+                margin-top: 2px;
             }
         }
 
         li:hover {
-            background-color: rgba(211, 211, 211, 0.38);
+            background-color: var(--bg-hover);
         }
-
     }
 
+    .cardTips {
+        margin: 0;
+        color: var(--text-tertiary);
+        font-size: 0.78rem;
+        text-align: left;
+    }
+
+    .cardTips::before {
+        content: "说明：";
+    }
 `
+
 export default TextSharingStyle;

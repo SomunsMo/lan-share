@@ -3,17 +3,17 @@ import styled from "styled-components";
 const Card = styled.div`
     display: flex;
     width: 30vw;
-    min-width: 200px;
-    //height: calc(30vw * 0.45);
+    min-width: 280px;
     min-height: 240px;
-    padding: 15px;
-    margin: 10px;
+    max-height: 75vh;
+    padding: 20px 24px;
+    margin: 8px;
     flex-grow: 1;
     flex-direction: column;
 
-    background-color: whitesmoke;
-
-    border-radius: 10px;
+    background-color: var(--bg-card);
+    border: none;
+    border-radius: var(--radius-sm);
     overflow: hidden;
 
     & > h1, & > h2, & > h3, & > h4, & > h5, & > h6 {
@@ -24,21 +24,7 @@ const Card = styled.div`
         display: flex;
         flex-direction: column;
         flex-grow: 1;
-
         justify-content: center;
     }
-
-    .cardTips {
-        padding: 0;
-        margin: 0;
-        color: dimgrey;
-        font-size: small;
-        text-align: left;
-    }
-
-    .cardTips::before {
-        content: "说明：";
-    }
-
 `
 export default Card;

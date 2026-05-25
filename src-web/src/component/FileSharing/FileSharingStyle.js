@@ -1,11 +1,17 @@
 import styled from "styled-components";
+import Card from "../Card/Card.js";
+
+export const FileCard = styled(Card)`
+    max-height: calc(75vh * 1.5);
+`;
 
 const FileSharingStyle = styled.div`
     display: contents;
 
     .diskSpaceBar {
-        padding: 8px 12px;
-        margin-bottom: 8px;
+        padding: 0 0 10px;
+        margin-bottom: 10px;
+        border-bottom: 1px solid var(--border);
     }
 
     .diskSpaceInfo {
@@ -13,37 +19,33 @@ const FileSharingStyle = styled.div`
         justify-content: space-between;
         align-items: center;
         margin-bottom: 6px;
-        font-size: 13px;
-        color: #555;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
     }
 
     .diskSpaceDetail {
-        color: #888;
+        color: var(--text-tertiary);
     }
 
     .diskSpaceProgress {
         width: 100%;
-        height: 8px;
-        background-color: #e9ecef;
-        border-radius: 4px;
+        height: 4px;
+        background-color: var(--bg-progress);
+        border-radius: 2px;
         overflow: hidden;
     }
 
     .diskSpaceProgressFill {
         height: 100%;
-        background-color: #4a90d9;
-        border-radius: 4px;
+        background-color: var(--accent);
+        border-radius: 2px;
         transition: width 0.3s ease;
     }
 
     .fileList {
-        min-height: 400px;
-        padding: 5px;
-        margin-bottom: 10px;
-        background-color: white;
-
-        border-radius: 6px;
-        overflow-x: scroll;
+        min-height: 300px;
+        margin-bottom: 12px;
+        overflow-x: auto;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
     }
@@ -52,147 +54,153 @@ const FileSharingStyle = styled.div`
         width: 100%;
         min-width: 600px;
         text-align: left;
-        border-spacing: 0;
+        border-collapse: collapse;
     }
 
     thead {
-        height: 60px;
-    }
-
-    tbody {
-        width: 100%;
-    }
-
-    .fileItem {
-        height: 60px;
-        padding: 6px;
-        margin: 2px;
-
-        align-content: center;
-        align-items: center;
-
-        border-radius: 4px;
-        cursor: pointer;
-    }
-
-    .fileItem:hover {
-        background-color: rgba(211, 211, 211, 0.38);
-    }
-
-    .goBackItem {
         height: 40px;
     }
 
+    th {
+        font-weight: 500;
+        font-size: 0.82rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 0.65em 0.4em 0.5em;
+    }
+
+    .fileItem {
+        height: 48px;
+        cursor: pointer;
+        transition: background-color 0.1s;
+
+        td {
+            padding: 0.5em 0.4em;
+            font-size: 0.88rem;
+        }
+    }
+
+    .fileItem:hover {
+        background-color: var(--bg-hover);
+    }
+
+    .goBackItem {
+        height: 36px;
+    }
+
     .goBackLabel {
-        font-size: 14px;
-        color: #666;
+        font-size: 0.82rem;
+        color: var(--text-tertiary);
         user-select: none;
-        -webkit-user-select: none;
     }
 
     .goBackItem:hover .goBackLabel {
-        color: #333;
-    }
-
-    .fileItem td:nth-child(n+3) {
-        padding-left: 12px;
-    }
-
-    thead th:nth-child(n+3) {
-        padding-left: 12px;
-    }
-
-
-    tr {
-        width: 100%;
+        color: var(--text-primary);
     }
 
     .checkbox {
         text-align: center;
     }
 
+    .checkbox input[type="checkbox"] {
+        width: 14px;
+        height: 14px;
+        padding: 0;
+        cursor: pointer;
+        accent-color: var(--accent);
+    }
+
     .iconImg {
-        width: 26px;
-        height: 32px;
+        width: 24px;
+        height: 28px;
         margin-right: 6px;
         vertical-align: middle;
-
         user-select: none;
     }
 
     .fileName {
         display: inline-block;
-        max-width: calc(100% - 32px); /* 减去图标宽度，确保留有空间 */
-        white-space: nowrap; /* 禁止换行 */
-        overflow: hidden; /* 溢出隐藏 */
-        text-overflow: ellipsis; /* 溢出显示省略号 */
-        vertical-align: top;
+        max-width: calc(100% - 32px);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
         box-sizing: border-box;
         user-select: none;
-        -webkit-user-select: none;
-        -webkit-touch-callout: none;
     }
 
-    .fileActions {
-        display: none;
-        padding: 6px;
-        gap: 4px;
+    /* Action buttons visible always */
 
-        & > span {
-            background-color: red;
-        }
+    .fileActions {
+        display: flex;
+        gap: 4px;
+        visibility: hidden;
     }
 
     .fileItem:hover .fileActions {
-        display: flex;
+        visibility: visible;
     }
 
     .dirActions {
         display: none;
     }
 
+    .fileActions button {
+        padding: 3px 10px;
+        font-size: 0.75rem;
+        background: transparent;
+        color: var(--accent);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+    }
+
+    .fileActions button:hover {
+        background-color: var(--bg-hover);
+        border-color: var(--accent);
+    }
+
     .batchActions {
         display: flex;
-        gap: 10px;
-
+        gap: 8px;
         justify-content: center;
+    }
 
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+    .batchActions button {
+        font-size: 0.75rem;
+        padding: 7px 18px;
     }
 
     .context-menu {
         position: fixed;
         z-index: 10000;
-        background-color: var(--card-bg-color, white);
-        border: 1px solid var(--border-color, #ccc);
-        border-radius: 4px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        background-color: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-md);
         padding: 4px 0;
-        min-width: 100px;
-        font-size: 14px;
+        min-width: 110px;
+        font-size: 0.82rem;
     }
 
     .context-menu-item {
-        padding: 8px 16px;
+        padding: 7px 16px;
         cursor: pointer;
-        transition: background-color 0.2s;
+        color: var(--text-primary);
+        transition: background-color 0.12s;
     }
 
     .context-menu-item:hover {
-        background-color: var(--hover-bg-color, #f0f0f0);
+        background-color: var(--bg-hover);
     }
 
     .context-menu-item-danger {
-        color: #e74c3c;
+        color: var(--danger);
     }
 
     .context-menu-item-danger:hover {
-        background-color: #fef0f0;
+        background-color: var(--bg-danger-hover);
     }
-
 `;
 
 export default FileSharingStyle;
