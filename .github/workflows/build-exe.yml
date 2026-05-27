@@ -1,0 +1,85 @@
+name: Build All Platforms
+
+on:
+  workflow_dispatch:            # 手动触发
+  push:
+    tags: ["v*"]                # 推送 tag 时自动触发（如 v1.0.0）
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            name: windows-x64
+            ext: .exe
+
+          - os: macos-13
+            target: x86_64-apple-darwin
+            name: macos-intel
+            ext: ""
+
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            name: macos-arm
+            ext: ""
+
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            name: linux-x64
+            ext: ""
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Node.js + pnpm ---
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            src-web/pnpm-lock.yaml
+
+      # --- Rust ---
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # --- Linux 系统库（GTK + WebKit，Tauri 编译必需）---
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev
+
+      # --- 安装前端依赖 ---
+      - name: Install dependencies
+        run: |
+          pnpm install
+          cd src-web && pnpm install
+
+      # --- 编译 ---
+      # build.rs 会自动先 pnpm build 打包 src-web 前端，再编译 Rust
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }} -p lan-share
+
+      # --- 上传产物 ---
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lan-share-${{ matrix.name }}
+          path: src-tauri/target/${{ matrix.target }}/release/lan-share${{ matrix.ext }}
+          compression-level: 0
