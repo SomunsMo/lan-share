@@ -52,7 +52,7 @@ async fn init() {
         .is_some();
     set_sharing_root_configured(fs_rd_configured);
 
-    //TODO 文件共享根目录 - 使用新的初始化方法
+    // 文件共享根目录
     let fs_rd = config_dao::get_config("file_sharing_root_dir")
         .await
         .map(|cfg| PathBuf::from(cfg.cfg_value)) // 直接转换

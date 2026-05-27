@@ -101,9 +101,6 @@ function FileSharing() {
         {is_dir: false, modified: "1658150371", name: "test.txt", size: 1},
     ]);
 
-    // 将要上传的文件列表
-    const [filesToUpload, setFilesToUpload] = useState([]);
-
     // 上传进度列表
     const [uploadProgresses, setUploadProgresses] = useState([]);
 
@@ -258,7 +255,6 @@ function FileSharing() {
         // 被选中的文件（FileList对象转数组）
         const files = Array.from(fileList);
         console.log(e, files);
-        setFilesToUpload(files);
 
         // 清除input的选择（防止下次选择同一个文件不响应onChange）
         fileSelectorRef.current.value = '';

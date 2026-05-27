@@ -57,8 +57,6 @@ pub async fn upload_text(
 
     log::info!("来自[{}]的文本：{}", client_ip, upload_content);
 
-    //TODO 判断文本是否被存储过，被存储过则更新时间即可。
-
     upload_dao::add(1, &upload_content, &client_ip, false)
         .await
         .unwrap();

@@ -94,7 +94,6 @@ pub static HANDLER_REGISTRY: LazyLock<RwLock<HashMap<String, Vec<BaseHandler>>>>
 // 注册处理器
 pub fn register_handler(handler: BaseHandler) {
     let path = handler.path;
-    //TODO 对Path进行处理
 
     let mut registry = HANDLER_REGISTRY.write().unwrap();
     registry
@@ -124,12 +123,6 @@ pub fn get_handler(path: &str, method: &Method) -> Option<BaseHandler> {
     if let Some(handler) = method_vec.iter().find(|h| h.method.is_none()) {
         return Some(handler.clone());
     }
-
-    /*
-    TODO 1
-    如果再没找到，那可能是路径有资源标识符（如/:id）
-    这个时候去掉路径最后一个
-     */
 
     // 如果都没找到，说明确实没有该路径的处理器
     None
