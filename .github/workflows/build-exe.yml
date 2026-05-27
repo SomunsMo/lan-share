@@ -74,8 +74,13 @@ jobs:
           pnpm install
           cd src-web && pnpm install
 
-      # --- 编译 ---
-      # build.rs 会自动先 pnpm build 打包 src-web 前端，再编译 Rust
+      # --- 构建桌面前端（Tauri React UI）---
+      # tauri.conf.json 的 beforeBuildCommand 只被 tauri build 执行，
+      # cargo build 不会触发它，而 generate_context!() 编译时依赖 dist/ 目录
+      - name: Build desktop frontend
+        run: pnpm run build
+
+      # --- 编译 Rust（build.rs 会自动构建 src-web 前端并嵌入）---
       - name: Build
         run: cargo build --release --target ${{ matrix.target }} -p lan-share
 
@@ -83,5 +88,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: lan-share-${{ matrix.name }}
-          path: src-tauri/target/${{ matrix.target }}/release/lan-share${{ matrix.ext }}
+          path: target/${{ matrix.target }}/release/lan-share${{ matrix.ext }}
           compression-level: 0
