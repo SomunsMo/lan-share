@@ -3,7 +3,7 @@ import HomeStyle from "./style.js";
 import {invoke} from "@tauri-apps/api/core";
 import {QRCodeSVG} from "qrcode.react";
 import {open} from '@tauri-apps/plugin-dialog';
-import {useDialog} from "component/dialog/index.jsx";
+import {useDialog} from "@/components/dialog/index.jsx";
 
 function Home() {
     const [webUrl, setWebUrl] = useState("");
