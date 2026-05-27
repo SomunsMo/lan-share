@@ -21,7 +21,7 @@ pub fn create_tray_menu(app_handle: &AppHandle) {
                 toggle_window_visibility(&tray.app_handle());
             }
         })
-        .show_menu_on_left_click(false)  // 禁用左键点击菜单
+        .show_menu_on_left_click(cfg!(target_os = "macos"))  // macOS下左键显示菜单，其他平台保持原逻辑
         .build(app_handle)
         .expect("系统托盘构建失败");
 }
@@ -51,7 +51,7 @@ pub fn handle_system_tray_menu_event(app: &AppHandle, id: &str) {
 }
 
 /// 显示主窗口
-fn show_window(app: &AppHandle) {
+pub(crate) fn show_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         show_and_focus_window(&window);
     }

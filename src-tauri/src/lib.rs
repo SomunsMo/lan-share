@@ -200,6 +200,11 @@ pub fn run() {
                 window.hide().unwrap();
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::Reopen { .. } = event {
+                tray::show_window(app_handle);
+            }
+        });
 }
