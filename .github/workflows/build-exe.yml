@@ -18,7 +18,7 @@ jobs:
             name: windows-x64
             ext: .exe
 
-          - os: macos-13
+          - os: macos-latest
             target: x86_64-apple-darwin
             name: macos-intel
             ext: ""
