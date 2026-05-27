@@ -84,6 +84,29 @@ jobs:
       - name: Build
         run: cargo build --release --target ${{ matrix.target }} -p lan-share
 
+      # --- UPX 极限体积压缩 ---
+      - name: Install UPX
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Linux)  sudo apt-get -y install upx-ucl ;;
+            macOS)  brew install upx ;;
+            Windows) choco install upx -y ;;
+          esac
+
+      - name: Compress binary with UPX
+        shell: bash
+        run: |
+          BINARY="target/${{ matrix.target }}/release/lan-share${{ matrix.ext }}"
+          SIZE_BEFORE=$(wc -c < "$BINARY")
+          echo "Size before UPX: $SIZE_BEFORE bytes"
+          if upx --best --lzma "$BINARY"; then
+            SIZE_AFTER=$(wc -c < "$BINARY")
+            echo "UPX compressed: $SIZE_BEFORE → $SIZE_AFTER bytes (saved $(( SIZE_BEFORE - SIZE_AFTER )) bytes)"
+          else
+            echo "::warning::UPX compression failed, uploading uncompressed binary"
+          fi
+
       # --- 上传产物 ---
       - uses: actions/upload-artifact@v4
         with:
