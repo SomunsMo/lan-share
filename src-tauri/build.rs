@@ -20,7 +20,12 @@ fn main() {
     }
 
     // 执行 src-web 打包
-    let status = std::process::Command::new("pnpm")
+    let pnpm_cmd = if cfg!(target_os = "windows") {
+        "pnpm.cmd"
+    } else {
+        "pnpm"
+    };
+    let status = std::process::Command::new(pnpm_cmd)
         .args(["run", "build"])
         .current_dir(&src_web_dir)
         .status()
