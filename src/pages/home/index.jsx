@@ -2,11 +2,14 @@ import React, {useEffect, useState} from 'react';
 import HomeStyle from "./style.js";
 import {invoke} from "@tauri-apps/api/core";
 import {QRCodeSVG} from "qrcode.react";
+import {open} from '@tauri-apps/plugin-dialog';
+import {useDialog} from "../../components/dialog/index.jsx";
 
 function Home() {
     const [webUrl, setWebUrl] = useState("");
     const [portOccupied, setPortOccupied] = useState(null); // null=loading, number=被占用的端口号, false=正常
     const [qrFgColor, setQrFgColor] = useState("#213547");
+    const {showDialog} = useDialog();
 
     // 监听主题变化，更新二维码配色
     useEffect(() => {
@@ -26,7 +29,42 @@ function Home() {
         fetchServerStatus().catch(e => {
             console.error("获取服务器状态失败：", e);
         });
+
+        checkFirstRun().catch(e => {
+            console.error("首次运行检查失败：", e);
+        });
     }, []);
+
+    // 检测首次运行，引导用户设置共享目录
+    const checkFirstRun = async () => {
+        const configured = await invoke("is_sharing_root_configured");
+        if (configured) return;
+
+        const confirmed = await showDialog({
+            title: '首次运行',
+            content: '您还没有设置文件共享目录，其他设备将无法通过浏览器访问共享文件。\n是否立即设置？',
+            buttons: [
+                {label: '稍后设置', value: false},
+                {label: '立即设置', value: true, primary: true},
+            ],
+        });
+
+        if (!confirmed) return;
+
+        const selectedPath = await open({
+            directory: true,
+            multiple: false,
+            title: '选择共享根目录',
+        });
+
+        if (selectedPath) {
+            try {
+                await invoke('set_sharing_directory', {directoryPath: selectedPath});
+            } catch (error) {
+                console.error('保存共享目录失败:', error);
+            }
+        }
+    };
 
     // 主动查询HTTP服务器运行状态
     const fetchServerStatus = async () => {

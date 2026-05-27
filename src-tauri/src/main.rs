@@ -4,7 +4,7 @@
 use colored::Colorize;
 use directories::BaseDirs;
 use env_logger::{Builder, Env};
-use lan_share_lib::config::config::{get_config_dir, CONFIG_DIR};
+use lan_share_lib::config::config::{get_config_dir, set_sharing_root_configured, CONFIG_DIR};
 use lan_share_lib::db::dao::config_dao;
 use lan_share_lib::db::sqlite;
 use log::Level;
@@ -43,6 +43,14 @@ async fn init() {
     sqlite::init().await;
 
     // ====================【↓DB初始化后才能执行的代码】====================
+
+    // 检查共享根目录是否已配置（用于首次运行检测）
+    let fs_rd_configured = config_dao::get_config_value("file_sharing_root_dir")
+        .await
+        .ok()
+        .flatten()
+        .is_some();
+    set_sharing_root_configured(fs_rd_configured);
 
     //TODO 文件共享根目录 - 使用新的初始化方法
     let fs_rd = config_dao::get_config("file_sharing_root_dir")

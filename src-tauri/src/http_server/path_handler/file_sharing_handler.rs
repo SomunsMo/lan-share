@@ -49,6 +49,11 @@ pub async fn get_file_list(
     _req: Request<Incoming>,
     query_params: QueryParams,
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
+    // 检查共享根目录是否已配置
+    if !crate::config::config::is_sharing_root_configured() {
+        return error(StatusCode::BAD_REQUEST, "未设置共享目录，请让管理员先设置共享目录");
+    }
+
     // 获取 dir 参数，默认为根目录
     let dir_param = query_params.get("dir").map(|s| s.as_str()).unwrap_or("");
 

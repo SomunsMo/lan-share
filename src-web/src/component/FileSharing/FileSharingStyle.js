@@ -42,6 +42,28 @@ const FileSharingStyle = styled.div`
         transition: width 0.3s ease;
     }
 
+    .errorState {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+        text-align: center;
+    }
+
+    .errorIcon {
+        font-size: 2.5rem;
+        margin-bottom: 12px;
+        color: var(--warning);
+    }
+
+    .errorMessage {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        max-width: 360px;
+        line-height: 1.6;
+    }
+
     .fileList {
         min-height: 300px;
         margin-bottom: 12px;

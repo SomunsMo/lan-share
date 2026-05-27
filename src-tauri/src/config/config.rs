@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 use log::error;
 use tokio::sync::RwLock;
@@ -23,6 +24,15 @@ pub fn get_configured_http_port() -> &'static u16 {
 
 /// 被占用的端口号（setup同步检测后设置，前端发app-ready时读取并通知）
 pub static OCCUPIED_PORT: OnceLock<u16> = OnceLock::new();
+
+/// 是否已配置共享根目录（首次运行时为 false，用户通过设置页面或首次运行对话框配置后为 true）
+pub static IS_SHARING_ROOT_CONFIGURED: AtomicBool = AtomicBool::new(false);
+pub fn is_sharing_root_configured() -> bool {
+    IS_SHARING_ROOT_CONFIGURED.load(Ordering::Relaxed)
+}
+pub fn set_sharing_root_configured(val: bool) {
+    IS_SHARING_ROOT_CONFIGURED.store(val, Ordering::Release);
+}
 
 lazy_static::lazy_static! {
     /// 文件共享根目录  

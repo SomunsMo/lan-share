@@ -114,6 +114,9 @@ function FileSharing() {
         delete_enabled: false,
     });
 
+    // 加载错误信息（如共享目录未配置）
+    const [loadError, setLoadError] = useState(null);
+
     // 右键菜单状态
     const [contextMenu, setContextMenu] = useState({
         visible: false,
@@ -169,10 +172,13 @@ function FileSharing() {
         try {
             const res = await getFileSharingAPI(dir);
             if (res.code !== 200) {
-                console.error("获取文件列表异常");
+                console.error("获取文件列表异常", res.msg);
+                setLoadError(res.msg || '获取文件列表失败');
                 showToast({message: '获取文件列表失败: ' + (res.msg || '未知错误'), type: 'error'});
                 return false;
             }
+
+            setLoadError(null);
 
             let data = res.data;
             // 更新权限配置
@@ -189,6 +195,7 @@ function FileSharing() {
             return true;
         } catch (error) {
             console.error("获取文件列表异常", error);
+            setLoadError(error.message || '获取文件列表失败');
             showToast({message: '获取文件列表失败: ' + (error.message || '未知错误'), type: 'error'});
             return false;
         }
@@ -593,6 +600,13 @@ function FileSharing() {
                         </div>
                     </div>
                 )}
+                {loadError ? (
+                    <div className="errorState">
+                        <div className="errorIcon">&#9888;</div>
+                        <p className="errorMessage">{loadError}</p>
+                    </div>
+                ) : (
+                    <>
                 <div className="fileList">
                     <table className={"fileTable"}>
                         <colgroup>
@@ -698,6 +712,8 @@ function FileSharing() {
                     >批量下载
                     </button>
                 </div>
+                    </>
+                )}
 
                 {/* 右键菜单 */}
                 {contextMenu.visible && contextMenu.item && (() => {

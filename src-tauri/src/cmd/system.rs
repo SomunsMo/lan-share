@@ -60,6 +60,12 @@ pub async fn share_text_to_lan(text_data: String) -> Result<(), String> {
     }
 }
 
+/// 检查共享根目录是否已配置（首次运行检测）
+#[tauri::command]
+pub fn is_sharing_root_configured() -> bool {
+    crate::config::config::is_sharing_root_configured()
+}
+
 /// 设置共享根目录
 #[tauri::command]
 pub async fn set_sharing_directory(directory_path: String) -> Result<(), String> {
@@ -91,6 +97,9 @@ pub async fn set_sharing_directory(directory_path: String) -> Result<(), String>
         log::error!("设置共享根目录失败: {}", e);
         return Err(e);
     }
+
+    // 标记为已配置
+    config::set_sharing_root_configured(true);
 
     let sharing_root = config::get_sharing_root().await;
     log::info!("共享根目录已设置为: {:?}", (*sharing_root));
