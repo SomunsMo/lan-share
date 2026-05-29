@@ -81,6 +81,7 @@ jobs:
       # --- 使用 pnpm tauri build 构建（自动执行 beforeBuildCommand + 编译 + 打包）---
       # build.rs 会自动构建 src-web 前端并嵌入到可执行程序
       - name: Build
+        shell: bash
         run: |
           if [ -z "${{ matrix.bundles }}" ]; then
             BUNDLE_FLAGS="--no-bundle"
