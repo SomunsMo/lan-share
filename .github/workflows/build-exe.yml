@@ -17,21 +17,25 @@ jobs:
             target: x86_64-pc-windows-msvc
             name: windows-x64
             ext: .exe
+            bundles: ""               # 免安装，只产裸 exe
 
           - os: macos-latest
             target: x86_64-apple-darwin
             name: macos-intel
             ext: ""
+            bundles: "app,dmg"
 
           - os: macos-latest
             target: aarch64-apple-darwin
             name: macos-arm
             ext: ""
+            bundles: "app,dmg"
 
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             name: linux-x64
             ext: ""
+            bundles: "deb"
 
     runs-on: ${{ matrix.os }}
 
@@ -77,9 +81,13 @@ jobs:
       # --- 使用 pnpm tauri build 构建（自动执行 beforeBuildCommand + 编译 + 打包）---
       # build.rs 会自动构建 src-web 前端并嵌入到可执行程序
       - name: Build
-        run: pnpm tauri build
-        env:
-          CARGO_BUILD_TARGET: ${{ matrix.target }}
+        run: |
+          if [ -z "${{ matrix.bundles }}" ]; then
+            BUNDLE_FLAGS="--no-bundle"
+          else
+            BUNDLE_FLAGS="--bundles ${{ matrix.bundles }}"
+          fi
+          pnpm tauri build -t ${{ matrix.target }} $BUNDLE_FLAGS
 
       # --- UPX 极限体积压缩 ---
       - name: Install UPX
