@@ -78,17 +78,33 @@ jobs:
           pnpm install
           cd src-web && pnpm install
 
-      # --- 使用 pnpm tauri build 构建（自动执行 beforeBuildCommand + 编译 + 打包）---
+      # --- 使用 pnpm tauri build 构建 ---
       # build.rs 会自动构建 src-web 前端并嵌入到可执行程序
-      - name: Build with bundles
-        if: matrix.bundles != ''
+      # macOS: 利用 tauri.conf.json 的 "targets": "all" 自动打包 app + dmg
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
         shell: bash
-        run: pnpm tauri build -t ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+        run: pnpm tauri build -v -t ${{ matrix.target }}
 
-      - name: Build without bundles (Windows)
-        if: matrix.bundles == ''
+      # Linux: 指定 appimage 格式
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
         shell: bash
-        run: pnpm tauri build -t ${{ matrix.target }} --no-bundle
+        run: pnpm tauri build -v -t ${{ matrix.target }} --bundles appimage
+
+      # Windows: 只产裸 exe
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: pnpm tauri build -v -t ${{ matrix.target }} --no-bundle
+
+      # --- 检查 bundle 输出（确认打包产物是否生成）---
+      - name: List bundle output
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          echo "=== Bundle output ==="
+          find "target/${{ matrix.target }}/release/bundle" -type f 2>/dev/null || echo "(no bundle files)"
 
       # --- UPX 压缩（Win/Linux，减小可执行文件体积）---
       - name: Install UPX
@@ -128,6 +144,7 @@ jobs:
           name: lan-share-${{ matrix.name }}-dmg
           path: target/${{ matrix.target }}/release/bundle/macos/*.dmg
           compression-level: 0
+          if-no-files-found: warn
 
       # --- 上传 AppImage（Linux 额外上传 AppImage 通用包）---
       - if: runner.os == 'Linux'
@@ -136,3 +153,4 @@ jobs:
           name: lan-share-${{ matrix.name }}-appimage
           path: target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
           compression-level: 0
+          if-no-files-found: warn
