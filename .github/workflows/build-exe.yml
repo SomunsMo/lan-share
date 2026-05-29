@@ -74,15 +74,12 @@ jobs:
           pnpm install
           cd src-web && pnpm install
 
-      # --- 构建桌面前端（Tauri React UI）---
-      # tauri.conf.json 的 beforeBuildCommand 只被 tauri build 执行，
-      # cargo build 不会触发它，而 generate_context!() 编译时依赖 dist/ 目录
-      - name: Build desktop frontend
-        run: pnpm run build
-
-      # --- 编译 Rust（build.rs 会自动构建 src-web 前端并嵌入）---
+      # --- 使用 pnpm tauri build 构建（自动执行 beforeBuildCommand + 编译 + 打包）---
+      # build.rs 会自动构建 src-web 前端并嵌入到可执行程序
       - name: Build
-        run: cargo build --release --target ${{ matrix.target }} -p lan-share
+        run: pnpm tauri build
+        env:
+          CARGO_BUILD_TARGET: ${{ matrix.target }}
 
       # --- UPX 极限体积压缩 ---
       - name: Install UPX
