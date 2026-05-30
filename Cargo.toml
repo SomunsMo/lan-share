@@ -7,3 +7,8 @@ members = [
 
 [workspace.dependencies]
 lan-share-http-macros = { path = "crates/http-macros" }
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1

@@ -15,23 +15,27 @@ jobs:
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            name: windows-x64
+            name: windows-x86_64
             ext: .exe
+            bundles: ""               # 免安装，只产裸 exe
 
           - os: macos-latest
             target: x86_64-apple-darwin
-            name: macos-intel
+            name: macos-x86_64
             ext: ""
+            bundles: "app,dmg"
 
           - os: macos-latest
             target: aarch64-apple-darwin
-            name: macos-arm
+            name: macos-aarch64
             ext: ""
+            bundles: "app,dmg"
 
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            name: linux-x64
+            name: linux-x86_64
             ext: ""
+            bundles: "deb,rpm"
 
     runs-on: ${{ matrix.os }}
 
@@ -66,7 +70,8 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libjavascriptcoregtk-4.1-dev \
-            libsoup-3.0-dev
+            libsoup-3.0-dev \
+            rpm
 
       # --- 安装前端依赖 ---
       - name: Install dependencies
@@ -74,24 +79,42 @@ jobs:
           pnpm install
           cd src-web && pnpm install
 
-      # --- 使用 pnpm tauri build 构建（自动执行 beforeBuildCommand + 编译 + 打包）---
+      # --- 使用 pnpm tauri build 构建 ---
       # build.rs 会自动构建 src-web 前端并嵌入到可执行程序
-      - name: Build
-        run: pnpm tauri build
-        env:
-          CARGO_BUILD_TARGET: ${{ matrix.target }}
+      # macOS: 利用 tauri.conf.json 的 "targets": "all" 自动打包 app + dmg
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: pnpm tauri build -v -t ${{ matrix.target }}
 
-      # --- UPX 极限体积压缩 ---
-      - name: Install UPX
+      # Linux: 构建 deb + rpm 包
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: pnpm tauri build -v -t ${{ matrix.target }} --bundles deb,rpm
+
+      # Windows: 只产裸 exe
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: pnpm tauri build -v -t ${{ matrix.target }} --no-bundle
+
+      # --- 检查 bundle 输出（确认打包产物是否生成）---
+      - name: List bundle output
+        if: runner.os != 'Windows'
         shell: bash
         run: |
-          case "$RUNNER_OS" in
-            Linux)  sudo apt-get -y install upx-ucl ;;
-            macOS)  brew install upx ;;
-            Windows) choco install upx -y ;;
-          esac
+          echo "=== Bundle output ==="
+          find "target/${{ matrix.target }}/release/bundle" -type f 2>/dev/null || echo "(no bundle files)"
+
+      # --- UPX 压缩（仅 Windows，减小 .exe 体积）---
+      - name: Install UPX
+        if: runner.os == 'Windows'
+        shell: bash
+        run: choco install upx -y
 
       - name: Compress binary with UPX
+        if: runner.os == 'Windows'
         shell: bash
         run: |
           BINARY="target/${{ matrix.target }}/release/lan-share${{ matrix.ext }}"
@@ -104,9 +127,45 @@ jobs:
             echo "::warning::UPX compression failed, uploading uncompressed binary"
           fi
 
-      # --- 上传产物 ---
-      - uses: actions/upload-artifact@v4
+      # --- 上传原始可执行文件（仅 Windows，直接分发 .exe）---
+      - if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
         with:
-          name: lan-share-${{ matrix.name }}
+          name: lan-share_${{ matrix.name }}
           path: target/${{ matrix.target }}/release/lan-share${{ matrix.ext }}
           compression-level: 0
+
+      # --- 上传 DMG（macOS 额外上传 dmg 安装包）---
+      - if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lan-share_${{ matrix.name }}-dmg
+          path: target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+          compression-level: 0
+          if-no-files-found: warn
+
+      # --- 上传 .app bundle（macOS 额外上传应用程序包）---
+      - if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lan-share_${{ matrix.name }}-app
+          path: target/${{ matrix.target }}/release/bundle/macos/*.app
+          compression-level: 0
+          if-no-files-found: warn
+
+      # --- 上传 deb + rpm（Linux 额外上传两种包格式）---
+      - if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lan-share_${{ matrix.name }}-deb
+          path: target/${{ matrix.target }}/release/bundle/deb/*.deb
+          compression-level: 0
+          if-no-files-found: warn
+
+      - if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lan-share_${{ matrix.name }}-rpm
+          path: target/${{ matrix.target }}/release/bundle/rpm/*.rpm
+          compression-level: 0
+          if-no-files-found: warn
