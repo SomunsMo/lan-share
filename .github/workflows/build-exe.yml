@@ -15,27 +15,27 @@ jobs:
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            name: windows-x64
+            name: windows-x86_64
             ext: .exe
             bundles: ""               # 免安装，只产裸 exe
 
           - os: macos-latest
             target: x86_64-apple-darwin
-            name: macos-intel
+            name: macos-x86_64
             ext: ""
             bundles: "app,dmg"
 
           - os: macos-latest
             target: aarch64-apple-darwin
-            name: macos-arm
+            name: macos-aarch64
             ext: ""
             bundles: "app,dmg"
 
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            name: linux-x64
+            name: linux-x86_64
             ext: ""
-            bundles: "appimage"
+            bundles: "deb,rpm"
 
     runs-on: ${{ matrix.os }}
 
@@ -70,7 +70,8 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libjavascriptcoregtk-4.1-dev \
-            libsoup-3.0-dev
+            libsoup-3.0-dev \
+            rpm
 
       # --- 安装前端依赖 ---
       - name: Install dependencies
@@ -86,11 +87,11 @@ jobs:
         shell: bash
         run: pnpm tauri build -v -t ${{ matrix.target }}
 
-      # Linux: 指定 appimage 格式
+      # Linux: 构建 deb + rpm 包
       - name: Build (Linux)
         if: runner.os == 'Linux'
         shell: bash
-        run: pnpm tauri build -v -t ${{ matrix.target }} --bundles appimage
+        run: pnpm tauri build -v -t ${{ matrix.target }} --bundles deb,rpm
 
       # Windows: 只产裸 exe
       - name: Build (Windows)
@@ -106,18 +107,14 @@ jobs:
           echo "=== Bundle output ==="
           find "target/${{ matrix.target }}/release/bundle" -type f 2>/dev/null || echo "(no bundle files)"
 
-      # --- UPX 压缩（Win/Linux，减小可执行文件体积）---
+      # --- UPX 压缩（仅 Windows，减小 .exe 体积）---
       - name: Install UPX
-        if: runner.os != 'macOS'
+        if: runner.os == 'Windows'
         shell: bash
-        run: |
-          case "$RUNNER_OS" in
-            Linux)  sudo apt-get -y install upx-ucl ;;
-            Windows) choco install upx -y ;;
-          esac
+        run: choco install upx -y
 
       - name: Compress binary with UPX
-        if: runner.os != 'macOS'
+        if: runner.os == 'Windows'
         shell: bash
         run: |
           BINARY="target/${{ matrix.target }}/release/lan-share${{ matrix.ext }}"
@@ -130,10 +127,11 @@ jobs:
             echo "::warning::UPX compression failed, uploading uncompressed binary"
           fi
 
-      # --- 上传原始可执行文件（所有平台）---
-      - uses: actions/upload-artifact@v4
+      # --- 上传原始可执行文件（仅 Windows，直接分发 .exe）---
+      - if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
         with:
-          name: lan-share-${{ matrix.name }}
+          name: lan-share_${{ matrix.name }}
           path: target/${{ matrix.target }}/release/lan-share${{ matrix.ext }}
           compression-level: 0
 
@@ -141,16 +139,33 @@ jobs:
       - if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
-          name: lan-share-${{ matrix.name }}-dmg
-          path: target/${{ matrix.target }}/release/bundle/macos/*.dmg
+          name: lan-share_${{ matrix.name }}-dmg
+          path: target/${{ matrix.target }}/release/bundle/dmg/*.dmg
           compression-level: 0
           if-no-files-found: warn
 
-      # --- 上传 AppImage（Linux 额外上传 AppImage 通用包）---
+      # --- 上传 .app bundle（macOS 额外上传应用程序包）---
+      - if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lan-share_${{ matrix.name }}-app
+          path: target/${{ matrix.target }}/release/bundle/macos/*.app
+          compression-level: 0
+          if-no-files-found: warn
+
+      # --- 上传 deb + rpm（Linux 额外上传两种包格式）---
       - if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: lan-share-${{ matrix.name }}-appimage
-          path: target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+          name: lan-share_${{ matrix.name }}-deb
+          path: target/${{ matrix.target }}/release/bundle/deb/*.deb
+          compression-level: 0
+          if-no-files-found: warn
+
+      - if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lan-share_${{ matrix.name }}-rpm
+          path: target/${{ matrix.target }}/release/bundle/rpm/*.rpm
           compression-level: 0
           if-no-files-found: warn
