@@ -4,7 +4,7 @@
 
 # Lan Share
 
-> 使用 **Rust** 开发的跨平台局域网共享工具 · 嵌入式 **HTTP** 服务 · 浏览器访问，免客户端 · 支持 Windows / macOS / Linux
+> 基于 **Tauri**（Rust + JS）开发的跨平台局域网共享工具，内置 **HTTP Server**，浏览器即可访问，提供 Windows / macOS / Linux 桌面客户端
 
 ![Rust](https://img.shields.io/badge/Rust-1.85%2B-orange?logo=rust)
 ![Tauri](https://img.shields.io/badge/Tauri-2-ffc131?logo=tauri&logoColor=black)
