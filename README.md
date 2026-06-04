@@ -4,7 +4,7 @@
 
 # Lan Share
 
-> A cross-platform LAN sharing tool built with **Rust** · Embedded **HTTP** server · Browser access, no client needed · Supports Windows / macOS / Linux
+> A cross-platform LAN sharing tool built with **Tauri** (Rust + JS), featuring an embedded **HTTP Server** and browser-based access — provides native clients for Windows / macOS / Linux
 
 ![Rust](https://img.shields.io/badge/Rust-1.85%2B-orange?logo=rust)
 ![Tauri](https://img.shields.io/badge/Tauri-2-ffc131?logo=tauri&logoColor=black)
