@@ -41,13 +41,22 @@ const AppStyle = styled.div`
         border-color: var(--accent);
     }
 
-    .theme-toggle-btn {
+    .topBar {
         position: absolute;
         top: 10px;
         right: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        z-index: 50;
+    }
+
+    .theme-toggle-btn,
+    .lang-selector {
         display: inline-flex;
         align-items: center;
-        padding: 5px 12px;
+        height: 34px;
+        padding: 0 14px;
         background: var(--bg-card);
         border: 1px solid var(--border);
         border-radius: 20px;
@@ -55,13 +64,24 @@ const AppStyle = styled.div`
         color: var(--text-secondary);
         font-family: inherit;
         font-size: 0.88rem;
-        z-index: 50;
+        line-height: 1;
+        box-sizing: border-box;
         transition: border-color 0.15s;
     }
 
-    .theme-toggle-btn:hover {
+    .theme-toggle-btn:hover,
+    .lang-selector:hover {
         border-color: var(--accent);
         background-color: var(--bg-card);
+    }
+
+    .lang-selector {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-image: none;
+        text-align: center;
+        min-width: 72px;
     }
 
     .appSubtitle {

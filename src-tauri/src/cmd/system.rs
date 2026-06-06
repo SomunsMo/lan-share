@@ -370,6 +370,30 @@ pub async fn get_all_upload_history() -> Result<Vec<crate::db::entity::UploadRec
     }
 }
 
+/// 获取语言设置
+#[tauri::command]
+pub async fn get_language() -> Result<String, String> {
+    match config_dao::get_config_value("language").await {
+        Ok(Some(value)) => Ok(value),
+        Ok(None) => Ok(String::new()),
+        Err(e) => {
+            log::warn!("获取语言设置失败: {}", e);
+            Ok(String::new())
+        }
+    }
+}
+
+/// 设置语言
+#[tauri::command]
+pub async fn set_language(language: String) -> Result<(), String> {
+    if let Err(e) = config_dao::set_config("language", &language).await {
+        log::error!("保存语言设置到数据库失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+    log::info!("语言设置已更新为: {}", language);
+    Ok(())
+}
+
 /// 获取主题设置
 #[tauri::command]
 pub async fn get_theme_setting() -> Result<String, String> {

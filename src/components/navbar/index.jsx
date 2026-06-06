@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import NavbarStyle from "./style.js";
 import {Link, useLocation} from "react-router";
 import {routes} from "../../pages/_router-map.jsx";
+import {useTranslation} from "react-i18next";
 
 const icons = {
   home: (
@@ -20,6 +21,7 @@ const icons = {
 
 function Navbar() {
   let location = useLocation();
+  const { t } = useTranslation();
   const [topItems, setTopItems] = useState([]);
   const [bottomItems, setBottomItems] = useState([]);
 
@@ -44,7 +46,7 @@ function Navbar() {
           <li key={index} className={location.pathname === item.path ? "active" : ""}>
             <Link to={item.path}>
               <span className="nav-icon">{icons[item.icon]}</span>
-              {item.name}
+              {t(item.name)}
             </Link>
           </li>
         ))}
@@ -55,7 +57,7 @@ function Navbar() {
           <li key={index} className={location.pathname === item.path ? "active" : ""}>
             <Link to={item.path}>
               <span className="nav-icon">{icons[item.icon]}</span>
-              {item.name}
+              {t(item.name)}
             </Link>
           </li>
         ))}

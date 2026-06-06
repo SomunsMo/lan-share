@@ -1,0 +1,94 @@
+{
+  "common": {
+    "button": {
+      "cancel": "取消",
+      "confirm": "确定",
+      "delete": "删除",
+      "copy": "复制",
+      "download": "下载",
+      "rename": "重命名",
+      "upload": "上传文件"
+    },
+    "toast": {
+      "copySuccess": "链接已复制",
+      "copyFailed": "复制链接失败",
+      "deleteSuccess": "删除成功",
+      "operationFailed": "操作失败"
+    }
+  },
+  "web": {
+    "subtitle": "基于HTTP的局域网文件传输工具",
+    "themeLabel": {
+      "system": "跟随系统",
+      "light": "浅色",
+      "dark": "深色"
+    },
+    "themeTitle": "点击切换主题",
+    "languageLabel": {
+      "zh-CN": "中文",
+      "en": "English"
+    }
+  },
+  "fileSharing": {
+    "diskSpace": "存储空间",
+    "diskSpaceDetail": "{{available}} 可用 / {{total}} 总计",
+    "tableHeader": {
+      "name": "名称",
+      "modified": "修改时间",
+      "size": "大小",
+      "actions": "操作"
+    },
+    "goBack": ".. (返回上层)",
+    "uploadBtn": "上传文件",
+    "batchDownload": "批量下载",
+    "action": {
+      "copyLink": "复制链接",
+      "download": "下载",
+      "rename": "重命名",
+      "delete": "删除",
+      "open": "打开",
+      "copyFileName": "复制文件名"
+    },
+    "toast": {
+      "linkCopied": "链接已复制",
+      "linkCopyFailed": "复制链接失败",
+      "fileNameCopied": "文件名已复制",
+      "fileNameCopyFailed": "复制文件名失败",
+      "loadFailed": "获取文件列表失败: {{error}}",
+      "uploadDisabled": "上传功能已被禁用",
+      "overwriteDisabled": "上传覆盖已禁用",
+      "uploadFailed": "文件 {{name}} 上传失败: {{error}}",
+      "uploadSuccess": "文件 {{name}} 上传完成",
+      "downloadFailed": "文件下载失败: {{error}}",
+      "renameSuccess": "重命名成功",
+      "renameFailed": "重命名失败: {{error}}",
+      "deleteFailed": "删除失败: {{error}}",
+      "uploading": "上传文件: {{name}}",
+      "diskSpaceInsufficient": "磁盘剩余空间不足，无法存储文件 \"{{name}}\"。需要 {{need}}，可用 {{available}}"
+    },
+    "dialog": {
+      "overwriteTitle": "确认覆盖",
+      "overwriteContent": "文件 \"{{name}}\" 已存在，是否覆盖上传？",
+      "renameTitle": "重命名",
+      "renameContent": "请输入新名称：",
+      "renamePlaceholder": "请输入新名称",
+      "deleteTitle": "确认删除",
+      "deleteFileContent": "确定要删除文件 \"{{name}}\" 吗？",
+      "deleteFolderContent": "确定要删除文件夹 \"{{name}}\" 及其所有内容吗？",
+      "buttonOverwrite": "覆盖",
+      "buttonDelete": "删除"
+    }
+  },
+  "textSharing": {
+    "sendBtn": "发送文本",
+    "tips": "说明：双击文本复制",
+    "contextMenu": {
+      "copy": "复制"
+    },
+    "toast": {
+      "loadFailed": "获取历史文本失败: {{error}}",
+      "sendFailed": "发送文本失败: {{error}}",
+      "copied": "文本已复制"
+    }
+  }
+}

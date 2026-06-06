@@ -13,7 +13,6 @@ const HomeStyle = styled.div`
 
     .banner {
         box-sizing: border-box;
-        height: 300px;
         margin: 40px;
 
         text-align: center;
@@ -26,9 +25,9 @@ const HomeStyle = styled.div`
     .codeArea {
         box-sizing: border-box;
         display: flex;
-        width: 230px;
-        height: 230px;
+        width: 260px;
         margin: 0 auto;
+        padding: 20px 16px 16px;
         flex-direction: column;
 
         justify-content: center;
@@ -36,7 +35,6 @@ const HomeStyle = styled.div`
 
         background-color: var(--bg-card);
         border-radius: var(--radius-sm);
-        overflow: hidden;
     }
 
     .scanTips {
@@ -58,9 +56,13 @@ const HomeStyle = styled.div`
     }
 
     .qrcodeUrl {
-        margin: 0 0 10px 0;
-        line-height: 1rem;
-        font-size: 0.8rem;
+        margin: 0;
+        line-height: 1.2rem;
+        font-size: 0.75rem;
+        max-width: 100%;
+        word-break: break-all;
+        overflow-wrap: break-word;
+        padding: 0 4px;
 
         user-select: text;
     }
