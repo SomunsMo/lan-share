@@ -228,19 +228,57 @@ jobs:
           path: all-artifacts
 
       - name: Prepare release assets
+        shell: bash
         run: |
           mkdir -p release-assets
+
           for dir in all-artifacts/*/; do
-            # Zip .app bundles for clean upload (GitHub works better with files, not dirs)
-            # Use -print0 to handle spaces in directory names (e.g., "LAN Share.app")
-            while IFS= read -r -d '' app; do
-              app_name=$(basename "$app")
-              echo "Zipping ${app_name} for release..."
-              (cd "$(dirname "$app")" && zip -rq "${GITHUB_WORKSPACE}/release-assets/${app_name}.zip" "$app_name")
-            done < <(find "$dir" -maxdepth 1 -name "*.app" -type d -print0 2>/dev/null || true)
-            # Copy all regular files to flat release-assets directory
-            find "$dir" -maxdepth 1 -type f -print0 -exec cp {} release-assets/ \; 2>/dev/null || true
+            artifact_name="$(basename "$dir")"          # e.g. "lan-share_windows-x86_64"
+            platform_part="${artifact_name#lan-share_}"  # e.g. "windows-x86_64"
+
+            # Case 1: macOS .app bundle → zip with platform-specific name
+            app_bundle="$(find "$dir" -maxdepth 1 -name "*.app" -type d -print -quit 2>/dev/null || true)"
+            if [ -n "$app_bundle" ]; then
+              # platform_part is like "macos-x86_64-app" or "macos-aarch64-app"
+              platform="${platform_part%-app}"           # → "macos-x86_64" / "macos-aarch64"
+              app_name="$(basename "$app_bundle")"
+              zip_name="lan-share_${platform}.app.zip"
+              echo "Zipping ${app_name} → ${zip_name}"
+              (cd "$(dirname "$app_bundle")" && zip -rq "${GITHUB_WORKSPACE}/release-assets/${zip_name}" "$app_name")
+              continue
+            fi
+
+            # Case 2: regular files — rename to consistent convention
+            for file in "$dir"/*; do
+              [ -f "$file" ] || continue
+              case "$platform_part" in
+                windows-x86_64)
+                  zip_name="lan-share_windows-x86_64.zip"
+                  echo "Zipping → ${zip_name}"
+                  zip -j "${GITHUB_WORKSPACE}/release-assets/${zip_name}" "$file"
+                  ;;
+                macos-*-dmg)
+                  plat="${platform_part%-dmg}"
+                  zip_name="lan-share_${plat}.dmg.zip"
+                  echo "Zipping → ${zip_name}"
+                  zip -j "${GITHUB_WORKSPACE}/release-assets/${zip_name}" "$file"
+                  ;;
+                linux-*-deb)
+                  plat="${platform_part%-deb}"
+                  zip_name="lan-share_${plat}.deb.zip"
+                  echo "Zipping → ${zip_name}"
+                  zip -j "${GITHUB_WORKSPACE}/release-assets/${zip_name}" "$file"
+                  ;;
+                linux-*-rpm)
+                  plat="${platform_part%-rpm}"
+                  zip_name="lan-share_${plat}.rpm.zip"
+                  echo "Zipping → ${zip_name}"
+                  zip -j "${GITHUB_WORKSPACE}/release-assets/${zip_name}" "$file"
+                  ;;
+              esac
+            done
           done
+
           echo "=== Release assets ==="
           ls -lh release-assets/
 
