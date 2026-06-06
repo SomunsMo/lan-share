@@ -230,16 +230,14 @@ jobs:
           mkdir -p release-assets
           for dir in all-artifacts/*/; do
             # Zip .app bundles for clean upload (GitHub works better with files, not dirs)
-            app_dirs=$(find "$dir" -maxdepth 1 -name "*.app" -type d 2>/dev/null || true)
-            if [ -n "$app_dirs" ]; then
-              for app in $app_dirs; do
-                app_name=$(basename "$app")
-                echo "Zipping ${app_name} for release..."
-                (cd "$(dirname "$app")" && zip -rq "${GITHUB_WORKSPACE}/release-assets/${app_name}.zip" "$app_name")
-              done
-            fi
+            # Use -print0 to handle spaces in directory names (e.g., "LAN Share.app")
+            while IFS= read -r -d '' app; do
+              app_name=$(basename "$app")
+              echo "Zipping ${app_name} for release..."
+              (cd "$(dirname "$app")" && zip -rq "${GITHUB_WORKSPACE}/release-assets/${app_name}.zip" "$app_name")
+            done < <(find "$dir" -maxdepth 1 -name "*.app" -type d -print0 2>/dev/null || true)
             # Copy all regular files to flat release-assets directory
-            find "$dir" -maxdepth 1 -type f -exec cp {} release-assets/ \;
+            find "$dir" -maxdepth 1 -type f -print0 -exec cp {} release-assets/ \; 2>/dev/null || true
           done
           echo "=== Release assets ==="
           ls -lh release-assets/
