@@ -3,8 +3,10 @@ import TextSharingManagerStyle from "./style.js";
 import Card from "../../components/card/Card.js";
 import copy from 'copy-to-clipboard';
 import {invoke} from '@tauri-apps/api/core';
+import {useTranslation} from "react-i18next";
 
 function TextSharingManager(props) {
+    const { t } = useTranslation();
     // 文本框内容
     const [textValue, setTextValue] = useState("");
     // 历史记录
@@ -154,10 +156,10 @@ function TextSharingManager(props) {
                     className={"textEdit"}
                     value={textValue}
                     onChange={(e) => setTextValue(e.target.value)}
-                    placeholder={"请输入要分享的文本"}
+                    placeholder={t('textSharing.placeholder')}
                 />
                 <div className={"textEditActions"}>
-                    <button onClick={shareTextViaTauri}>共享</button>
+                    <button onClick={shareTextViaTauri}>{t('textSharing.shareButton')}</button>
                 </div>
             </Card>
             <Card>
@@ -172,9 +174,9 @@ function TextSharingManager(props) {
                         <thead>
                         <tr>
                             <th></th>
-                            <th>时间</th>
-                            <th>来源IP</th>
-                            <th>内容</th>
+                            <th title={t('textSharing.tableHeader.time')}>{t('textSharing.tableHeader.time')}</th>
+                            <th title={t('textSharing.tableHeader.sourceIp')}>{t('textSharing.tableHeader.sourceIp')}</th>
+                            <th title={t('textSharing.tableHeader.content')}>{t('textSharing.tableHeader.content')}</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -211,13 +213,13 @@ function TextSharingManager(props) {
                                     setContextMenu({visible: false, x: 0, y: 0, item: null});
                                 }}
                             >
-                                复制内容
+                                {t('textSharing.contextMenu.copyContent')}
                             </div>
                             <div
                                 className="context-menu-item"
                                 onClick={() => deleteHistoryItem(contextMenu.item.id)}
                             >
-                                删除记录
+                                {t('textSharing.contextMenu.deleteRecord')}
                             </div>
                         </div>
                     )}

@@ -38,7 +38,7 @@ A LAN file/text sharing app built with **Tauri v2** (Rust backend + React fronte
 **`lan-share`** (`src-tauri/`) — Main Tauri app + embedded HTTP server:
 - `main.rs` — Entry point: initializes logger → SQLite → loads config from DB → launches Tauri UI (HTTP server starts in Tauri's `setup` callback)
 - `lib.rs` — Module tree, `QueryParams`/`BodyData` extractors, `run()` builder with tray/plugins/IPC/hooks
-- `cmd/system.rs` — 25 Tauri IPC commands: config CRUD, text/file sharing, upload/rename/delete permission toggles
+- `cmd/system.rs` — Tauri IPC commands: config CRUD, text/file sharing, upload/rename/delete permission toggles, language get/set
 - `cmd/_cmd_handler.rs` — Central `generate_handler![]` registry (add new commands here)
 - `http_server/` — Custom HTTP server on hyper v1:
   - `http_server.rs` — TCP listener on `0.0.0.0:{port}`, request dispatch via `handler::get_handler()`
@@ -64,6 +64,28 @@ A LAN file/text sharing app built with **Tauri v2** (Rust backend + React fronte
 - Built with `vite-plugin-singlefile` → single `index.html` → embedded in Rust binary via `include_dir!`
 - Axios for HTTP API calls to the embedded Rust server
 - Components: FileSharing (upload/download/browse), TextSharing (share/view text), ProgressBar, Toast, Dialog
+
+### Internationalization (i18n)
+
+**Stack:** `i18next` + `react-i18next`
+
+**Translation files:**
+- `src/locales/zh-CN.json` + `src/locales/en.json` — Desktop UI
+- `src-web/src/locales/zh-CN.json` + `src-web/src/locales/en.json` — Web UI
+
+**Initialization:**
+- Desktop (`src/i18n.ts`): lazy `import()` per language, reads saved preference from SQLite via `invoke('get_language')`, falls back to `navigator.language`
+- Web (`src-web/src/i18n.ts`): static imports (singlefile compat), reads from `localStorage` key `lan-share-language`, falls back to `navigator.language`
+
+**Language persistence IPC (Rust):**
+- `get_language` — reads `language` key from SQLite `config` table
+- `set_language` — writes `language` key to SQLite `config` table
+
+**Language switch UI:**
+- Desktop: Settings page "语言" `<select>` — calls `changeLanguage()` which runs `i18n.changeLanguage()` then `invoke('set_language')`
+- Web: Top bar language `<select>` — calls `changeLanguage()` which runs `i18n.changeLanguage()` then `localStorage.setItem()`
+
+**Adding a new language:** Create JSON file in both `src/locales/` and `src-web/src/locales/`, add entry to `supportedLngs` in both `i18n.ts`, add `<option>` in both language selectors.
 
 ### Startup Flow
 

@@ -6,6 +6,8 @@ import TextSharing from "./component/TextSharing/TextSharing.jsx";
 import BarcodeIconSvg from './assets/icon/barcode.svg';
 import {DialogProvider} from "./component/Dialog/index.jsx";
 import {ToastProvider} from "./component/Toast/index.jsx";
+import {useTranslation} from "react-i18next";
+import { changeLanguage } from "./i18n.ts";
 
 const THEME_KEY = 'lan-share-theme';
 const isDark = () => {
@@ -16,6 +18,7 @@ const isDark = () => {
 };
 
 function App() {
+    const { t, i18n } = useTranslation();
     const [theme, setTheme] = useState(() => {
         try {
             const saved = localStorage.getItem(THEME_KEY);
@@ -53,7 +56,7 @@ function App() {
         }
     };
 
-    const themeLabel = {system: '跟随系统', light: '浅色', dark: '深色'};
+    const themeLabel = {system: t('web.themeLabel.system'), light: t('web.themeLabel.light'), dark: t('web.themeLabel.dark')};
 
     const getQrCodeUrl = () => {
         return window.location.href.split('?')[0];
@@ -64,10 +67,11 @@ function App() {
             <ToastProvider>
                 <AppStyle>
                     <main>
+                        <div className="topBar">
                         <button
                             className="theme-toggle-btn"
                             onClick={cycleTheme}
-                            title="点击切换主题"
+                            title={t('web.themeTitle')}
                         >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                  strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
@@ -89,10 +93,19 @@ function App() {
                             </svg>
                             <span style={{fontSize: '0.78rem', marginLeft: '4px'}}>{themeLabel[theme]}</span>
                         </button>
+                        <select
+                            className="lang-selector"
+                            defaultValue={i18n.language}
+                            onChange={(e) => changeLanguage(e.target.value)}
+                        >
+                            <option value="zh-CN">{t('web.languageLabel.zh-CN')}</option>
+                            <option value="en">{t('web.languageLabel.en')}</option>
+                        </select>
+                        </div>
                         <h1 className="appTitle">LAN Share</h1>
-                        <p className="appSubtitle">基于HTTP的局域网文件传输工具</p>
+                        <p className="appSubtitle">{t('web.subtitle')}</p>
                         <div className="qrCodeArea">
-                            <img className="qrIcon" src={BarcodeIconSvg} alt="二维码"/>
+                            <img className="qrIcon" src={BarcodeIconSvg} alt="QR Code"/>
                             <div className="qrPopupContainer">
                                 <div className="qrContentWrapper">
                                     <QRCodeSVG className="qrImage" value={getQrCodeUrl()} fgColor={qrFgColor} bgColor={"transparent"}/>

@@ -60,10 +60,6 @@ const TextSharingStyle = styled.div`
         text-align: left;
     }
 
-    .cardTips::before {
-        content: "说明：";
-    }
-
     .sendBtnWrapper {
         text-align: center;
     }

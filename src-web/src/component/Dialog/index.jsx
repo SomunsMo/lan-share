@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     DialogOverlay,
     DialogCard,
@@ -28,12 +29,12 @@ export function DialogProvider({ children }) {
                 input: input || null,
                 buttons: buttons || (input
                     ? [
-                        { label: '取消', value: null },
-                        { label: '确定', value: '__confirm_input__', primary: true },
+                        { label: 'common.button.cancel', value: null },
+                        { label: 'common.button.confirm', value: '__confirm_input__', primary: true },
                     ]
                     : [
-                        { label: '取消', value: false },
-                        { label: '确定', value: true, primary: true },
+                        { label: 'common.button.cancel', value: false },
+                        { label: 'common.button.confirm', value: true, primary: true },
                     ]
                 ),
                 exiting: false,
@@ -73,6 +74,7 @@ export function DialogProvider({ children }) {
 }
 
 function DialogItem({ dialog, index, closeDialog }) {
+    const { t } = useTranslation();
     const [inputValue, setInputValue] = useState(dialog.input?.defaultValue || '');
     const inputRef = useRef(null);
 
@@ -123,7 +125,7 @@ function DialogItem({ dialog, index, closeDialog }) {
                             $danger={btn.danger}
                             onClick={() => handleButtonClick(btn)}
                         >
-                            {btn.label}
+                            {t(btn.label)}
                         </DialogButton>
                     ))}
                 </DialogFooter>

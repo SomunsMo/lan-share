@@ -4,8 +4,10 @@ import TextSharingStyle from "./TextSharingStyle.js";
 import {getTextSharingAPI, uploadTextAPI} from "../../service/API.js";
 import {useToast} from "@/component/Toast/index.jsx";
 import copy from "copy-to-clipboard";
+import {useTranslation} from "react-i18next";
 
 function TextSharing() {
+    const { t } = useTranslation();
     const {showToast} = useToast();
     // 将被上传的文本
     const [uploadText, setUploadText] = useState("");
@@ -37,13 +39,13 @@ function TextSharing() {
         getTextSharingAPI().then(res => {
             if (res.code !== 200) {
                 console.error("获取历史文本异常")
-                showToast({message: '获取历史文本失败: ' + (res.msg || '未知错误'), type: 'error'});
+                showToast({message: t('textSharing.toast.loadFailed', {error: res.msg || '未知错误'}), type: 'error'});
                 return;
             }
             setTextHistory(res.data);
         }).catch(error => {
             console.error("获取历史文本异常", error);
-            showToast({message: '获取历史文本失败: ' + (error.message || '未知错误'), type: 'error'});
+            showToast({message: t('textSharing.toast.loadFailed', {error: error.message || '未知错误'}), type: 'error'});
         })
     }
 
@@ -59,7 +61,7 @@ function TextSharing() {
 
                 if (res.code !== 200) {
                     console.error("发送文本到服务器失败")
-                    showToast({message: '发送文本失败: ' + (res.msg || '未知错误'), type: 'error'});
+                    showToast({message: t('textSharing.toast.sendFailed', {error: res.msg || '未知错误'}), type: 'error'});
                     return;
                 }
 
@@ -69,7 +71,7 @@ function TextSharing() {
                 flushHistoryList();
             }).catch(error => {
                 console.error("发送文本到服务器失败", error);
-                showToast({message: '发送文本失败: ' + (error.message || '未知错误'), type: 'error'});
+                showToast({message: t('textSharing.toast.sendFailed', {error: error.message || '未知错误'}), type: 'error'});
             });
     }
 
@@ -108,7 +110,7 @@ function TextSharing() {
 
     const copyText = (text) => {
         copy(text);
-        showToast({message: '文本已复制', type: 'success'});
+        showToast({message: t('textSharing.toast.copied'), type: 'success'});
     }
 
 
@@ -118,7 +120,7 @@ function TextSharing() {
                 {/*文本上传区域*/}
                 <textarea id="textInput" value={uploadText} onChange={uploadTextOnChange}></textarea>
                 <div className="sendBtnWrapper">
-                    <button onClick={sendText}>发送文本</button>
+                    <button onClick={sendText}>{t('textSharing.sendBtn')}</button>
                 </div>
             </Card>
 
@@ -139,7 +141,7 @@ function TextSharing() {
                         )
                     })}
                 </ul>
-                <p className="cardTips">双击文本复制</p>
+                <p className="cardTips">{t('textSharing.tips')}</p>
             </Card>
 
             {contextMenu.visible && (
@@ -148,7 +150,7 @@ function TextSharing() {
                     <div className="context-menu-item" onClick={() => {
                         copyText(contextMenu.content);
                         hideContextMenu();
-                    }}>复制</div>
+                    }}>{t('textSharing.contextMenu.copy')}</div>
                 </div>
             )}
         </TextSharingStyle>

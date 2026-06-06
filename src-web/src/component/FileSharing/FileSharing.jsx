@@ -5,6 +5,7 @@ import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, preUploa
 import {formatFileSize, getFileSuffix, copyToClipboard} from "@/util/file.js";
 import {useToast} from "@/component/Toast/index.jsx";
 import {useDialog} from "@/component/Dialog/index.jsx";
+import {useTranslation} from "react-i18next";
 import FolderIcon from '@/assets/icon/folder.svg';
 import CodeIcon from '@/assets/icon/code.svg';
 import DocIcon from '@/assets/icon/doc.svg';
@@ -91,6 +92,7 @@ const getFileIcon = (suffix) => {
 };
 
 function FileSharing() {
+    const { t } = useTranslation();
     // 文件选择器元素
     const fileSelectorRef = useRef(null);
     const {showToast} = useToast();
@@ -170,8 +172,8 @@ function FileSharing() {
             const res = await getFileSharingAPI(dir);
             if (res.code !== 200) {
                 console.error("获取文件列表异常", res.msg);
-                setLoadError(res.msg || '获取文件列表失败');
-                showToast({message: '获取文件列表失败: ' + (res.msg || '未知错误'), type: 'error'});
+                setLoadError(res.msg || t('fileSharing.toast.loadFailed', {error: ''}));
+                showToast({message: t('fileSharing.toast.loadFailed', {error: res.msg || '未知错误'}), type: 'error'});
                 return false;
             }
 
@@ -193,13 +195,13 @@ function FileSharing() {
         } catch (error) {
             console.error("获取文件列表异常", error);
             setLoadError(error.message || '获取文件列表失败');
-            showToast({message: '获取文件列表失败: ' + (error.message || '未知错误'), type: 'error'});
+            showToast({message: t('fileSharing.toast.loadFailed', {error: error.message || '未知错误'}), type: 'error'});
             return false;
         }
     }
 
     // 添加或更新进度条
-    const updateProgress = (id, title, percent, description = '', status = '上传中') => {
+    const updateProgress = (id, title, percent, description = '', status = '') => {
         setUploadProgresses(prev => {
             const existingIndex = prev.findIndex(p => p.id === id);
             const newProgress = {
@@ -271,34 +273,34 @@ function FileSharing() {
                 const checkRes = await preUploadCheckAPI(currentDir || "", file.name);
                 if (checkRes.code !== 200) {
                     showToast({
-                        message: `检查文件 ${file.name} 是否存在失败: ` + (checkRes.msg || '未知错误'),
+                        message: t('fileSharing.toast.uploadFailed', {name: file.name, error: checkRes.msg || '未知错误'}),
                         type: 'error'
                     });
                     continue;
                 }
                 if (!checkRes.data.upload_enabled) {
-                    showToast({message: '上传功能已被禁用', type: 'warning'});
+                    showToast({message: t('fileSharing.toast.uploadDisabled'), type: 'warning'});
                     continue;
                 }
                 // 检查磁盘剩余空间是否足够
                 if (checkRes.data.available_space && file.size > checkRes.data.available_space) {
                     showToast({
-                        message: `磁盘剩余空间不足，无法存储文件 "${file.name}"。需要 ${formatFileSize(file.size)}，可用 ${formatFileSize(checkRes.data.available_space)}`,
+                        message: t('fileSharing.toast.diskSpaceInsufficient', {name: file.name, need: formatFileSize(file.size), available: formatFileSize(checkRes.data.available_space)}),
                         type: 'error'
                     });
                     continue;
                 }
                 if (checkRes.data.exists) {
                     if (!checkRes.data.overwrite_enabled) {
-                        showToast({message: '上传覆盖已禁用', type: 'warning'});
+                        showToast({message: t('fileSharing.toast.overwriteDisabled'), type: 'warning'});
                         continue;
                     }
                     const confirmed = await showDialog({
-                        title: '确认覆盖',
-                        content: `文件 "${file.name}" 已存在，是否覆盖上传？`,
+                        title: t('fileSharing.dialog.overwriteTitle'),
+                        content: t('fileSharing.dialog.overwriteContent', {name: file.name}),
                         buttons: [
-                            {label: '取消', value: false},
-                            {label: '覆盖', value: true, primary: true, danger: true},
+                            {label: 'common.button.cancel', value: false},
+                            {label: t('fileSharing.dialog.buttonOverwrite'), value: true, primary: true, danger: true},
                         ],
                     });
                     if (!confirmed) continue;
@@ -308,7 +310,7 @@ function FileSharing() {
                 formData.append("file", file);
 
                 // 创建上传进度条
-                updateProgress(fileId, `上传文件: ${file.name}`, 0, `正在上传 ${file.name}`, '准备上传');
+                updateProgress(fileId, t('fileSharing.toast.uploading', {name: file.name}), 0, `正在上传 ${file.name}`);
 
                 // 上传文件到当前目录，添加进度事件监听
                 const res = await uploadFileAPI(formData, currentDir || "", (progressEvent) => {
@@ -327,16 +329,16 @@ function FileSharing() {
                 // 检查响应中的业务状态码
                 if (res.code !== 200) {
                     const errorMsg = res.msg || '未知错误';
-                    updateProgress(fileId, `上传文件: ${file.name}`, 0, `文件 ${file.name} 上传失败`, '上传失败');
+                    updateProgress(fileId, t('fileSharing.toast.uploading', {name: file.name}), 0, t('fileSharing.toast.uploadFailed', {name: file.name, error: errorMsg}));
                     setTimeout(() => {
                         removeProgress(fileId);
                     }, 3000);
-                    showToast({message: `文件 ${file.name} 上传失败: ${errorMsg}`, type: 'error'});
+                    showToast({message: t('fileSharing.toast.uploadFailed', {name: file.name, error: errorMsg}), type: 'error'});
                     continue;
                 }
 
                 // 上传完成后更新进度条状态
-                updateProgress(fileId, `上传文件: ${file.name}`, 100, `文件 ${file.name} 上传完成`, '上传完成');
+                updateProgress(fileId, t('fileSharing.toast.uploading', {name: file.name}), 100, t('fileSharing.toast.uploadSuccess', {name: file.name}));
 
                 // 2秒后自动移除进度条
                 setTimeout(() => {
@@ -352,7 +354,7 @@ function FileSharing() {
                 const errorMsg = error.message || '未知错误';
 
                 // 复用同一个fileId更新进度条为失败状态
-                updateProgress(fileId, `上传文件: ${file.name}`, 0, `文件 ${file.name} 上传失败`, '上传失败');
+                updateProgress(fileId, t('fileSharing.toast.uploading', {name: file.name}), 0, t('fileSharing.toast.uploadFailed', {name: file.name, error: errorMsg}));
 
                 // 3秒后移除错误进度条
                 setTimeout(() => {
@@ -393,7 +395,7 @@ function FileSharing() {
         const currentDir = getCurrentDir();
         const downloadUrl = `${window.location.origin}/download/file?dir=${currentDir ? currentDir : ''}&file_name=${encodeURIComponent(v.name)}`;
         const ok = await copyToClipboard(downloadUrl);
-        showToast({message: ok ? '链接已复制' : '复制链接失败', type: ok ? 'success' : 'error'});
+        showToast({message: ok ? t('fileSharing.toast.linkCopied') : t('fileSharing.toast.linkCopyFailed'), type: ok ? 'success' : 'error'});
     }
 
     // 下载文件
@@ -410,16 +412,16 @@ function FileSharing() {
             window.open(downloadUrl, '_blank');
         } catch (error) {
             console.error('文件下载失败:', error);
-            showToast({message: '文件下载失败: ' + (error.message || '未知错误'), type: 'error'});
+            showToast({message: t('fileSharing.toast.downloadFailed', {error: error.message || '未知错误'}), type: 'error'});
         }
     }
 
     // 重命名文件或文件夹
     const renameFile = async (v) => {
         const newName = await showDialog({
-            title: '重命名',
-            content: `请输入新名称：`,
-            input: {defaultValue: v.name, placeholder: '请输入新名称'},
+            title: t('fileSharing.dialog.renameTitle'),
+            content: t('fileSharing.dialog.renameContent'),
+            input: {defaultValue: v.name, placeholder: t('fileSharing.dialog.renamePlaceholder')},
         });
         if (!newName || newName === v.name) return;
 
@@ -428,28 +430,28 @@ function FileSharing() {
             const res = await renameFileAPI(currentDir || '', v.name, newName);
             if (res.code === 200) {
                 await flushSharedFileList(currentDir || '');
-                showToast({message: '重命名成功', type: 'success'});
+                showToast({message: t('fileSharing.toast.renameSuccess'), type: 'success'});
             } else {
-                showToast({message: '重命名失败: ' + (res.msg || '未知错误'), type: 'error'});
+                showToast({message: t('fileSharing.toast.renameFailed', {error: res.msg || '未知错误'}), type: 'error'});
             }
         } catch (error) {
             console.error('重命名失败:', error);
-            showToast({message: '重命名失败: ' + (error.message || '未知错误'), type: 'error'});
+            showToast({message: t('fileSharing.toast.renameFailed', {error: error.message || '未知错误'}), type: 'error'});
         }
     }
 
     // 删除文件或文件夹
     const deleteFile = async (v) => {
         const confirmMsg = v.is_dir
-            ? `确定要删除文件夹 "${v.name}" 及其所有内容吗？`
-            : `确定要删除文件 "${v.name}" 吗？`;
+            ? t('fileSharing.dialog.deleteFolderContent', {name: v.name})
+            : t('fileSharing.dialog.deleteFileContent', {name: v.name});
 
         const confirmed = await showDialog({
-            title: '确认删除',
+            title: t('fileSharing.dialog.deleteTitle'),
             content: confirmMsg,
             buttons: [
-                {label: '取消', value: false},
-                {label: '删除', value: true, primary: true, danger: true},
+                {label: 'common.button.cancel', value: false},
+                {label: t('fileSharing.dialog.buttonDelete'), value: true, primary: true, danger: true},
             ],
         });
         if (!confirmed) return;
@@ -459,13 +461,13 @@ function FileSharing() {
             const res = await deleteFileAPI(currentDir || '', v.name);
             if (res.code === 200) {
                 await flushSharedFileList(currentDir || '');
-                showToast({message: '删除成功', type: 'success'});
+                showToast({message: t('common.toast.deleteSuccess'), type: 'success'});
             } else {
-                showToast({message: '删除失败: ' + (res.msg || '未知错误'), type: 'error'});
+                showToast({message: t('fileSharing.toast.deleteFailed', {error: res.msg || '未知错误'}), type: 'error'});
             }
         } catch (error) {
             console.error('删除失败:', error);
-            showToast({message: '删除失败: ' + (error.message || '未知错误'), type: 'error'});
+            showToast({message: t('fileSharing.toast.deleteFailed', {error: error.message || '未知错误'}), type: 'error'});
         }
     }
 
@@ -591,9 +593,9 @@ function FileSharing() {
                 {diskSpace.total_space > 0 && (
                     <div className="diskSpaceBar">
                         <div className="diskSpaceInfo">
-                            <span>存储空间</span>
+                            <span>{t('fileSharing.diskSpace')}</span>
                             <span className="diskSpaceDetail">
-                                {formatFileSize(diskSpace.available_space)} 可用 / {formatFileSize(diskSpace.total_space)} 总计
+                                {t('fileSharing.diskSpaceDetail', {available: formatFileSize(diskSpace.available_space), total: formatFileSize(diskSpace.total_space)})}
                             </span>
                         </div>
                         <div className="diskSpaceProgress">
@@ -626,10 +628,10 @@ function FileSharing() {
                         <thead>
                         <tr>
                             <th></th>
-                            <th>名称</th>
-                            <th>修改时间</th>
-                            <th>大小</th>
-                            <th>操作</th>
+                            <th title={t('fileSharing.tableHeader.name')}>{t('fileSharing.tableHeader.name')}</th>
+                            <th title={t('fileSharing.tableHeader.modified')}>{t('fileSharing.tableHeader.modified')}</th>
+                            <th title={t('fileSharing.tableHeader.size')}>{t('fileSharing.tableHeader.size')}</th>
+                            <th title={t('fileSharing.tableHeader.actions')}>{t('fileSharing.tableHeader.actions')}</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -637,7 +639,7 @@ function FileSharing() {
                             <tr className={"fileItem goBackItem"} onDoubleClick={goBackToParentDir}>
                                 <td></td>
                                 <td colSpan={4}>
-                                    <span className={"goBackLabel"}>.. (返回上层)</span>
+                                    <span className={"goBackLabel"}>{t('fileSharing.goBack')}</span>
                                 </td>
                             </tr>
                         )}
@@ -666,12 +668,12 @@ function FileSharing() {
                                     <td>{v.is_dir ? '-' : formatFileSize(v.size, 1)}</td>
                                     <td>
                                         <div className={!v.is_dir ? "fileActions" : "dirActions"}>
-                                            <button onClick={() => copyFileLink(v)}>复制链接</button>
-                                            <button onClick={() => downloadFile(v)}>下载</button>
+                                            <button onClick={() => copyFileLink(v)}>{t('fileSharing.action.copyLink')}</button>
+                                            <button onClick={() => downloadFile(v)}>{t('fileSharing.action.download')}</button>
                                             {permissions.rename_enabled &&
-                                                <button onClick={() => renameFile(v)}>重命名</button>}
+                                                <button onClick={() => renameFile(v)}>{t('fileSharing.action.rename')}</button>}
                                             {permissions.delete_enabled &&
-                                                <button onClick={() => deleteFile(v)}>删除</button>}
+                                                <button onClick={() => deleteFile(v)}>{t('fileSharing.action.delete')}</button>}
                                         </div>
                                     </td>
                                 </tr>
@@ -691,13 +693,13 @@ function FileSharing() {
                     <button
                         onClick={() => {
                             if (!permissions.upload_enabled) {
-                                showToast({message: '上传功能已被禁用', type: 'warning'});
+                                showToast({message: t('fileSharing.toast.uploadDisabled'), type: 'warning'});
                                 return;
                             }
                             fileSelectorRef.current.click();
                         }}
                         disabled={!permissions.upload_enabled}
-                    >上传文件
+                    >{t('fileSharing.uploadBtn')}
                     </button>
                     <button disabled={selectedFiles.size === 0}
                             onClick={() => {
@@ -714,7 +716,7 @@ function FileSharing() {
                                 });
                                 setSelectedFiles(new Set());
                             }}
-                    >批量下载
+                    >{t('fileSharing.batchDownload')}
                     </button>
                 </div>
                     </>
@@ -741,7 +743,7 @@ function FileSharing() {
                                         hideContextMenu();
                                     }}
                                 >
-                                    打开
+                                    {t('fileSharing.action.open')}
                                 </div>
                             )}
                             {!item.is_dir && (
@@ -752,7 +754,7 @@ function FileSharing() {
                                         hideContextMenu();
                                     }}
                                 >
-                                    复制链接
+                                    {t('fileSharing.action.copyLink')}
                                 </div>
                             )}
                             <div
@@ -762,17 +764,17 @@ function FileSharing() {
                                     hideContextMenu();
                                 }}
                             >
-                                下载
+                                {t('fileSharing.action.download')}
                             </div>
                             <div
                                 className="context-menu-item"
                                 onClick={async () => {
                                     const ok = await copyToClipboard(item.name);
-                                    showToast({message: ok ? '文件名已复制' : '复制文件名失败', type: ok ? 'success' : 'error'});
+                                    showToast({message: ok ? t('fileSharing.toast.fileNameCopied') : t('fileSharing.toast.fileNameCopyFailed'), type: ok ? 'success' : 'error'});
                                     hideContextMenu();
                                 }}
                             >
-                                复制文件名
+                                {t('fileSharing.action.copyFileName')}
                             </div>
                             {permissions.rename_enabled && (
                                 <div
@@ -782,7 +784,7 @@ function FileSharing() {
                                         hideContextMenu();
                                     }}
                                 >
-                                    重命名
+                                    {t('fileSharing.action.rename')}
                                 </div>
                             )}
                             {permissions.delete_enabled && (
@@ -793,7 +795,7 @@ function FileSharing() {
                                         hideContextMenu();
                                     }}
                                 >
-                                    删除
+                                    {t('fileSharing.action.delete')}
                                 </div>
                             )}
                         </div>

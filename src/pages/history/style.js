@@ -45,12 +45,50 @@ const HistoryStyle = styled.div`
         border-spacing: 0;
     }
 
+    .historyContainer {
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+        display: block;
+    }
+
+    .historyTable {
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: collapse;
+        border-spacing: 0;
+    }
+
+    .historyTable.sticky-shadow thead::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 2px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    }
+
     thead {
         position: sticky;
         top: 0;
-        background-color: var(--bg-table-header);
         z-index: 10;
-        height: 44px;
+    }
+
+    thead::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 0;
+        box-shadow: none;
+        transition: height 0.15s;
+    }
+
+    .historyTable.sticky-shadow thead::after {
+        height: 2px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.12);
     }
 
     th {
@@ -61,11 +99,13 @@ const HistoryStyle = styled.div`
         text-transform: uppercase;
         letter-spacing: 0.04em;
         padding: 0.65em 0.4em 0.5em;
+        background-color: var(--bg-table-header);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .historyRow {
-        height: 40px;
-
         td {
             vertical-align: middle;
             line-height: 1.5;
