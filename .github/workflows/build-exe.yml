@@ -169,3 +169,89 @@ jobs:
           path: target/${{ matrix.target }}/release/bundle/rpm/*.rpm
           compression-level: 0
           if-no-files-found: warn
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version consistency
+        run: |
+          CARGO_VERSION=$(grep '^version' src-tauri/Cargo.toml | head -1 | sed -n 's/.*"\(.*\)".*/\1/p')
+          TAG_VERSION="${{ github.ref_name }}"
+          TAG_VERSION_CLEAN="${TAG_VERSION#v}"
+          if [ "$CARGO_VERSION" != "$TAG_VERSION_CLEAN" ]; then
+            echo "::error::Tag '${TAG_VERSION}' does not match Cargo.toml version '${CARGO_VERSION}'"
+            echo "Please update src-tauri/Cargo.toml version to ${TAG_VERSION_CLEAN} before pushing the tag."
+            exit 1
+          fi
+          echo "Version consistency verified: v${CARGO_VERSION}"
+
+      - name: Generate changelog
+        run: |
+          CURRENT_TAG="${{ github.ref_name }}"
+          PREVIOUS_TAG=$(git tag --sort=-version:refname --list 'v*' | grep -v "^${CURRENT_TAG}$" | head -n 1)
+          {
+            echo "# ${CURRENT_TAG}"
+            echo ""
+            if [ -z "$PREVIOUS_TAG" ]; then
+              echo "> First release of LAN Share."
+              echo ""
+              git log --pretty=format:"- %s (\`%h\`)" --no-merges
+            else
+              echo "> Changes since \`${PREVIOUS_TAG}\`"
+              echo ""
+              COMMIT_COUNT=$(git rev-list --count --no-merges ${PREVIOUS_TAG}..HEAD)
+              echo "**${COMMIT_COUNT} commits** since the previous release."
+              echo ""
+              COMMITS=$(git log --pretty=format:"- %s (\`%h\`)" --no-merges ${PREVIOUS_TAG}..HEAD)
+              if [ -z "$COMMITS" ]; then
+                echo "(no changes since previous tag)"
+              else
+                echo "$COMMITS"
+              fi
+            fi
+          } > /tmp/changelog.md
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          for dir in all-artifacts/*/; do
+            # Zip .app bundles for clean upload (GitHub works better with files, not dirs)
+            app_dirs=$(find "$dir" -maxdepth 1 -name "*.app" -type d 2>/dev/null || true)
+            if [ -n "$app_dirs" ]; then
+              for app in $app_dirs; do
+                app_name=$(basename "$app")
+                echo "Zipping ${app_name} for release..."
+                (cd "$(dirname "$app")" && zip -rq "${GITHUB_WORKSPACE}/release-assets/${app_name}.zip" "$app_name")
+              done
+            fi
+            # Copy all regular files to flat release-assets directory
+            find "$dir" -maxdepth 1 -type f -exec cp {} release-assets/ \;
+          done
+          echo "=== Release assets ==="
+          ls -lh release-assets/
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: /tmp/changelog.md
+          files: release-assets/*
+          draft: false
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
