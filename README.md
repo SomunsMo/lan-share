@@ -23,6 +23,7 @@
 | **Custom Port** | Configure the HTTP port freely from the desktop (default 3000); auto-detect and warn if the port is occupied |
 | **Security** | Path traversal protection, dangerous filename character filtering; all operations (upload/rename/delete/overwrite) must be explicitly enabled from the desktop |
 | **Custom Theme** | Toggle between light/dark themes, independently for desktop and web |
+| **Internationalization** | Supports Chinese and English; automatically detects system language with manual selection override — desktop persists to SQLite, web persists to localStorage |
 | **History** | Persistent storage of text and file sharing records, with viewing and deletion support |
 
 ## Quick Start
@@ -168,6 +169,7 @@ Default `{config_dir}` locations by operating system:
 - **qrcode.react** — QR code generation
 - **copy-to-clipboard** — clipboard copy
 - **@tauri-apps/api** — Tauri IPC communication
+- **i18next** + **react-i18next** — internationalization (lazy-loaded per language)
 
 ### Web UI (`src-web/`)
 
@@ -176,6 +178,9 @@ Default `{config_dir}` locations by operating system:
 - **vite-plugin-singlefile** — builds into a single HTML file (for embedding into the binary)
 - **axios** — HTTP API calls
 - **qrcode.react** + **copy-to-clipboard**
+- **i18next** + **react-i18next** — internationalization (static imports for singlefile compat)
+
+> **Important**: Do not place assets in `public/` — `vite-plugin-singlefile` cannot inline them. Always use `src/assets/` instead.
 
 ### Rust Backend (`src-tauri/`)
 
@@ -205,8 +210,12 @@ A custom proc-macro crate providing declarative route macros:
 ```
 lan-share/
 ├── src/                        # Tauri desktop UI (React 19)
+│   ├── i18n.ts                 # i18next initialization (lazy-loaded locales + SQLite persistence)
+│   ├── locales/
+│   │   ├── zh-CN.json          # Chinese translations
+│   │   └── en.json             # English translations
 │   ├── App.jsx                 # App entry (theme loading + routing)
-│   ├── main.jsx                # React render entry
+│   ├── main.jsx                # React render entry (awaits i18n init before mount)
 │   ├── AppLight.css / AppDark.css
 │   ├── assets/icon/            # Navbar SVG icons (home / history / text / setting)
 │   ├── components/
@@ -249,6 +258,10 @@ lan-share/
 ├── src-web/                    # Web frontend (React + Vite + vite-plugin-singlefile)
 │   ├── vite.config.js          # Config: vite-plugin-singlefile + host:true
 │   ├── src/
+│   │   ├── i18n.ts             # i18next initialization (static imports + localStorage persistence)
+│   │   ├── locales/
+│   │   │   ├── zh-CN.json      # Chinese translations
+│   │   │   └── en.json         # English translations
 │   │   ├── App.jsx             # App entry (QR code + file sharing + text sharing)
 │   │   ├── component/
 │   │   │   ├── FileSharing/    # File browse / upload / download / rename / delete
@@ -310,6 +323,7 @@ The desktop React UI calls the Rust backend via Tauri IPC. 25 commands grouped b
 |---------|-------------|
 | `get_autostart` / `set_autostart` | Get/set autostart on login |
 | `get_theme_setting` / `set_theme_setting` | Get/set theme (light / dark) |
+| `get_language` / `set_language` | Get/set language (zh-CN / en) |
 
 ## Database
 

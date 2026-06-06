@@ -13,25 +13,25 @@ export const routes = [
     }, {
         path: "/home",
         element: <Home/>,
-        name: "主页",
+        name: "route.home",
         icon: "home",
         navPosition: "top"
     }, {
         path: "/text-sharing",
         element: <TextSharingManager/>,
-        name: "文本共享",
+        name: "route.textSharing",
         icon: "textMsg",
         navPosition: "top"
     }, {
         path: "/history",
         element: <History/>,
-        name: "历史记录",
+        name: "route.history",
         icon: "history",
         navPosition: "top"
     }, {
         path: "/settings",
         element: <Settings/>,
-        name: "设置",
+        name: "route.settings",
         icon: "setting",
         navPosition: "bottom"
     }

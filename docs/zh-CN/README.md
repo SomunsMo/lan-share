@@ -23,6 +23,7 @@
 | **自定义端口** | 桌面端可自由配置 HTTP 端口，默认 3000，端口被占用时有自动检测提示 |
 | **安全防护** | 路径穿越拦截、文件名危险字符过滤、各类操作（上传/重命名/删除/覆写）均需在桌面端显式开启 |
 | **自定义主题** | 支持亮色/暗色主题切换，桌面端与 Web 端独立设置 |
+| **国际化** | 支持中文和英文，自动检测系统语言，用户可手动选择切换 — 桌面端持久化到 SQLite，Web 端持久化到 localStorage |
 | **历史记录** | 文本和文件分享记录持久化存储，支持查看和删除 |
 
 ## 快速开始
@@ -167,6 +168,7 @@ pnpm tauri build
 - **qrcode.react** — 二维码生成
 - **copy-to-clipboard** — 剪贴板复制
 - **@tauri-apps/api** — Tauri IPC 通信
+- **i18next** + **react-i18next** — 国际化（按语言懒加载）
 
 ### Web 端 UI（`src-web/`）
 
@@ -175,6 +177,9 @@ pnpm tauri build
 - **vite-plugin-singlefile** — 构建为单 HTML 文件（便于嵌入二进制）
 - **axios** — HTTP API 调用
 - **qrcode.react** + **copy-to-clipboard**
+- **i18next** + **react-i18next** — 国际化（静态导入兼容单文件打包）
+
+> **注意**：`public` 文件夹内不宜存放资源，`vite-plugin-singlefile` 无法将其打包到 HTML 中，请使用 `src/assets/`。
 
 ### Rust 后端（`src-tauri/`）
 
@@ -204,8 +209,12 @@ pnpm tauri build
 ```
 lan-share/
 ├── src/                        # Tauri 桌面端 UI（React 19）
+│   ├── i18n.ts                 # i18next 初始化（懒加载翻译 + SQLite 持久化）
+│   ├── locales/
+│   │   ├── zh-CN.json          # 中文翻译
+│   │   └── en.json             # 英文翻译
 │   ├── App.jsx                 # 应用入口（主题加载 + 路由挂载）
-│   ├── main.jsx                # React 渲染入口
+│   ├── main.jsx                # React 渲染入口（等待 i18n 初始化后挂载）
 │   ├── AppLight.css / AppDark.css
 │   ├── assets/icon/            # 导航栏图标 SVG（home / history / text / setting）
 │   ├── components/
@@ -248,6 +257,10 @@ lan-share/
 ├── src-web/                    # Web 前端（React + Vite + vite-plugin-singlefile）
 │   ├── vite.config.js          # 配置：vite-plugin-singlefile + host:true
 │   ├── src/
+│   │   ├── i18n.ts             # i18next 初始化（静态导入 + localStorage 持久化）
+│   │   ├── locales/
+│   │   │   ├── zh-CN.json      # 中文翻译
+│   │   │   └── en.json         # 英文翻译
 │   │   ├── App.jsx             # 应用入口（QR 码 + 文件共享 + 文本共享）
 │   │   ├── component/
 │   │   │   ├── FileSharing/    # 文件浏览 / 上传 / 下载 / 重命名 / 删除
@@ -309,6 +322,7 @@ lan-share/
 |------|------|
 | `get_autostart` / `set_autostart` | 获取/设置开机自启 |
 | `get_theme_setting` / `set_theme_setting` | 获取/设置主题（light / dark） |
+| `get_language` / `set_language` | 获取/设置语言（zh-CN / en） |
 
 ## 数据库
 

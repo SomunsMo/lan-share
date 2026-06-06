@@ -5,9 +5,12 @@ import {open} from '@tauri-apps/plugin-dialog';
 import Card from "../../components/card/Card.js";
 import {useToast} from "../../components/toast/index.jsx";
 import {useDialog} from "../../components/dialog/index.jsx";
+import {useTranslation} from "react-i18next";
+import { changeLanguage } from "../../i18n";
 
 function Settings() {
-    const [selectedDirectory, setSelectedDirectory] = useState("点击选择目录");
+    const { t, i18n } = useTranslation();
+    const [selectedDirectory, setSelectedDirectory] = useState(t('settings.labels.clickToSelect'));
     const [uploadEnabled, setUploadEnabled] = useState(false);
     const [renameEnabled, setRenameEnabled] = useState(false);
     const [deleteEnabled, setDeleteEnabled] = useState(false);
@@ -123,6 +126,7 @@ function Settings() {
 
 
     // 处理主题变更（下拉选择）
+    // 处理主题变更（下拉选择）
     const handleThemeChange = async (event) => {
         const newTheme = event.target.value;
         if (newTheme === themeSetting) return;
@@ -134,38 +138,44 @@ function Settings() {
             html.classList.remove('dark', 'light');
             if (newTheme === 'dark') html.classList.add('dark');
             else if (newTheme === 'light') html.classList.add('light');
-            showToast({message: '主题已切换', type: 'success'});
+            showToast({message: t('settings.toast.themeSwitched'), type: 'success'});
         } catch (error) {
             console.error('保存主题设置失败:', error);
-            showToast({message: '保存主题设置失败: ' + error, type: 'error'});
+            showToast({message: t('settings.toast.themeFailed', {error}), type: 'error'});
         }
+    };
+
+    // 处理语言变更（下拉选择）
+    const handleLanguageChange = async (event) => {
+        const newLang = event.target.value;
+        await changeLanguage(newLang);
     };
 
     // 处理端口变更（点击后弹出输入框）
     const handlePortClick = async () => {
         const input = await showDialog({
-            title: '修改端口',
-            content: '请输入新的端口号（1-65535）：',
-            input: {defaultValue: httpPort.toString(), placeholder: '1-65535'},
+            title: t('settings.dialog.changePort.title'),
+            content: t('settings.dialog.changePort.content'),
+            input: {defaultValue: httpPort.toString(), placeholder: t('settings.dialog.changePort.placeholder')},
         });
-        if (input === null || input === undefined) return; // 用户取消
+        if (input === null || input === undefined) return;
 
         const newPort = parseInt(input, 10);
         if (isNaN(newPort) || newPort < 1 || newPort > 65535) {
-            showToast({message: '端口号无效，请输入 1-65535 之间的数字', type: 'error'});
+            showToast({message: t('settings.toast.portInvalid'), type: 'error'});
             return;
         }
 
-        if (newPort === httpPort) return; // 端口未变化
+        if (newPort === httpPort) return;
 
         try {
             await invoke('set_http_port', {port: newPort});
             setHttpPort(newPort);
             console.log('HTTP端口设置已更新:', newPort);
-            showToast({message: '端口设置已保存，重启应用后生效', type: 'success'});
+            showToast({message: t('settings.toast.portSaved'), type: 'success'});
         } catch (error) {
             console.error('保存HTTP端口设置失败:', error);
-            showToast({message: '保存端口设置失败: ' + error, type: 'error'});
+            showToast({message: t('settings.toast.portFailed', {error}), type: 'error'});
         }
     };
 
@@ -174,7 +184,7 @@ function Settings() {
             const selectedPath = await open({
                 directory: true,
                 multiple: false,
-                title: '选择共享根目录'
+                title: t('home.selectDirTitle')
             });
 
             if (selectedPath) {
@@ -182,16 +192,15 @@ function Settings() {
                 console.log('已选择文件夹:', selectedPath);
 
                 try {
-                    // 调用后端API保存设置
                     await invoke('set_sharing_directory', {directoryPath: selectedPath});
                 } catch (backendError) {
                     console.error('保存共享根目录到后端失败:', backendError);
-                    showToast({message: '保存设置失败: ' + backendError.message, type: 'error'});
+                    showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.shareRoot'), error: backendError.message}), type: 'error'});
                 }
             }
         } catch (error) {
             console.error('选择文件夹时出错:', error);
-            showToast({message: '选择文件夹失败: ' + error.message, type: 'error'});
+            showToast({message: t('settings.toast.selectFailed', {error: error.message}), type: 'error'});
         }
     };
 
@@ -206,7 +215,7 @@ function Settings() {
         } catch (error) {
             console.error('保存上传设置失败:', error);
             setUploadEnabled(!checked);
-            showToast({message: '保存上传设置失败: ' + error.message, type: 'error'});
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.webUpload'), error: error.message}), type: 'error'});
         }
     };
 
@@ -221,7 +230,7 @@ function Settings() {
         } catch (error) {
             console.error('保存重命名设置失败:', error);
             setRenameEnabled(!checked);
-            showToast({message: '保存重命名设置失败: ' + error.message, type: 'error'});
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.webRename'), error: error.message}), type: 'error'});
         }
     };
 
@@ -236,7 +245,7 @@ function Settings() {
         } catch (error) {
             console.error('保存删除设置失败:', error);
             setDeleteEnabled(!checked);
-            showToast({message: '保存删除设置失败: ' + error.message, type: 'error'});
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.webDelete'), error: error.message}), type: 'error'});
         }
     };
 
@@ -251,7 +260,7 @@ function Settings() {
         } catch (error) {
             console.error('保存上传覆盖设置失败:', error);
             setUploadOverwriteEnabled(!checked);
-            showToast({message: '保存上传覆盖设置失败: ' + error.message, type: 'error'});
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.uploadOverwrite'), error: error.message}), type: 'error'});
         }
     };
 
@@ -266,7 +275,7 @@ function Settings() {
         } catch (error) {
             console.error('保存开机自启设置失败:', error);
             setAutostartEnabled(!checked);
-            showToast({message: '保存开机自启设置失败: ' + error.message, type: 'error'});
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.autostart'), error: error.message}), type: 'error'});
         }
     };
 
@@ -275,21 +284,21 @@ function Settings() {
     // 设置的选项关系表
     const optionMap = [
         {
-            name: "基础",
+            name: t('settings.sectionBasic'),
             options: [
                 {
-                    name: "Http Server端口",
+                    name: t('settings.option.port'),
                     content: (
                         <span
                             className="port-text"
                             onClick={handlePortClick}
-                            title="点击修改端口"
+                            title={t('settings.labels.clickToModify')}
                         >
                             {httpPort}
                         </span>
                     ),
                 }, {
-                    name: "开机自启",
+                    name: t('settings.option.autostart'),
                     content: (
                         <input
                             type="checkbox"
@@ -300,38 +309,51 @@ function Settings() {
                     ),
                 },
                 {
-                    name: "主题",
+                    name: t('settings.option.theme'),
                     content: (
                         <select
                             className="theme-select"
                             value={themeSetting}
                             onChange={handleThemeChange}
                         >
-                            <option value="system">跟随系统</option>
-                            <option value="light">浅色</option>
-                            <option value="dark">深色</option>
+                            <option value="system">{t('settings.themeOption.system')}</option>
+                            <option value="light">{t('settings.themeOption.light')}</option>
+                            <option value="dark">{t('settings.themeOption.dark')}</option>
+                        </select>
+                    ),
+                },
+                {
+                    name: t('settings.option.language'),
+                    content: (
+                        <select
+                            className="theme-select"
+                            value={i18n.language}
+                            onChange={handleLanguageChange}
+                        >
+                            <option value="zh-CN">{t('settings.languageOption.zh-CN')}</option>
+                            <option value="en">{t('settings.languageOption.en')}</option>
                         </select>
                     ),
                 },
             ]
         },
         {
-            name: "共享",
+            name: t('settings.sectionSharing'),
             options: [
                 {
-                    name: "共享根目录",
+                    name: t('settings.option.shareRoot'),
                     content: (
                         <span
                             className="directory-text"
                             onClick={selectDirectory}
-                            title="点击更改目录"
+                            title={t('settings.labels.clickToChange')}
                         >
                               {selectedDirectory}
                         </span>
                     ),
                 },
                 {
-                    name: "网页端上传",
+                    name: t('settings.option.webUpload'),
                     content: (
                         <input
                             type="checkbox"
@@ -342,7 +364,7 @@ function Settings() {
                     ),
                 },
                 {
-                    name: "上传可覆盖",
+                    name: t('settings.option.uploadOverwrite'),
                     content: (
                         <input
                             type="checkbox"
@@ -353,7 +375,7 @@ function Settings() {
                     ),
                 },
                 {
-                    name: "网页端重命名",
+                    name: t('settings.option.webRename'),
                     content: (
                         <input
                             type="checkbox"
@@ -364,7 +386,7 @@ function Settings() {
                     ),
                 },
                 {
-                    name: "网页端删除",
+                    name: t('settings.option.webDelete'),
                     content: (
                         <input
                             type="checkbox"

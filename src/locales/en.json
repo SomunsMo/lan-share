@@ -1,0 +1,136 @@
+{
+  "common": {
+    "button": {
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "delete": "Delete",
+      "copy": "Copy",
+      "download": "Download",
+      "rename": "Rename",
+      "upload": "Upload"
+    },
+    "toast": {
+      "copySuccess": "Copied",
+      "copyFailed": "Copy failed",
+      "deleteSuccess": "Deleted successfully",
+      "operationFailed": "Operation failed"
+    },
+    "overwrite": {
+      "yes": "Yes",
+      "no": "No",
+      "dash": "-"
+    }
+  },
+  "route": {
+    "home": "Home",
+    "textSharing": "Text Share",
+    "history": "History",
+    "settings": "Settings"
+  },
+  "home": {
+    "subtitle": "LAN file sharing tool over HTTP",
+    "scanTips": "Scan with other devices on LAN",
+    "orVisit": "Or visit",
+    "firstRun": {
+      "title": "First Run",
+      "content": "You haven't set up a file sharing directory yet. Other devices will not be able to access shared files via browser.\nSet it up now?",
+      "buttonLater": "Later",
+      "buttonNow": "Set Up Now"
+    },
+    "portWarning": {
+      "title": "HTTP Service Not Started",
+      "desc": "Port {{port}} is occupied by another program. The HTTP server cannot start.",
+      "stepTitle": "Available solutions:",
+      "step1": "Change the HTTP Server port in Settings and restart the app",
+      "step2": "Close the program occupying the port"
+    },
+    "selectDirTitle": "Select Sharing Root Directory"
+  },
+  "settings": {
+    "sectionBasic": "Basic",
+    "sectionSharing": "Sharing",
+    "option": {
+      "port": "HTTP Server Port",
+      "autostart": "Auto Start",
+      "theme": "Theme",
+      "language": "Language",
+      "shareRoot": "Sharing Root",
+      "webUpload": "Web Upload",
+      "uploadOverwrite": "Upload Overwrite",
+      "webRename": "Web Rename",
+      "webDelete": "Web Delete"
+    },
+    "themeOption": {
+      "system": "Follow System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "languageOption": {
+      "zh-CN": "中文",
+      "en": "English"
+    },
+    "toast": {
+      "themeSwitched": "Theme switched",
+      "themeFailed": "Failed to save theme: {{error}}",
+      "portInvalid": "Invalid port number, please enter a number between 1-65535",
+      "portSaved": "Port setting saved, restart to apply",
+      "portFailed": "Failed to save port: {{error}}",
+      "saveFailed": "Failed to save {{name}} setting: {{error}}",
+      "selectFailed": "Failed to select folder: {{error}}"
+    },
+    "dialog": {
+      "changePort": {
+        "title": "Change Port",
+        "content": "Enter a new port number (1-65535):",
+        "placeholder": "1-65535"
+      }
+    },
+    "labels": {
+      "clickToSelect": "Click to select directory",
+      "clickToChange": "Click to change directory",
+      "clickToModify": "Click to modify port"
+    }
+  },
+  "history": {
+    "type": {
+      "text": "Text",
+      "file": "File"
+    },
+    "tableHeader": {
+      "type": "Type",
+      "time": "Time",
+      "sourceIp": "Source IP",
+      "overwrite": "Overwrite",
+      "content": "Content"
+    },
+    "clearDialog": {
+      "title": "Confirm Clear",
+      "contentText": "Are you sure you want to clear all text records? This action cannot be undone.",
+      "contentFile": "Are you sure you want to clear all file records? This action cannot be undone.",
+      "buttonClear": "Clear"
+    },
+    "toast": {
+      "textCleared": "Text records cleared",
+      "fileCleared": "File records cleared"
+    },
+    "clearTextButton": "Clear Text Records",
+    "clearFileButton": "Clear File Records",
+    "contextMenu": {
+      "copyContent": "Copy Content",
+      "deleteRecord": "Delete Record"
+    }
+  },
+  "textSharing": {
+    "placeholder": "Enter text to share",
+    "shareButton": "Share",
+    "tableHeader": {
+      "time": "Time",
+      "sourceIp": "Source IP",
+      "content": "Content"
+    },
+    "contextMenu": {
+      "copyContent": "Copy Content",
+      "deleteRecord": "Delete Record"
+    }
+  }
+}

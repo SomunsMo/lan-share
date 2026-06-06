@@ -1,0 +1,136 @@
+{
+  "common": {
+    "button": {
+      "cancel": "取消",
+      "confirm": "确定",
+      "delete": "删除",
+      "copy": "复制",
+      "download": "下载",
+      "rename": "重命名",
+      "upload": "上传文件"
+    },
+    "toast": {
+      "copySuccess": "已复制",
+      "copyFailed": "复制失败",
+      "deleteSuccess": "删除成功",
+      "operationFailed": "操作失败"
+    },
+    "overwrite": {
+      "yes": "是",
+      "no": "否",
+      "dash": "-"
+    }
+  },
+  "route": {
+    "home": "主页",
+    "textSharing": "文本共享",
+    "history": "历史记录",
+    "settings": "设置"
+  },
+  "home": {
+    "subtitle": "基于 Http 的局域网文件传输工具",
+    "scanTips": "在其他设备浏览器扫码",
+    "orVisit": "或访问",
+    "firstRun": {
+      "title": "首次运行",
+      "content": "您还没有设置文件共享目录，其他设备将无法通过浏览器访问共享文件。\n是否立即设置？",
+      "buttonLater": "稍后设置",
+      "buttonNow": "立即设置"
+    },
+    "portWarning": {
+      "title": "HTTP 服务未启动",
+      "desc": "端口 {{port}} 已被其他程序占用，HTTP 服务器无法启动。",
+      "stepTitle": "可选解决方案：",
+      "step1": "在「设置」中更换 HTTP Server 端口后重启应用",
+      "step2": "退出占用改端口的应用程序"
+    },
+    "selectDirTitle": "选择共享根目录"
+  },
+  "settings": {
+    "sectionBasic": "基础",
+    "sectionSharing": "共享",
+    "option": {
+      "port": "Http Server端口",
+      "autostart": "开机自启",
+      "theme": "主题",
+      "language": "语言",
+      "shareRoot": "共享根目录",
+      "webUpload": "网页端上传",
+      "uploadOverwrite": "上传可覆盖",
+      "webRename": "网页端重命名",
+      "webDelete": "网页端删除"
+    },
+    "themeOption": {
+      "system": "跟随系统",
+      "light": "浅色",
+      "dark": "深色"
+    },
+    "languageOption": {
+      "zh-CN": "中文",
+      "en": "English"
+    },
+    "toast": {
+      "themeSwitched": "主题已切换",
+      "themeFailed": "保存主题设置失败: {{error}}",
+      "portInvalid": "端口号无效，请输入 1-65535 之间的数字",
+      "portSaved": "端口设置已保存，重启应用后生效",
+      "portFailed": "保存端口设置失败: {{error}}",
+      "saveFailed": "保存{{name}}设置失败: {{error}}",
+      "selectFailed": "选择文件夹失败: {{error}}"
+    },
+    "dialog": {
+      "changePort": {
+        "title": "修改端口",
+        "content": "请输入新的端口号（1-65535）：",
+        "placeholder": "1-65535"
+      }
+    },
+    "labels": {
+      "clickToSelect": "点击选择目录",
+      "clickToChange": "点击更改目录",
+      "clickToModify": "点击修改端口"
+    }
+  },
+  "history": {
+    "type": {
+      "text": "文本",
+      "file": "文件"
+    },
+    "tableHeader": {
+      "type": "类型",
+      "time": "时间",
+      "sourceIp": "来源IP",
+      "overwrite": "覆盖",
+      "content": "内容"
+    },
+    "clearDialog": {
+      "title": "确认清空",
+      "contentText": "确定要清空所有文本记录吗？此操作不可撤销。",
+      "contentFile": "确定要清空所有文件记录吗？此操作不可撤销。",
+      "buttonClear": "清空"
+    },
+    "toast": {
+      "textCleared": "文本记录已清空",
+      "fileCleared": "文件记录已清空"
+    },
+    "clearTextButton": "清空文本记录",
+    "clearFileButton": "清空文件记录",
+    "contextMenu": {
+      "copyContent": "复制内容",
+      "deleteRecord": "删除记录"
+    }
+  },
+  "textSharing": {
+    "placeholder": "请输入要分享的文本",
+    "shareButton": "共享",
+    "tableHeader": {
+      "time": "时间",
+      "sourceIp": "来源IP",
+      "content": "内容"
+    },
+    "contextMenu": {
+      "copyContent": "复制内容",
+      "deleteRecord": "删除记录"
+    }
+  }
+}

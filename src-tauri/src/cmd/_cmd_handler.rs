@@ -30,6 +30,8 @@ pub fn get_cmd_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
         system::get_all_upload_history,
         system::get_theme_setting,
         system::set_theme_setting,
+        system::get_language,
+        system::set_language,
         system::is_sharing_root_configured
     ]
 }

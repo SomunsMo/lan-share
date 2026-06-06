@@ -5,8 +5,10 @@ import copy from 'copy-to-clipboard';
 import {invoke} from '@tauri-apps/api/core';
 import {useToast} from "../../components/toast/index.jsx";
 import {useDialog} from "../../components/dialog/index.jsx";
+import {useTranslation} from "react-i18next";
 
 function History() {
+    const { t } = useTranslation();
     const [history, setHistory] = useState([]);
     // 右键菜单状态
     const [contextMenu, setContextMenu] = useState({
@@ -134,40 +136,40 @@ function History() {
     }, [contextMenu.visible]);
 
     const getTypeLabel = (type) => {
-        return type === 1 ? '文本' : '文件';
+        return type === 1 ? t('history.type.text') : t('history.type.file');
     };
 
     // 清空文本记录
     const clearText = async () => {
         const confirmed = await showDialog({
-            title: '确认清空',
-            content: '确定要清空所有文本记录吗？此操作不可撤销。',
+            title: t('history.clearDialog.title'),
+            content: t('history.clearDialog.contentText'),
             buttons: [
-                {label: '取消', value: false},
-                {label: '清空', value: true, primary: true, danger: true},
+                {label: 'common.button.cancel', value: false},
+                {label: t('history.clearDialog.buttonClear'), value: true, primary: true, danger: true},
             ],
         });
         if (!confirmed) return;
         let resultCount = await invoke("clear_sharing_text");
         console.log("清空共享文本成功：", resultCount);
-        showToast({message: '文本记录已清空', type: 'success'});
+        showToast({message: t('history.toast.textCleared'), type: 'success'});
         loadHistory();
     }
 
     // 清空文件记录
     const clearFile = async () => {
         const confirmed = await showDialog({
-            title: '确认清空',
-            content: '确定要清空所有文件记录吗？此操作不可撤销。',
+            title: t('history.clearDialog.title'),
+            content: t('history.clearDialog.contentFile'),
             buttons: [
-                {label: '取消', value: false},
-                {label: '清空', value: true, primary: true, danger: true},
+                {label: 'common.button.cancel', value: false},
+                {label: t('history.clearDialog.buttonClear'), value: true, primary: true, danger: true},
             ],
         });
         if (!confirmed) return;
         let resultCount = await invoke("clear_sharing_file");
         console.log("清空文件上传记录成功：", resultCount);
-        showToast({message: '文件记录已清空', type: 'success'});
+        showToast({message: t('history.toast.fileCleared'), type: 'success'});
         loadHistory();
     }
 
@@ -175,25 +177,25 @@ function History() {
         <HistoryStyle>
             <Card fillSpace>
                 <div className={"toolbar"}>
-                    <button className={"clear-btn"} onClick={clearText}>清空文本记录</button>
-                    <button className={"clear-btn"} onClick={clearFile}>清空文件记录</button>
+                    <button className={"clear-btn"} onClick={clearText}>{t('history.clearTextButton')}</button>
+                    <button className={"clear-btn"} onClick={clearFile}>{t('history.clearFileButton')}</button>
                 </div>
                 <div className={"historyContainer"} ref={historyContainerRef}>
                     <table className={`historyTable ${history.length > 0 ? 'sticky-shadow' : ''}`}>
                         <colgroup>
-                            <col width={"50px"}/>
+                            <col width={"60px"}/>
                             <col width={"170px"}/>
-                            <col width={"130px"}/>
-                            <col width={"80px"}/>
+                            <col width={"140px"}/>
+                            <col width={"110px"}/>
                             <col width={"auto"}/>
                         </colgroup>
                         <thead>
                         <tr>
-                            <th>类型</th>
-                            <th>时间</th>
-                            <th>来源IP</th>
-                            <th>覆盖</th>
-                            <th>内容</th>
+                            <th title={t('history.tableHeader.type')}>{t('history.tableHeader.type')}</th>
+                            <th title={t('history.tableHeader.time')}>{t('history.tableHeader.time')}</th>
+                            <th title={t('history.tableHeader.sourceIp')}>{t('history.tableHeader.sourceIp')}</th>
+                            <th title={t('history.tableHeader.overwrite')}>{t('history.tableHeader.overwrite')}</th>
+                            <th title={t('history.tableHeader.content')}>{t('history.tableHeader.content')}</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -208,7 +210,7 @@ function History() {
                                     <td className={"hisTime"}>{item.time}</td>
                                     <td className={"hisIp"}>{item.ip}</td>
                                     <td className={"hisOverwrite"}>
-                                        {item.type === 2 ? (item.isOverwrite ? '是' : '否') : '-'}
+                                        {item.type === 2 ? (item.isOverwrite ? t('common.overwrite.yes') : t('common.overwrite.no')) : t('common.overwrite.dash')}
                                     </td>
                                     <td className={"hisContent"}>{item.content}</td>
                                 </tr>
@@ -233,7 +235,7 @@ function History() {
                                     setContextMenu({visible: false, x: 0, y: 0, item: null});
                                 }}
                             >
-                                复制内容
+                                {t('history.contextMenu.copyContent')}
                             </div>
                             <div
                                 className="context-menu-item"
@@ -245,7 +247,7 @@ function History() {
                                     }
                                 }}
                             >
-                                删除记录
+                                {t('history.contextMenu.deleteRecord')}
                             </div>
                         </div>
                     )}
