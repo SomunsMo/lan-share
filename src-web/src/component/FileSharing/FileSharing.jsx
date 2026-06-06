@@ -2,7 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import FileSharingStyle, {FileCard} from "./FileSharingStyle.js";
 import ProgressBar from "../ProgressBar/ProgressBar.jsx";
 import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, preUploadCheckAPI} from "@/service/API.js";
-import {formatFileSize, getFileSuffix} from "@/util/file.js";
+import {formatFileSize, getFileSuffix, copyToClipboard} from "@/util/file.js";
 import {useToast} from "@/component/Toast/index.jsx";
 import {useDialog} from "@/component/Dialog/index.jsx";
 import FolderIcon from '@/assets/icon/folder.svg';
@@ -388,6 +388,14 @@ function FileSharing() {
         }
     }
 
+    // 复制文件下载链接
+    const copyFileLink = async (v) => {
+        const currentDir = getCurrentDir();
+        const downloadUrl = `${window.location.origin}/download/file?dir=${currentDir ? currentDir : ''}&file_name=${encodeURIComponent(v.name)}`;
+        const ok = await copyToClipboard(downloadUrl);
+        showToast({message: ok ? '链接已复制' : '复制链接失败', type: ok ? 'success' : 'error'});
+    }
+
     // 下载文件
     const downloadFile = async (v) => {
         // 获取当前目录
@@ -562,7 +570,7 @@ function FileSharing() {
 
     // 调整菜单位置，防止超出视口
     const getAdjustedMenuPosition = () => {
-        let x = contextMenu.x;
+        let x = contextMenu.x - 10;
         let y = contextMenu.y;
         const menuWidth = 140;
         const menuHeight = contextMenu.item?.is_dir ? 192 : 160;
@@ -658,6 +666,7 @@ function FileSharing() {
                                     <td>{v.is_dir ? '-' : formatFileSize(v.size, 1)}</td>
                                     <td>
                                         <div className={!v.is_dir ? "fileActions" : "dirActions"}>
+                                            <button onClick={() => copyFileLink(v)}>复制链接</button>
                                             <button onClick={() => downloadFile(v)}>下载</button>
                                             {permissions.rename_enabled &&
                                                 <button onClick={() => renameFile(v)}>重命名</button>}
@@ -735,6 +744,17 @@ function FileSharing() {
                                     打开
                                 </div>
                             )}
+                            {!item.is_dir && (
+                                <div
+                                    className="context-menu-item"
+                                    onClick={() => {
+                                        copyFileLink(item);
+                                        hideContextMenu();
+                                    }}
+                                >
+                                    复制链接
+                                </div>
+                            )}
                             <div
                                 className="context-menu-item"
                                 onClick={() => {
@@ -746,9 +766,9 @@ function FileSharing() {
                             </div>
                             <div
                                 className="context-menu-item"
-                                onClick={() => {
-                                    navigator.clipboard.writeText(item.name);
-                                    showToast({message: '文件名已复制', type: 'success'});
+                                onClick={async () => {
+                                    const ok = await copyToClipboard(item.name);
+                                    showToast({message: ok ? '文件名已复制' : '复制文件名失败', type: ok ? 'success' : 'error'});
                                     hideContextMenu();
                                 }}
                             >

@@ -20,3 +20,33 @@ export const getFileSuffix = (fileName) => {
     return suffix.toLowerCase();
 }
 
+// 复制文本到剪贴板（兼容非 HTTPS 环境）
+export const copyToClipboard = async (text) => {
+    // 优先使用 Clipboard API（HTTPS / localhost）
+    if (navigator.clipboard) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch {
+            // Clipboard API 失败时降级
+        }
+    }
+
+    // 降级方案：使用 document.execCommand('copy')
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+        document.execCommand('copy');
+        return true;
+    } catch {
+        return false;
+    } finally {
+        document.body.removeChild(textarea);
+    }
+}
+
