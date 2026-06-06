@@ -222,7 +222,7 @@ function History() {
                         <div
                             className="context-menu"
                             style={{
-                                left: contextMenu.x,
+                                left: contextMenu.x - 10,
                                 top: contextMenu.y,
                             }}
                         >
