@@ -188,12 +188,14 @@ jobs:
           CARGO_VERSION=$(grep '^version' src-tauri/Cargo.toml | head -1 | sed -n 's/.*"\(.*\)".*/\1/p')
           TAG_VERSION="${{ github.ref_name }}"
           TAG_VERSION_CLEAN="${TAG_VERSION#v}"
-          if [ "$CARGO_VERSION" != "$TAG_VERSION_CLEAN" ]; then
+          # Strip pre-release suffix for comparison (e.g., "1.0.2-test.1" -> "1.0.2")
+          TAG_VERSION_BASE="${TAG_VERSION_CLEAN%%-*}"
+          if [ "$CARGO_VERSION" != "$TAG_VERSION_BASE" ]; then
             echo "::error::Tag '${TAG_VERSION}' does not match Cargo.toml version '${CARGO_VERSION}'"
-            echo "Please update src-tauri/Cargo.toml version to ${TAG_VERSION_CLEAN} before pushing the tag."
+            echo "Please update src-tauri/Cargo.toml version to ${TAG_VERSION_BASE} before pushing the tag."
             exit 1
           fi
-          echo "Version consistency verified: v${CARGO_VERSION}"
+          echo "Version consistency verified: v${CARGO_VERSION} (tag: ${TAG_VERSION})"
 
       - name: Generate changelog
         run: |
@@ -226,21 +228,57 @@ jobs:
           path: all-artifacts
 
       - name: Prepare release assets
+        shell: bash
         run: |
           mkdir -p release-assets
+
           for dir in all-artifacts/*/; do
-            # Zip .app bundles for clean upload (GitHub works better with files, not dirs)
-            app_dirs=$(find "$dir" -maxdepth 1 -name "*.app" -type d 2>/dev/null || true)
-            if [ -n "$app_dirs" ]; then
-              for app in $app_dirs; do
-                app_name=$(basename "$app")
-                echo "Zipping ${app_name} for release..."
-                (cd "$(dirname "$app")" && zip -rq "${GITHUB_WORKSPACE}/release-assets/${app_name}.zip" "$app_name")
-              done
+            artifact_name="$(basename "$dir")"          # e.g. "lan-share_windows-x86_64"
+            platform_part="${artifact_name#lan-share_}"  # e.g. "windows-x86_64"
+
+            # Case 1: macOS .app bundle → zip with platform-specific name
+            app_bundle="$(find "$dir" -maxdepth 1 -name "*.app" -type d -print -quit 2>/dev/null || true)"
+            if [ -n "$app_bundle" ]; then
+              # platform_part is like "macos-x86_64-app" or "macos-aarch64-app"
+              platform="${platform_part%-app}"           # → "macos-x86_64" / "macos-aarch64"
+              app_name="$(basename "$app_bundle")"
+              zip_name="lan-share_${platform}.app.zip"
+              echo "Zipping ${app_name} → ${zip_name}"
+              (cd "$(dirname "$app_bundle")" && zip -rq "${GITHUB_WORKSPACE}/release-assets/${zip_name}" "$app_name")
+              continue
             fi
-            # Copy all regular files to flat release-assets directory
-            find "$dir" -maxdepth 1 -type f -exec cp {} release-assets/ \;
+
+            # Case 2: regular files — rename to consistent convention
+            for file in "$dir"/*; do
+              [ -f "$file" ] || continue
+              case "$platform_part" in
+                windows-x86_64)
+                  zip_name="lan-share_windows-x86_64.zip"
+                  echo "Zipping → ${zip_name}"
+                  zip -j "${GITHUB_WORKSPACE}/release-assets/${zip_name}" "$file"
+                  ;;
+                macos-*-dmg)
+                  plat="${platform_part%-dmg}"
+                  zip_name="lan-share_${plat}.dmg.zip"
+                  echo "Zipping → ${zip_name}"
+                  zip -j "${GITHUB_WORKSPACE}/release-assets/${zip_name}" "$file"
+                  ;;
+                linux-*-deb)
+                  plat="${platform_part%-deb}"
+                  zip_name="lan-share_${plat}.deb.zip"
+                  echo "Zipping → ${zip_name}"
+                  zip -j "${GITHUB_WORKSPACE}/release-assets/${zip_name}" "$file"
+                  ;;
+                linux-*-rpm)
+                  plat="${platform_part%-rpm}"
+                  zip_name="lan-share_${plat}.rpm.zip"
+                  echo "Zipping → ${zip_name}"
+                  zip -j "${GITHUB_WORKSPACE}/release-assets/${zip_name}" "$file"
+                  ;;
+              esac
+            done
           done
+
           echo "=== Release assets ==="
           ls -lh release-assets/
 
