@@ -202,8 +202,8 @@ function TextSharingManager(props) {
     return (
         <TextSharingManagerStyle>
             <div className="page-header">
-                <Typography variant="h4" fontWeight={700}>{t('textSharing.pageTitle')}</Typography>
-                <Typography variant="body2" color="var(--on-surface-variant)">{t('textSharing.pageDesc')}</Typography>
+                <Typography variant="h4" fontSize="1.5rem" fontWeight={700}>{t('textSharing.pageTitle')}</Typography>
+                <Typography variant="body2" fontSize="0.82rem" color="var(--on-surface-variant)">{t('textSharing.pageDesc')}</Typography>
             </div>
 
             <div className="compose-panel">
@@ -228,7 +228,7 @@ function TextSharingManager(props) {
             </div>
 
             <div className="history-section">
-                <Typography variant="h6" fontWeight={600} sx={{ mb: 1.5 }}>{t('textSharing.recentTitle')}</Typography>
+                <Typography variant="h6" fontSize="1rem" fontWeight={600} sx={{ mb: 1.5 }}>{t('textSharing.recentTitle')}</Typography>
                 <div className="history-scroll" ref={historyContainerRef}>
                     <div className="history-grid">
                     {history.map((item) => (

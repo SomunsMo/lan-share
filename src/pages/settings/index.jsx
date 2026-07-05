@@ -448,23 +448,23 @@ function Settings() {
     return (
         <SettingsStyle>
             <div className="page-header">
-                <Typography variant="h4" fontWeight={700}>{t('settings.pageTitle') || 'Settings'}</Typography>
+                <Typography variant="h4" fontSize="1.5rem" fontWeight={700}>{t('settings.pageTitle') || 'Settings'}</Typography>
             </div>
             {optionMap.map((section, si) => (
                 <div className="section-card" key={si}>
                     <div className="section-header">
                         <div className="section-header-top">
                             {sectionIcons[section.icon]}
-                            <Typography variant="h6" fontWeight={600}>{section.name}</Typography>
+                            <Typography variant="h6" fontSize="1rem" fontWeight={600}>{section.name}</Typography>
                         </div>
-                        <Typography variant="body2" color="var(--on-surface-variant)">{section.hint}</Typography>
+                        <Typography variant="body2" fontSize="0.78rem" color="var(--on-surface-variant)">{section.hint}</Typography>
                     </div>
                     <div className="section-body">
                         {section.options.map((opt, oi) => (
                             <div className="option-row" key={oi}>
                                 <div className="option-label">
-                                    <Typography variant="subtitle2" fontWeight={600}>{opt.name}</Typography>
-                                    {opt.desc && <Typography variant="caption" color="var(--on-surface-variant)">{opt.desc}</Typography>}
+                                    <Typography variant="subtitle2" fontSize="0.88rem" fontWeight={600}>{opt.name}</Typography>
+                                    {opt.desc && <Typography variant="caption" fontSize="0.78rem" color="var(--on-surface-variant)">{opt.desc}</Typography>}
                                 </div>
                                 {opt.content}
                             </div>

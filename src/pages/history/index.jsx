@@ -289,8 +289,8 @@ function History() {
     return (
         <HistoryStyle>
             <div className="page-header">
-                <Typography variant="h4" fontWeight={700}>{t('history.pageTitle')}</Typography>
-                <Typography variant="body2" color="var(--on-surface-variant)">{t('history.pageDesc')}</Typography>
+                <Typography variant="h4" fontSize="1.5rem" fontWeight={700}>{t('history.pageTitle')}</Typography>
+                <Typography variant="body2" fontSize="0.82rem" color="var(--on-surface-variant)">{t('history.pageDesc')}</Typography>
             </div>
 
             <div className="header-actions">
