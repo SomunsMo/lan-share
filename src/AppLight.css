@@ -50,8 +50,6 @@
     --glass-bg: rgba(250,248,255,0.70);
     --glass-blur: 12px;
     --glass-border: 1px solid rgba(0,74,198,0.10);
-
-    /* ❖ backward-compat aliases for styled-components */
     --bg-card: var(--surface-container-lowest);
     --bg-page: var(--surface-bright);
     --bg-hover: var(--surface-container);
@@ -119,8 +117,6 @@ html.dark {
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.20), 0 1px 3px rgba(0,0,0,0.30);
     --shadow-md: 0 4px 12px rgba(0,0,0,0.35), 0 2px 4px rgba(0,0,0,0.25);
     --shadow-toggle: 0 1px 3px rgba(0,0,0,0.40);
-
-    /* ❖ backward-compat aliases for styled-components */
     --bg-card: var(--surface-container-lowest);
     --bg-page: var(--surface-bright);
     --bg-hover: var(--surface-container);

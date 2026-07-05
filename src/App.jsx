@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
 import "./AppLight.css";
-import "./AppDark.css";
 import Navbar from "./components/navbar/index.jsx";
 import {useRoutes} from "react-router";
 import {routes} from "./pages/_router-map.jsx";
