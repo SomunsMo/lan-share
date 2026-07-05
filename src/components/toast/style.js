@@ -1,4 +1,5 @@
-import styled, { keyframes } from 'styled-components';
+import styled from "@emotion/styled";
+import { keyframes } from "@emotion/react";
 
 const toastIn = keyframes`
   from { opacity: 0; transform: translateX(100%); }

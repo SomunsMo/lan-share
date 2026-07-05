@@ -14,8 +14,14 @@ function App() {
     const applyTheme = (theme) => {
         const html = document.documentElement;
         html.classList.remove('dark', 'light');
-        if (theme === 'dark') html.classList.add('dark');
-        else if (theme === 'light') html.classList.add('light');
+        html.removeAttribute('data-mui-color-scheme');
+        if (theme === 'dark') {
+            html.classList.add('dark');
+            html.setAttribute('data-mui-color-scheme', 'dark');
+        } else if (theme === 'light') {
+            html.classList.add('light');
+            html.setAttribute('data-mui-color-scheme', 'light');
+        }
     };
 
     // 加载主题设置

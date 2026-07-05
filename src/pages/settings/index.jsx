@@ -161,8 +161,14 @@ function Settings() {
             setThemeSetting(newTheme);
             const html = document.documentElement;
             html.classList.remove('dark', 'light');
-            if (newTheme === 'dark') html.classList.add('dark');
-            else if (newTheme === 'light') html.classList.add('light');
+            html.removeAttribute('data-mui-color-scheme');
+            if (newTheme === 'dark') {
+                html.classList.add('dark');
+                html.setAttribute('data-mui-color-scheme', 'dark');
+            } else if (newTheme === 'light') {
+                html.classList.add('light');
+                html.setAttribute('data-mui-color-scheme', 'light');
+            }
             showToast({message: t('settings.toast.themeSwitched'), type: 'success'});
         } catch (error) {
             console.error('保存主题设置失败:', error);
