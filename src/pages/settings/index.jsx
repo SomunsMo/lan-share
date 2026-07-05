@@ -6,6 +6,12 @@ import {useToast} from "../../components/toast/index.jsx";
 import {useDialog} from "../../components/dialog/index.jsx";
 import {useTranslation} from "react-i18next";
 import { changeLanguage } from "../../i18n";
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import Switch from '@mui/material/Switch';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
 
 function Settings() {
     const { t, i18n } = useTranslation();
@@ -22,12 +28,10 @@ function Settings() {
     const {showToast} = useToast();
     const {showDialog} = useDialog();
 
-    // 每次组件渲染时获取当前共享目录和上传设置
     useEffect(() => {
         const fetchCurrentDirectory = async () => {
             try {
                 const currentDir = await invoke('get_sharing_directory');
-                console.log('当前共享目录是:', currentDir);
                 setSelectedDirectory(currentDir);
             } catch (error) {
                 console.error('获取当前共享目录失败:', error);
@@ -37,7 +41,6 @@ function Settings() {
         const fetchUploadSetting = async () => {
             try {
                 const enabled = await invoke('get_upload_enabled');
-                console.log('当前上传设置是:', enabled);
                 setUploadEnabled(enabled);
             } catch (error) {
                 console.error('获取上传设置失败:', error);
@@ -48,7 +51,6 @@ function Settings() {
         const fetchRenameSetting = async () => {
             try {
                 const enabled = await invoke('get_rename_enabled');
-                console.log('当前重命名设置是:', enabled);
                 setRenameEnabled(enabled);
             } catch (error) {
                 console.error('获取重命名设置失败:', error);
@@ -59,7 +61,6 @@ function Settings() {
         const fetchDeleteSetting = async () => {
             try {
                 const enabled = await invoke('get_delete_enabled');
-                console.log('当前删除设置是:', enabled);
                 setDeleteEnabled(enabled);
             } catch (error) {
                 console.error('获取删除设置失败:', error);
@@ -75,7 +76,6 @@ function Settings() {
         const fetchUploadOverwriteSetting = async () => {
             try {
                 const enabled = await invoke('get_upload_overwrite_enabled');
-                console.log('当前上传覆盖设置是:', enabled);
                 setUploadOverwriteEnabled(enabled);
             } catch (error) {
                 console.error('获取上传覆盖设置失败:', error);
@@ -112,7 +112,6 @@ function Settings() {
         const fetchAutostartSetting = async () => {
             try {
                 const enabled = await invoke('get_autostart');
-                console.log('当前开机自启设置是:', enabled);
                 setAutostartEnabled(enabled);
             } catch (error) {
                 console.error('获取开机自启设置失败:', error);
@@ -125,7 +124,6 @@ function Settings() {
         const fetchThemeSetting = async () => {
             try {
                 const theme = await invoke('get_theme_setting');
-                console.log('当前主题设置是:', theme);
                 setThemeSetting(theme);
             } catch (error) {
                 console.error('获取主题设置失败:', error);
@@ -138,7 +136,6 @@ function Settings() {
         const fetchHttpPort = async () => {
             try {
                 const port = await invoke('get_http_port');
-                console.log('当前HTTP端口设置是:', port);
                 setHttpPort(port);
             } catch (error) {
                 console.error('获取HTTP端口设置失败:', error);
@@ -149,9 +146,6 @@ function Settings() {
         fetchHttpPort();
     }, []);
 
-
-    // 处理主题变更（下拉选择）
-    // 处理主题变更（下拉选择）
     const handleThemeChange = async (event) => {
         const newTheme = event.target.value;
         if (newTheme === themeSetting) return;
@@ -176,13 +170,11 @@ function Settings() {
         }
     };
 
-    // 处理语言变更（下拉选择）
     const handleLanguageChange = async (event) => {
         const newLang = event.target.value;
         await changeLanguage(newLang);
     };
 
-    // 处理端口变更（点击后弹出输入框）
     const handlePortClick = async () => {
         const input = await showDialog({
             title: t('settings.dialog.changePort.title'),
@@ -202,7 +194,6 @@ function Settings() {
         try {
             await invoke('set_http_port', {port: newPort});
             setHttpPort(newPort);
-            console.log('HTTP端口设置已更新:', newPort);
             showToast({message: t('settings.toast.portSaved'), type: 'success'});
         } catch (error) {
             console.error('保存HTTP端口设置失败:', error);
@@ -220,8 +211,6 @@ function Settings() {
 
             if (selectedPath) {
                 setSelectedDirectory(selectedPath);
-                console.log('已选择文件夹:', selectedPath);
-
                 try {
                     await invoke('set_sharing_directory', {directoryPath: selectedPath});
                 } catch (backendError) {
@@ -235,14 +224,12 @@ function Settings() {
         }
     };
 
-    // 处理上传设置变更
     const handleUploadChange = async (event) => {
         const checked = event.target.checked;
         setUploadEnabled(checked);
 
         try {
             await invoke('set_upload_enabled', {enabled: checked});
-            console.log('上传设置已更新:', checked);
         } catch (error) {
             console.error('保存上传设置失败:', error);
             setUploadEnabled(!checked);
@@ -250,14 +237,12 @@ function Settings() {
         }
     };
 
-    // 处理重命名设置变更
     const handleRenameChange = async (event) => {
         const checked = event.target.checked;
         setRenameEnabled(checked);
 
         try {
             await invoke('set_rename_enabled', {enabled: checked});
-            console.log('重命名设置已更新:', checked);
         } catch (error) {
             console.error('保存重命名设置失败:', error);
             setRenameEnabled(!checked);
@@ -265,14 +250,12 @@ function Settings() {
         }
     };
 
-    // 处理删除设置变更
     const handleDeleteChange = async (event) => {
         const checked = event.target.checked;
         setDeleteEnabled(checked);
 
         try {
             await invoke('set_delete_enabled', {enabled: checked});
-            console.log('删除设置已更新:', checked);
         } catch (error) {
             console.error('保存删除设置失败:', error);
             setDeleteEnabled(!checked);
@@ -280,14 +263,12 @@ function Settings() {
         }
     };
 
-    // 处理上传覆盖设置变更
     const handleUploadOverwriteChange = async (event) => {
         const checked = event.target.checked;
         setUploadOverwriteEnabled(checked);
 
         try {
             await invoke('set_upload_overwrite_enabled', {enabled: checked});
-            console.log('上传覆盖设置已更新:', checked);
         } catch (error) {
             console.error('保存上传覆盖设置失败:', error);
             setUploadOverwriteEnabled(!checked);
@@ -295,7 +276,6 @@ function Settings() {
         }
     };
 
-    // 处理复制记录设置变更
     const handleRecordCopyChange = async (event) => {
         const checked = event.target.checked;
         setRecordCopyEnabled(checked);
@@ -308,7 +288,6 @@ function Settings() {
         }
     };
 
-    // 处理下载记录设置变更
     const handleRecordDownloadChange = async (event) => {
         const checked = event.target.checked;
         setRecordDownloadEnabled(checked);
@@ -321,14 +300,12 @@ function Settings() {
         }
     };
 
-    // 处理开机自启变更
     const handleAutostartChange = async (event) => {
         const checked = event.target.checked;
         setAutostartEnabled(checked);
 
         try {
             await invoke('set_autostart', {enabled: checked});
-            console.log('开机自启设置已更新:', checked);
         } catch (error) {
             console.error('保存开机自启设置失败:', error);
             setAutostartEnabled(!checked);
@@ -336,7 +313,6 @@ function Settings() {
         }
     };
 
-    // ========================================
     const optionMap = [
         {
             name: t('settings.sectionNetwork'),
@@ -347,10 +323,10 @@ function Settings() {
                     name: t('settings.option.port'),
                     desc: t('settings.option.portDesc'),
                     content: (
-                        <span className="port-value" onClick={handlePortClick}>
+                        <Button variant="text" onClick={handlePortClick} sx={{ textTransform: 'none', gap: 0.5, fontSize: '0.82rem', color: 'var(--accent)' }}>
                             {httpPort}
                             <svg viewBox="0 0 24 24" width="16" height="16" style={{fill:'none',stroke:'currentColor',strokeWidth:2}}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        </span>
+                        </Button>
                     ),
                 },
             ]
@@ -364,7 +340,7 @@ function Settings() {
                     name: t('settings.option.autostart'),
                     desc: t('settings.option.autostartDesc'),
                     content: (
-                        <input type="checkbox" className="toggle" checked={autostartEnabled} onChange={handleAutostartChange} />
+                        <Switch checked={autostartEnabled} onChange={handleAutostartChange} />
                     ),
                 },
             ]
@@ -378,21 +354,21 @@ function Settings() {
                     name: t('settings.option.theme'),
                     desc: t('settings.option.themeDesc'),
                     content: (
-                        <select className="theme-select" value={themeSetting} onChange={handleThemeChange}>
-                            <option value="system">{t('settings.themeOption.system')}</option>
-                            <option value="light">{t('settings.themeOption.light')}</option>
-                            <option value="dark">{t('settings.themeOption.dark')}</option>
-                        </select>
+                        <Select value={themeSetting} onChange={handleThemeChange} size="small" sx={{ minWidth: 120, fontSize: '0.82rem' }}>
+                            <MenuItem value="system">{t('settings.themeOption.system')}</MenuItem>
+                            <MenuItem value="light">{t('settings.themeOption.light')}</MenuItem>
+                            <MenuItem value="dark">{t('settings.themeOption.dark')}</MenuItem>
+                        </Select>
                     ),
                 },
                 {
                     name: t('settings.option.language'),
                     desc: t('settings.option.languageDesc'),
                     content: (
-                        <select className="theme-select" value={i18n.language} onChange={handleLanguageChange}>
-                            <option value="zh-CN">{t('settings.languageOption.zh-CN')}</option>
-                            <option value="en">{t('settings.languageOption.en')}</option>
-                        </select>
+                        <Select value={i18n.language} onChange={handleLanguageChange} size="small" sx={{ minWidth: 120, fontSize: '0.82rem' }}>
+                            <MenuItem value="zh-CN">{t('settings.languageOption.zh-CN')}</MenuItem>
+                            <MenuItem value="en">{t('settings.languageOption.en')}</MenuItem>
+                        </Select>
                     ),
                 },
             ]
@@ -405,22 +381,22 @@ function Settings() {
                 {
                     name: t('settings.option.webUpload'),
                     desc: t('settings.option.webUploadDesc'),
-                    content: (<input type="checkbox" className="toggle" checked={uploadEnabled} onChange={handleUploadChange} />),
+                    content: (<Switch checked={uploadEnabled} onChange={handleUploadChange} />),
                 },
                 {
                     name: t('settings.option.uploadOverwrite'),
                     desc: t('settings.option.uploadOverwriteDesc'),
-                    content: (<input type="checkbox" className="toggle" checked={uploadOverwriteEnabled} onChange={handleUploadOverwriteChange} />),
+                    content: (<Switch checked={uploadOverwriteEnabled} onChange={handleUploadOverwriteChange} />),
                 },
                 {
                     name: t('settings.option.webRename'),
                     desc: t('settings.option.webRenameDesc'),
-                    content: (<input type="checkbox" className="toggle" checked={renameEnabled} onChange={handleRenameChange} />),
+                    content: (<Switch checked={renameEnabled} onChange={handleRenameChange} />),
                 },
                 {
                     name: t('settings.option.webDelete'),
                     desc: t('settings.option.webDeleteDesc'),
-                    content: (<input type="checkbox" className="toggle" checked={deleteEnabled} onChange={handleDeleteChange} />),
+                    content: (<Switch checked={deleteEnabled} onChange={handleDeleteChange} />),
                 },
             ]
         },
@@ -432,12 +408,12 @@ function Settings() {
                 {
                     name: t('settings.option.recordCopy'),
                     desc: t('settings.option.recordCopyDesc'),
-                    content: (<input type="checkbox" className="toggle" checked={recordCopyEnabled} onChange={handleRecordCopyChange} />),
+                    content: (<Switch checked={recordCopyEnabled} onChange={handleRecordCopyChange} />),
                 },
                 {
                     name: t('settings.option.recordDownload'),
                     desc: t('settings.option.recordDownloadDesc'),
-                    content: (<input type="checkbox" className="toggle" checked={recordDownloadEnabled} onChange={handleRecordDownloadChange} />),
+                    content: (<Switch checked={recordDownloadEnabled} onChange={handleRecordDownloadChange} />),
                 },
             ]
         },
@@ -451,8 +427,8 @@ function Settings() {
                     desc: t('settings.option.shareRootDesc'),
                     content: (
                         <div className="directory-row">
-                            <input className="directory-input" value={selectedDirectory} readOnly onClick={selectDirectory} />
-                            <button className="directory-browse" onClick={selectDirectory}>{t('settings.labels.browse')}</button>
+                            <TextField size="small" value={selectedDirectory} slotProps={{ input: { readOnly: true } }} onClick={selectDirectory} sx={{ cursor: 'pointer', flex: 1, '& input': { fontSize: '0.85rem', cursor: 'pointer' } }} />
+                            <Button variant="contained" size="small" onClick={selectDirectory}>{t('settings.labels.browse')}</Button>
                         </div>
                     ),
                 },
@@ -472,23 +448,23 @@ function Settings() {
     return (
         <SettingsStyle>
             <div className="page-header">
-                <h1>{t('settings.pageTitle') || 'Settings'}</h1>
+                <Typography variant="h4" fontWeight={700}>{t('settings.pageTitle') || 'Settings'}</Typography>
             </div>
             {optionMap.map((section, si) => (
                 <div className="section-card" key={si}>
                     <div className="section-header">
                         <div className="section-header-top">
                             {sectionIcons[section.icon]}
-                            <h2>{section.name}</h2>
+                            <Typography variant="h6" fontWeight={600}>{section.name}</Typography>
                         </div>
-                        <p>{section.hint}</p>
+                        <Typography variant="body2" color="var(--on-surface-variant)">{section.hint}</Typography>
                     </div>
                     <div className="section-body">
                         {section.options.map((opt, oi) => (
                             <div className="option-row" key={oi}>
                                 <div className="option-label">
-                                    <h3>{opt.name}</h3>
-                                    {opt.desc && <p>{opt.desc}</p>}
+                                    <Typography variant="subtitle2" fontWeight={600}>{opt.name}</Typography>
+                                    {opt.desc && <Typography variant="caption" color="var(--on-surface-variant)">{opt.desc}</Typography>}
                                 </div>
                                 {opt.content}
                             </div>
