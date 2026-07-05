@@ -6,15 +6,17 @@ import {open} from '@tauri-apps/plugin-dialog';
 import {useDialog} from "@/components/dialog/index.jsx";
 import {useTranslation} from "react-i18next";
 import copy from 'copy-to-clipboard';
+import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
 
 function Home() {
     const { t } = useTranslation();
     const [webUrl, setWebUrl] = useState("");
-    const [serverStatus, setServerStatus] = useState(null); // null=loading, {running, port, reason}
+    const [serverStatus, setServerStatus] = useState(null);
     const [qrFgColor, setQrFgColor] = useState("#213547");
     const {showDialog} = useDialog();
 
-    // 监听主题变化，更新二维码配色
     useEffect(() => {
         const updateColor = () => {
             const html = document.documentElement;
@@ -38,7 +40,6 @@ function Home() {
         });
     }, []);
 
-    // 检测首次运行，引导用户设置共享目录
     const checkFirstRun = async () => {
         const configured = await invoke("is_sharing_root_configured");
         if (configured) return;
@@ -69,7 +70,6 @@ function Home() {
         }
     };
 
-    // 查询HTTP服务器运行状态
     const fetchServerStatus = async () => {
         const status = await invoke("get_server_status");
         const ip = await invoke("get_local_ip");
@@ -94,72 +94,84 @@ function Home() {
     const ipAddr = webUrl ? webUrl.split('/')[2].split(':')[0] : '';
     const portNum = webUrl ? webUrl.split('/')[2].split(':')[1] : '';
 
-    const statusText = serverStatus?.running
-        ? t('home.listening') || 'Listening...'
-        : t('home.notRunning') || 'Not Running';
-
     return (
         <HomeStyle>
             <div className="dual-panel">
                 <div className="qr-panel">
                     {serverStatus?.running ? (
                         <>
-                            <div className="qr-card">
-                                <QRCodeSVG className={"qrcode"} value={webUrl} fgColor={qrFgColor} bgColor={"transparent"}/>
-                            </div>
-                            <div className="qr-label">
-                                <h2>{t('home.scanTips')}</h2>
-                            </div>
+                            <Paper elevation={1} sx={{ p: 3, bgcolor: 'var(--surface-container-lowest)', border: '1px solid var(--outline-variant)', borderRadius: 'var(--radius-md)' }}>
+                                <QRCodeSVG value={webUrl} fgColor={qrFgColor} bgColor={"transparent"} />
+                            </Paper>
+                            <Box sx={{ textAlign: 'center' }}>
+                                <Typography variant="h4" fontWeight={600} color="var(--on-surface)">
+                                    {t('home.scanTips')}
+                                </Typography>
+                            </Box>
                         </>
                     ) : (
                         <div className="placeholder-panel">
                             <div className="placeholder-icon">
                                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                             </div>
-                            <p className="placeholder-text">{t('home.serviceUnavailable') || 'Service Unavailable'}</p>
+                            <Typography variant="body1" color="var(--on-surface-variant)" textAlign="center">
+                                {t('home.serviceUnavailable') || 'Service Unavailable'}
+                            </Typography>
                         </div>
                     )}
                 </div>
 
                 <div className="details-panel">
-                    <div className="details-section">
-                        <h3>{t('home.detailsTitle') || 'Local Device Details'}</h3>
-                        <div className="detail-row">
-                            <span className="detail-label">{t('home.deviceName') || 'Device Name'}</span>
-                            <span className="detail-value">{deviceName}</span>
-                        </div>
-                        <div className="detail-row">
-                            <span className="detail-label">{t('home.localIp') || 'Local IP'}</span>
-                            <span className="detail-value code">{ipAddr}</span>
-                        </div>
-                        <div className="detail-row">
-                            <span className="detail-label">{t('home.port') || 'Port'}</span>
-                            <span className="detail-value code">{portNum}</span>
-                        </div>
-                        <div className="detail-row">
-                            <span className="detail-label">{t('home.status') || 'Status'}</span>
-                            <div className="status-row">
-                                <div className={"status-dot" + (serverStatus?.running ? "" : " status-dot--stopped")} />
-                                <span className={"status-label" + (serverStatus?.running ? "" : " status-label--stopped")}>
-                                    {statusText}
-                                </span>
-                            </div>
-                        </div>
+                    <div>
+                        <Typography variant="overline" display="block" color="var(--on-surface-variant)" sx={{ mb: 2 }}>
+                            {t('home.detailsTitle') || 'Local Device Details'}
+                        </Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid var(--outline-variant)' }}>
+                            <Typography variant="body1" color="var(--on-surface-variant)">{t('home.deviceName') || 'Device Name'}</Typography>
+                            <Typography variant="body1" fontWeight={600} color="var(--on-surface)">{deviceName}</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid var(--outline-variant)' }}>
+                            <Typography variant="body1" color="var(--on-surface-variant)">{t('home.localIp') || 'Local IP'}</Typography>
+                            <Box component="code" sx={{ fontSize: 14, fontWeight: 500, bgcolor: 'var(--surface-container)', px: 1, py: 0.5, borderRadius: 'var(--radius)' }}>
+                                {ipAddr}
+                            </Box>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid var(--outline-variant)' }}>
+                            <Typography variant="body1" color="var(--on-surface-variant)">{t('home.port') || 'Port'}</Typography>
+                            <Box component="code" sx={{ fontSize: 14, fontWeight: 500, bgcolor: 'var(--surface-container)', px: 1, py: 0.5, borderRadius: 'var(--radius)' }}>
+                                {portNum}
+                            </Box>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1 }}>
+                            <Typography variant="body1" color="var(--on-surface-variant)">{t('home.status') || 'Status'}</Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: serverStatus?.running ? '#22c55e' : 'var(--error)', boxShadow: serverStatus?.running ? '0 0 6px #22c55e' : 'none' }} />
+                                <Typography variant="body1" color={serverStatus?.running ? 'var(--on-surface)' : 'var(--error)'}>
+                                    {serverStatus?.running ? (t('home.listening') || 'Listening...') : (t('home.notRunning') || 'Not Running')}
+                                </Typography>
+                            </Box>
+                        </Box>
                         {!serverStatus?.running && serverStatus?.reason === 'port_occupied' && (
-                            <div className="detail-row detail-row--reason">
-                                <span className="detail-label">{t('home.reasonTitle') || 'Reason'}</span>
-                                <span className="detail-value">{t('home.reasonPortOccupied', { port: portNum })}</span>
-                            </div>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1 }}>
+                                <Typography variant="body1" color="var(--on-surface-variant)">{t('home.reasonTitle') || 'Reason'}</Typography>
+                                <Typography variant="body1" color="var(--error)" sx={{ wordBreak: 'break-word', textAlign: 'right', maxWidth: 200 }}>
+                                    {t('home.reasonPortOccupied', { port: portNum })}
+                                </Typography>
+                            </Box>
                         )}
                     </div>
 
                     {serverStatus?.running && (
-                        <div className="manual-card">
-                            <p className="manual-desc">{t('home.manualDesc')}</p>
-                            <div className="url-block" onClick={copyUrl} title={t('home.copyTooltip')}>
-                                <code>{webUrl ? webUrl.replace('http://', '') : ''}</code>
-                            </div>
-                        </div>
+                        <Paper elevation={0} sx={{ p: 3, bgcolor: 'var(--surface-container-low)', border: '1px solid var(--outline-variant)', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <Typography variant="body1" color="var(--on-surface)">
+                                {t('home.manualDesc')}
+                            </Typography>
+                            <Box onClick={copyUrl} title={t('home.copyTooltip')} sx={{ bgcolor: 'var(--surface-container-lowest)', border: '1px solid var(--outline-variant)', borderRadius: 'var(--radius)', p: 2, cursor: 'pointer' }}>
+                                <Typography variant="h5" fontWeight={700} color="var(--primary)" sx={{ userSelect: 'all', fontFamily: 'monospace' }}>
+                                    {webUrl ? webUrl.replace('http://', '') : ''}
+                                </Typography>
+                            </Box>
+                        </Paper>
                     )}
                 </div>
             </div>
