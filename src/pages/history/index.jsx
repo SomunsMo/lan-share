@@ -7,11 +7,19 @@ import {useDialog} from "../../components/dialog/index.jsx";
 import {useTranslation} from "react-i18next";
 import {calcMenuPosition} from "../../utils/menu.js";
 import CopyButton from "../../components/copyButton/index.jsx";
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Paper from '@mui/material/Paper';
 
 function History() {
     const { t } = useTranslation();
     const [history, setHistory] = useState([]);
-    // 右键菜单状态
     const [contextMenu, setContextMenu] = useState({
         visible: false,
         x: 0,
@@ -26,7 +34,6 @@ function History() {
     const {showToast} = useToast();
     const {showDialog} = useDialog();
 
-    // 复制文本到剪贴板
     const copyToClipboard = useCallback((text) => {
         try {
             copy(text);
@@ -35,7 +42,6 @@ function History() {
         }
     }, []);
 
-    // 打开文件位置
     const openFileLocation = useCallback(async (item) => {
         try {
             await invoke('open_file_location', {filename: item.content});
@@ -44,7 +50,6 @@ function History() {
         }
     }, [showToast]);
 
-    // 在资源管理器中打开文件夹
     const openFolder = useCallback(async (filePath) => {
         const folderPath = getFileFolder(filePath);
         try {
@@ -54,19 +59,16 @@ function History() {
         }
     }, [showToast]);
 
-    // 从绝对路径提取文件夹路径
     const getFileFolder = (filePath) => {
         const idx = filePath.lastIndexOf('/');
         return idx > 0 ? filePath.substring(0, idx) : filePath;
     };
 
-    // 从绝对路径提取文件名
     const getFileName = (filePath) => {
         const idx = filePath.lastIndexOf('/');
         return idx >= 0 ? filePath.substring(idx + 1) : filePath;
     };
 
-    // 删除历史记录项
     const deleteHistoryItem = useCallback(async (itemId) => {
         try {
             await invoke('delete_file_sharing_record', {id: itemId});
@@ -77,7 +79,6 @@ function History() {
         }
     }, []);
 
-    // 删除文本记录（级联删除）
     const deleteTextItem = useCallback(async (itemId) => {
         const confirmed = await showDialog({
             title: t('history.clearDialog.title'),
@@ -97,7 +98,6 @@ function History() {
         }
     }, [showDialog, t]);
 
-    // 查看复制记录
     const viewCopyRecords = useCallback(async (item) => {
         try {
             const records = await invoke('get_copy_records', {sourceId: item.id});
@@ -108,26 +108,26 @@ function History() {
             showDialog({
                 title: t('history.copyRecordsTitle'),
                 content: (
-                    <div style={{maxHeight: '50vh', overflowY: 'auto'}}>
-                        <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '13px'}}>
-                            <thead>
-                                <tr style={{borderBottom: '2px solid var(--outline-variant)'}}>
-                                    <th style={{padding: '6px 8px', textAlign: 'left', color: 'var(--on-surface-variant)', fontWeight: 600, width: '50px', whiteSpace: 'nowrap'}}>{t('history.copyRecordsSeq')}</th>
-                                    <th style={{padding: '6px 8px', textAlign: 'left', color: 'var(--on-surface-variant)', fontWeight: 600}}>{t('history.tableHeader.time')}</th>
-                                    <th style={{padding: '6px 8px', textAlign: 'left', color: 'var(--on-surface-variant)', fontWeight: 600}}>{t('history.tableHeader.sourceIp')}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                    <TableContainer component={Paper} sx={{ maxHeight: '50vh', boxShadow: 'none' }}>
+                        <Table size="small" stickyHeader>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell sx={{ fontWeight: 600, color: 'var(--on-surface-variant)', width: 50 }}>{t('history.copyRecordsSeq')}</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, color: 'var(--on-surface-variant)' }}>{t('history.tableHeader.time')}</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, color: 'var(--on-surface-variant)' }}>{t('history.tableHeader.sourceIp')}</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
                                 {records.map((r, i) => (
-                                    <tr key={r.id} style={{borderBottom: '1px solid var(--outline-variant)'}}>
-                                        <td style={{padding: '6px 8px', color: 'var(--on-surface-variant)'}}>{i + 1}</td>
-                                        <td style={{padding: '6px 8px', color: 'var(--on-surface)'}}>{r.created_at.replace(/-/g, '/')}</td>
-                                        <td style={{padding: '6px 8px', color: 'var(--on-surface)'}}>{r.ip}</td>
-                                    </tr>
+                                    <TableRow key={r.id}>
+                                        <TableCell sx={{ color: 'var(--on-surface-variant)' }}>{i + 1}</TableCell>
+                                        <TableCell sx={{ color: 'var(--on-surface)' }}>{r.created_at.replace(/-/g, '/')}</TableCell>
+                                        <TableCell sx={{ color: 'var(--on-surface)' }}>{r.ip}</TableCell>
+                                    </TableRow>
                                 ))}
-                            </tbody>
-                        </table>
-                    </div>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
                 ),
                 buttons: [
                     {label: 'common.button.confirm', value: true, primary: true},
@@ -139,7 +139,6 @@ function History() {
         }
     }, [showDialog, showToast, t]);
 
-    // 查看详情
     const viewDetail = (item) => {
         showDialog({
             title: t('history.detailTitle'),
@@ -186,7 +185,6 @@ function History() {
         });
     };
 
-    // 显示右键菜单
     const showContextMenu = useCallback((e, item) => {
         e.preventDefault();
         mousePosRef.current = { x: e.clientX, y: e.clientY };
@@ -199,7 +197,6 @@ function History() {
         setMenuVersion(v => v + 1);
     }, []);
 
-    // 渲染后测量实际尺寸，计算最终位置
     useLayoutEffect(() => {
         if (menuVersion === 0 || !contextMenu.visible || !contextMenuRef.current) return;
         const rect = contextMenuRef.current.getBoundingClientRect();
@@ -209,12 +206,10 @@ function History() {
         }
     }, [menuVersion]);
 
-    // 隐藏右键菜单
     const hideContextMenu = useCallback(() => {
         setContextMenu({visible: false, x: 0, y: 0, item: null});
     }, []);
 
-    // 加载所有历史记录
     const loadHistory = useCallback(async () => {
         try {
             const records = await invoke('get_all_upload_history');
@@ -232,12 +227,10 @@ function History() {
         }
     }, []);
 
-    // 初始化加载历史记录
     useEffect(() => {
         loadHistory();
     }, [loadHistory]);
 
-    // 点击其他地方隐藏菜单
     useEffect(() => {
         const handleClickOutside = () => {
             if (contextMenu.visible) {
@@ -263,7 +256,6 @@ function History() {
         return t('history.type.file');
     };
 
-    // 清空文本记录
     const clearText = async () => {
         const confirmed = await showDialog({
             title: t('history.clearDialog.title'),
@@ -275,12 +267,10 @@ function History() {
         });
         if (!confirmed) return;
         let resultCount = await invoke("clear_sharing_text");
-        console.log("清空共享文本成功：", resultCount);
         showToast({message: t('history.toast.textCleared'), type: 'success'});
         loadHistory();
     }
 
-    // 清空文件记录
     const clearFile = async () => {
         const confirmed = await showDialog({
             title: t('history.clearDialog.title'),
@@ -292,7 +282,6 @@ function History() {
         });
         if (!confirmed) return;
         let resultCount = await invoke("clear_sharing_file");
-        console.log("清空文件上传记录成功：", resultCount);
         showToast({message: t('history.toast.fileCleared'), type: 'success'});
         loadHistory();
     }
@@ -300,19 +289,25 @@ function History() {
     return (
         <HistoryStyle>
             <div className="page-header">
-                <h1>{t('history.pageTitle')}</h1>
-                <p>{t('history.pageDesc')}</p>
+                <Typography variant="h4" fontWeight={700}>{t('history.pageTitle')}</Typography>
+                <Typography variant="body2" color="var(--on-surface-variant)">{t('history.pageDesc')}</Typography>
             </div>
 
             <div className="header-actions">
                 <div className="filter-tabs">
-                    <button className={"filter-tab" + (activeFilter === "all" ? " active" : "")} onClick={() => setActiveFilter("all")}>{t('history.filterAll')}</button>
-                    <button className={"filter-tab" + (activeFilter === "files" ? " active" : "")} onClick={() => setActiveFilter("files")}>{t('history.filterFiles')}</button>
-                    <button className={"filter-tab" + (activeFilter === "text" ? " active" : "")} onClick={() => setActiveFilter("text")}>{t('history.filterText')}</button>
+                    {["all", "files", "text"].map(filter => (
+                        <button
+                            key={filter}
+                            className={"filter-tab" + (activeFilter === filter ? " active" : "")}
+                            onClick={() => setActiveFilter(filter)}
+                        >
+                            {t(`history.filter${filter.charAt(0).toUpperCase() + filter.slice(1)}`)}
+                        </button>
+                    ))}
                 </div>
                 <div className="clear-actions">
-                    <button className="clear-btn" onClick={clearText}>{t('history.clearTextButton')}</button>
-                    <button className="clear-btn" onClick={clearFile}>{t('history.clearFileButton')}</button>
+                    <Button variant="outlined" color="error" size="small" onClick={clearText}>{t('history.clearTextButton')}</Button>
+                    <Button variant="outlined" color="error" size="small" onClick={clearFile}>{t('history.clearFileButton')}</Button>
                 </div>
             </div>
 
