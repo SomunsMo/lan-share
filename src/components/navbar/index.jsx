@@ -1,8 +1,15 @@
 import React from 'react';
-import NavbarStyle from "./style.js";
-import {Link, useLocation} from "react-router";
-import {routes} from "../../pages/_router-map.jsx";
-import {useTranslation} from "react-i18next";
+import { useLocation, useNavigate } from 'react-router';
+import { useTranslation } from 'react-i18next';
+import Drawer from '@mui/material/Drawer';
+import List from '@mui/material/List';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import Divider from '@mui/material/Divider';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import { routes } from "../../pages/_router-map.jsx";
 
 const icons = {
   home: (
@@ -23,7 +30,8 @@ const icons = {
 };
 
 function Navbar() {
-  let location = useLocation();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { t } = useTranslation();
 
   const topItems = [];
@@ -36,43 +44,82 @@ function Navbar() {
     }
   });
 
+  const drawerWidth = 'var(--navbar-width, 256px)';
+
   return (
-    <NavbarStyle>
-      <div className="logo-area">
-        <div className="logo-text">
-          <span className="logo-brand">LAN Share</span>
-          <span className="logo-tagline">{t('navbar.tagline')}</span>
-        </div>
-      </div>
+    <Drawer
+      variant="permanent"
+      sx={{
+        width: drawerWidth,
+        flexShrink: 0,
+        '& .MuiDrawer-paper': {
+          width: drawerWidth,
+          boxSizing: 'border-box',
+          position: 'relative',
+          bgcolor: 'var(--bg-sidebar)',
+          borderRight: '1px solid var(--border)',
+        },
+      }}
+    >
+      <Box sx={{ p: '24px 20px 20px' }}>
+        <Typography variant="h6" sx={{ fontWeight: 600, lineHeight: 1.2, color: 'var(--on-surface)' }}>
+          LAN Share
+        </Typography>
+        <Typography variant="caption" sx={{ fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--on-surface-variant)' }}>
+          {t('navbar.tagline')}
+        </Typography>
+      </Box>
 
-      <div className="nav-group">
+      <List sx={{ flex: 1, px: 1.5, py: 0 }}>
         {topItems.map((item, index) => (
-          <Link
+          <ListItemButton
             key={index}
-            to={item.path}
-            className={"nav-item" + (location.pathname === item.path ? " active" : "")}
+            selected={location.pathname === item.path}
+            onClick={() => navigate(item.path)}
+            sx={{
+              borderRadius: 'var(--radius-md)',
+              mb: 0.25,
+              '&.Mui-selected': {
+                bgcolor: 'var(--primary-container)',
+                color: 'var(--on-primary-container)',
+                '& .MuiListItemIcon-root': { color: 'var(--on-primary-container)' },
+              },
+            }}
           >
-            <span className="nav-icon">{icons[item.icon]}</span>
-            {t(item.name)}
-          </Link>
+            <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>
+              {icons[item.icon]}
+            </ListItemIcon>
+            <ListItemText primary={t(item.name)} slotProps={{ primary: { fontSize: 14, fontWeight: 500 } }} />
+          </ListItemButton>
         ))}
-      </div>
+      </List>
 
-      <div className="nav-divider" />
+      <Divider sx={{ mx: 2.5 }} />
 
-      <div className="nav-bottom">
+      <List sx={{ px: 1.5, py: 0.5 }}>
         {bottomItems.map((item, index) => (
-          <Link
+          <ListItemButton
             key={index}
-            to={item.path}
-            className={"nav-item" + (location.pathname === item.path ? " active" : "")}
+            selected={location.pathname === item.path}
+            onClick={() => navigate(item.path)}
+            sx={{
+              borderRadius: 'var(--radius-md)',
+              mb: 0.25,
+              '&.Mui-selected': {
+                bgcolor: 'var(--primary-container)',
+                color: 'var(--on-primary-container)',
+                '& .MuiListItemIcon-root': { color: 'var(--on-primary-container)' },
+              },
+            }}
           >
-            <span className="nav-icon">{icons[item.icon]}</span>
-            {t(item.name)}
-          </Link>
+            <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>
+              {icons[item.icon]}
+            </ListItemIcon>
+            <ListItemText primary={t(item.name)} slotProps={{ primary: { fontSize: 14, fontWeight: 500 } }} />
+          </ListItemButton>
         ))}
-      </div>
-    </NavbarStyle>
+      </List>
+    </Drawer>
   );
 }
 
