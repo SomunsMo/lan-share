@@ -7,17 +7,24 @@ import {useDialog} from "@/components/dialog/index.jsx";
 import {useToast} from "@/components/toast/index.jsx";
 import {calcMenuPosition} from "../../utils/menu.js";
 import CopyButton from "../../components/copyButton/index.jsx";
+import Typography from '@mui/material/Typography';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Paper from '@mui/material/Paper';
 
 function TextSharingManager(props) {
     const { t } = useTranslation();
     const {showDialog} = useDialog();
     const {showToast} = useToast();
-    // 文本框内容
     const [textValue, setTextValue] = useState("");
-    // 历史记录
     const [history, setHistory] = useState([]);
 
-    // 右键菜单状态
     const [contextMenu, setContextMenu] = useState({
         visible: false,
         x: 0,
@@ -25,12 +32,10 @@ function TextSharingManager(props) {
         item: null
     });
     const [menuVersion, setMenuVersion] = useState(0);
-    // 创建ref来引用历史记录容器
     const historyContainerRef = useRef(null);
     const contextMenuRef = useRef(null);
     const mousePosRef = useRef({ x: 0, y: 0 });
 
-    // 查看复制记录
     const viewCopyRecords = useCallback(async (item) => {
         try {
             const records = await invoke('get_copy_records', {sourceId: item.id});
@@ -41,26 +46,26 @@ function TextSharingManager(props) {
             showDialog({
                 title: t('history.copyRecordsTitle'),
                 content: (
-                    <div style={{maxHeight: '50vh', overflowY: 'auto'}}>
-                        <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '13px'}}>
-                            <thead>
-                                <tr style={{borderBottom: '2px solid var(--outline-variant)'}}>
-                                    <th style={{padding: '6px 8px', textAlign: 'left', color: 'var(--on-surface-variant)', fontWeight: 600, width: '50px', whiteSpace: 'nowrap'}}>{t('history.copyRecordsSeq')}</th>
-                                    <th style={{padding: '6px 8px', textAlign: 'left', color: 'var(--on-surface-variant)', fontWeight: 600}}>{t('history.tableHeader.time')}</th>
-                                    <th style={{padding: '6px 8px', textAlign: 'left', color: 'var(--on-surface-variant)', fontWeight: 600}}>{t('history.tableHeader.sourceIp')}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                    <TableContainer component={Paper} sx={{ maxHeight: '50vh', boxShadow: 'none' }}>
+                        <Table size="small" stickyHeader>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell sx={{ fontWeight: 600, color: 'var(--on-surface-variant)', width: 50 }}>{t('history.copyRecordsSeq')}</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, color: 'var(--on-surface-variant)' }}>{t('history.tableHeader.time')}</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, color: 'var(--on-surface-variant)' }}>{t('history.tableHeader.sourceIp')}</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
                                 {records.map((r, i) => (
-                                    <tr key={r.id} style={{borderBottom: '1px solid var(--outline-variant)'}}>
-                                        <td style={{padding: '6px 8px', color: 'var(--on-surface-variant)'}}>{i + 1}</td>
-                                        <td style={{padding: '6px 8px', color: 'var(--on-surface)'}}>{r.created_at.replace(/-/g, '/')}</td>
-                                        <td style={{padding: '6px 8px', color: 'var(--on-surface)'}}>{r.ip}</td>
-                                    </tr>
+                                    <TableRow key={r.id}>
+                                        <TableCell sx={{ color: 'var(--on-surface-variant)' }}>{i + 1}</TableCell>
+                                        <TableCell sx={{ color: 'var(--on-surface)' }}>{r.created_at.replace(/-/g, '/')}</TableCell>
+                                        <TableCell sx={{ color: 'var(--on-surface)' }}>{r.ip}</TableCell>
+                                    </TableRow>
                                 ))}
-                            </tbody>
-                        </table>
-                    </div>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
                 ),
                 buttons: [
                     {label: 'common.button.confirm', value: true, primary: true},
@@ -72,18 +77,14 @@ function TextSharingManager(props) {
         }
     }, [showDialog, showToast, t]);
 
-    // 复制文本到剪贴板
     const copyToClipboard = useCallback((text) => {
         try {
             copy(text);
-            console.log('文本已复制到剪贴板');
-            // 可以添加提示信息
         } catch (err) {
             console.error('复制失败:', err);
         }
     }, []);
 
-    // 删除历史记录项
     const deleteHistoryItem = useCallback(async (itemId) => {
         const confirmed = await showDialog({
             title: t('history.clearDialog.title'),
@@ -98,13 +99,11 @@ function TextSharingManager(props) {
             await invoke('delete_text_sharing_record', {id: itemId});
             setHistory(prev => prev.filter(item => item.id !== itemId));
             setContextMenu({visible: false, x: 0, y: 0, item: null});
-            console.log('删除成功');
         } catch (error) {
             console.error('删除文本共享记录失败:', error);
         }
     }, [showDialog, t]);
 
-    // 显示右键菜单
     const showContextMenu = useCallback((e, item) => {
         e.preventDefault();
         mousePosRef.current = { x: e.clientX, y: e.clientY };
@@ -117,7 +116,6 @@ function TextSharingManager(props) {
         setMenuVersion(v => v + 1);
     }, []);
 
-    // 渲染后测量实际尺寸，计算最终位置
     useLayoutEffect(() => {
         if (menuVersion === 0 || !contextMenu.visible || !contextMenuRef.current) return;
         const rect = contextMenuRef.current.getBoundingClientRect();
@@ -127,16 +125,13 @@ function TextSharingManager(props) {
         }
     }, [menuVersion]);
 
-    // 隐藏右键菜单
     const hideContextMenu = useCallback(() => {
         setContextMenu({visible: false, x: 0, y: 0, item: null});
     }, []);
 
-    // 加载历史记录
     const loadHistory = useCallback(async () => {
         try {
             const records = await invoke('get_text_sharing_history');
-            // 将数据库记录转换为前端所需的格式
             const formattedRecords = records.map(record => ({
                 id: record.id,
                 time: record.created_at.replace(/-/g, '/'),
@@ -149,32 +144,24 @@ function TextSharingManager(props) {
         }
     }, []);
 
-    // 初始化加载历史记录
     useEffect(() => {
         loadHistory();
     }, [loadHistory]);
 
-    // 通过Tauri分享文本到局域网
     const shareTextViaTauri = async () => {
         if (!textValue.trim()) {
-            console.warn("文本内容为空，无法分享");
             return;
         }
 
         try {
             await invoke('share_text_to_lan', {textData: textValue});
-            console.log("文本已通过Tauri分享到局域网");
-
-            // 清空文本输入框
             setTextValue("");
-            // 刷新历史列表
             loadHistory();
         } catch (error) {
             console.error("通过Tauri分享文本失败:", error);
         }
     }
 
-    // 查看消息详情
     const viewDetail = (item) => {
         showDialog({
             title: t('textSharing.detailTitle'),
@@ -199,7 +186,6 @@ function TextSharingManager(props) {
         });
     }
 
-    // 点击其他地方隐藏菜单
     useEffect(() => {
         const handleClickOutside = () => {
             if (contextMenu.visible) {
@@ -216,27 +202,33 @@ function TextSharingManager(props) {
     return (
         <TextSharingManagerStyle>
             <div className="page-header">
-                <h1>{t('textSharing.pageTitle')}</h1>
-                <p>{t('textSharing.pageDesc')}</p>
+                <Typography variant="h4" fontWeight={700}>{t('textSharing.pageTitle')}</Typography>
+                <Typography variant="body2" color="var(--on-surface-variant)">{t('textSharing.pageDesc')}</Typography>
             </div>
 
             <div className="compose-panel">
-                <textarea
+                <TextField
                     value={textValue}
                     onChange={(e) => setTextValue(e.target.value)}
                     placeholder={t('textSharing.placeholder')}
+                    multiline
+                    fullWidth
+                    minRows={4}
+                    maxRows={12}
+                    variant="outlined"
+                    sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'var(--surface-container-low)' } }}
                 />
                 <div className="compose-footer">
                     <span className="char-count">{textValue.length} characters</span>
                     <div className="compose-actions">
-                        <button className="btn-clear" onClick={() => setTextValue("")}>{t('textSharing.clearButton')}</button>
-                        <button className="btn-share" onClick={shareTextViaTauri}>{t('textSharing.shareButton')}</button>
+                        <Button variant="text" onClick={() => setTextValue("")} size="small">{t('textSharing.clearButton')}</Button>
+                        <Button variant="contained" onClick={shareTextViaTauri} size="small">{t('textSharing.shareButton')}</Button>
                     </div>
                 </div>
             </div>
 
             <div className="history-section">
-                <h2 className="history-title">{t('textSharing.recentTitle')}</h2>
+                <Typography variant="h6" fontWeight={600} sx={{ mb: 1.5 }}>{t('textSharing.recentTitle')}</Typography>
                 <div className="history-scroll" ref={historyContainerRef}>
                     <div className="history-grid">
                     {history.map((item) => (
@@ -251,18 +243,12 @@ function TextSharingManager(props) {
                             </div>
                             <div className="card-content">{item.content}</div>
                             <div className="card-actions">
-                                <button
-                                    className="card-action-btn card-action-copy"
-                                    onClick={() => copyToClipboard(item.content)}
-                                >
+                                <Button variant="outlined" size="small" onClick={() => copyToClipboard(item.content)}>
                                     {t('textSharing.copyButton')}
-                                </button>
-                                <button
-                                    className="card-action-btn card-action-view"
-                                    onClick={() => viewDetail(item)}
-                                >
+                                </Button>
+                                <Button variant="text" size="small" onClick={() => viewDetail(item)}>
                                     {t('textSharing.viewButton')}
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     ))}
