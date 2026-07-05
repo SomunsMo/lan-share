@@ -57,7 +57,7 @@ pub async fn upload_text(
 
     log::info!("来自[{}]的文本：{}", client_ip, upload_content);
 
-    upload_dao::add(1, &upload_content, &client_ip, false)
+    upload_dao::add(1, &upload_content, None, &client_ip, false)
         .await
         .unwrap();
 

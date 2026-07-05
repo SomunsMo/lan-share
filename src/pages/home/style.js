@@ -2,130 +2,206 @@ import styled from "styled-components";
 
 const HomeStyle = styled.div`
     display: flex;
+    flex-direction: column;
     width: 100%;
     height: 100%;
 
-    color: var(--text-primary);
-    justify-content: center;
-    align-items: center;
+    .dual-panel {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        justify-content: center;
+        gap: 48px;
+    }
 
-    user-select: none;
+    @media (max-width: 768px) {
+        .dual-panel {
+            flex-direction: column;
+            gap: 32px;
+        }
+    }
 
-    .banner {
-        box-sizing: border-box;
-        margin: 40px;
+    .qr-panel {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 24px;
+    }
 
+    .qr-card {
+        background: var(--surface-container-lowest);
+        border: 1px solid var(--outline-variant);
+        border-radius: var(--radius-md);
+        padding: 24px;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .qr-card svg {
+        display: block;
+    }
+
+    .qr-label {
         text-align: center;
     }
 
-    .title {
-        margin-top: 0;
+    .qr-label h2 {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--on-surface);
     }
 
-    .codeArea {
-        box-sizing: border-box;
+    .qr-label p {
+        font-size: 16px;
+        color: var(--on-surface-variant);
+        margin-top: 4px;
+    }
+
+    .details-panel {
         display: flex;
-        width: 260px;
-        margin: 0 auto;
-        padding: 20px 16px 16px;
         flex-direction: column;
+        gap: 32px;
+        min-width: 320px;
+    }
 
-        justify-content: center;
+    .details-section h3 {
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--on-surface-variant);
+        margin-bottom: 16px;
+    }
+
+    .detail-row {
+        display: flex;
         align-items: center;
-
-        background-color: var(--bg-card);
-        border-radius: var(--radius-sm);
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--outline-variant);
     }
 
-    .scanTips {
-        padding: 0;
-        margin: 10px 0 0;
-        color: var(--text-secondary);
-        font-size: 0.8rem;
+    .detail-row:last-of-type {
+        border-bottom: none;
     }
 
-    .qrcode {
+    .detail-row--reason .detail-value {
+        color: var(--error);
+        word-break: break-word;
+        white-space: normal;
+        text-align: right;
+        max-width: 200px;
     }
 
-    .urlTips {
-        padding: 0;
-        margin: 15px 0 0;
-        color: var(--text-secondary);
-        font-size: 0.8rem;
-        line-height: 0.8rem;
+    .detail-label {
+        font-size: 16px;
+        color: var(--on-surface-variant);
     }
 
-    .qrcodeUrl {
+    .detail-value {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--on-surface);
+    }
+
+    .detail-value.code {
+        font-size: 14px;
+        font-weight: 500;
+        background: var(--surface-container);
+        padding: 4px 8px;
+        border-radius: var(--radius);
+    }
+
+    .status-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #22c55e;
+        box-shadow: 0 0 6px #22c55e;
+    }
+
+    .status-dot--stopped {
+        background: var(--error);
+    }
+
+    .status-label {
+        font-size: 16px;
+        color: var(--on-surface);
+    }
+
+    .status-label--stopped {
+        color: var(--error);
+    }
+
+
+
+    .manual-card {
+        background: var(--surface-container-low);
+        border: 1px solid var(--outline-variant);
+        border-radius: var(--radius-md);
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .manual-desc {
+        font-size: 16px;
+        color: var(--on-surface);
         margin: 0;
-        line-height: 1.2rem;
-        font-size: 0.75rem;
-        max-width: 100%;
-        word-break: break-all;
-        overflow-wrap: break-word;
-        padding: 0 4px;
-
-        user-select: text;
+        line-height: 1.2;
     }
 
-    .portWarning {
-        box-sizing: border-box;
-        width: 420px;
-        margin: 0 auto;
-        padding: 20px 24px;
-
-        background-color: var(--warning-bg);
-        border: 1px solid var(--warning-border);
-        border-radius: var(--radius-sm);
-
-        text-align: left;
-        color: var(--warning-text);
+    .url-block {
+        background: var(--surface-container-lowest);
+        border: 1px solid var(--outline-variant);
+        border-radius: var(--radius);
+        padding: 16px;
+        cursor: pointer;
     }
 
-    .warningIcon {
-        font-size: 2rem;
-        margin-bottom: 4px;
-        color: var(--warning-icon);
+    .url-block code {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--primary);
+        user-select: all;
     }
 
-    .warningTitle {
-        margin: 0 0 8px;
-        color: var(--warning-title);
+    .placeholder-panel {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 48px 0;
     }
 
-    .warningDesc {
-        margin: 0 0 12px;
-        font-size: 0.9rem;
-        line-height: 1.5;
-
-        strong {
-            color: var(--warning-strong);
-        }
+    .placeholder-icon {
+        width: 64px;
+        height: 64px;
+        color: var(--on-surface-variant);
+        opacity: 0.5;
     }
 
-    .warningSteps {
-        font-size: 0.85rem;
-        line-height: 1.6;
-
-        p {
-            margin: 0 0 4px;
-            font-weight: bold;
-        }
-
-        ol {
-            margin: 0;
-            padding-left: 20px;
-        }
-
-        li {
-            margin-bottom: 2px;
-        }
-
-        code {
-            background-color: rgba(0,0,0,0.08);
-            padding: 1px 5px;
-            border-radius: var(--radius);
-            font-size: 0.82rem;
-        }
+    .placeholder-icon svg {
+        width: 100%;
+        height: 100%;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
     }
-`
+
+    .placeholder-text {
+        font-size: 16px;
+        color: var(--on-surface-variant);
+        text-align: center;
+    }
+`;
+
 export default HomeStyle;

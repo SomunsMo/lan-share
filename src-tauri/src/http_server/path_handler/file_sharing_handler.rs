@@ -404,7 +404,7 @@ pub async fn upload_file(
         let file_absolute_path = target_dir.join(filename);
         let absolute_path_str = crate::utils::path::normalize_path(&file_absolute_path);
         let is_overwrite = *overwrite_flags.get(i).unwrap_or(&false);
-        if let Err(e) = upload_dao::add(2, &absolute_path_str, &client_ip, is_overwrite).await {
+        if let Err(e) = upload_dao::add(2, &absolute_path_str, None, &client_ip, is_overwrite).await {
             log::error!("记录文件上传历史失败: {}", e);
         }
     }

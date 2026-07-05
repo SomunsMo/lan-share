@@ -10,9 +10,9 @@ const Card = styled.div`
     flex-direction: column;
 
     background-color: var(--bg-card);
-    border: none;
-    border-radius: var(--radius-sm);
-
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
     overflow: hidden;
 
     & > h1, & > h2, & > h3, & > h4, & > h5, & > h6 {

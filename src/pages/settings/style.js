@@ -1,96 +1,174 @@
 import styled from "styled-components";
 
 const SettingsStyle = styled.div`
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
-    gap: 16px;
-    align-items: start;
-    user-select: none;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 24px;
+    max-width: 720px;
 
-    .block-title {
-        margin: 0 0 12px;
-        font-size: 0.82rem;
+    .page-header h1 {
+        font-size: 32px;
         font-weight: 600;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: -0.01em;
+        color: var(--on-surface);
     }
 
-    .options-table {
-        width: 100%;
-        border-collapse: collapse;
-
-        td {
-            padding: 8px 0;
-            font-size: 0.9rem;
-        }
-
-        td:first-child {
-            color: var(--text-primary);
-        }
-    }
-
-    .table-value {
-        text-align: right;
-        vertical-align: middle;
-    }
-
-    .directory-text {
-        cursor: pointer;
-        color: var(--accent);
-        font-size: 0.84rem;
-        max-width: 280px;
-        display: inline-block;
+    .section-card {
+        background: var(--surface-container-lowest);
+        border: 1px solid var(--outline-variant);
+        border-radius: var(--radius-md);
         overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        box-shadow: var(--shadow-sm);
     }
 
-    .directory-text:hover {
-        color: var(--accent-hover);
+    .section-card:hover {
+        border-color: color-mix(in srgb, var(--outline-variant) 60%, transparent);
     }
 
-    .port-text {
-        cursor: pointer;
-        color: var(--accent);
+    .section-header {
+        padding: 20px 24px;
+        background: var(--surface-container-low);
+        border-bottom: 1px solid var(--outline-variant);
+    }
+
+    .section-header-top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .section-header svg {
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: var(--primary);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .section-header h2 {
+        font-size: 20px;
         font-weight: 600;
-        font-size: 1rem;
+        color: var(--on-surface);
     }
 
-    .port-text:hover {
-        color: var(--accent-hover);
+    .section-header p {
+        font-size: 14px;
+        color: var(--on-surface-variant);
+        margin: 8px 0 0;
     }
 
-    .theme-select {
-        cursor: pointer;
-        color: var(--text-primary);
-        background-color: var(--bg-input);
-        border: 1px solid var(--border-input);
+    .section-body {
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .option-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .option-label {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .option-label h3 {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--on-surface);
+    }
+
+    .option-label p {
+        font-size: 13px;
+        color: var(--on-surface-variant);
+    }
+
+    .port-value {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: var(--surface-container);
+        border: 1px solid var(--outline-variant);
         border-radius: var(--radius);
-        padding: 0.4em 1.8em 0.4em 0.6em;
-        font-size: 0.88rem;
-        font-family: inherit;
+        color: var(--primary);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color var(--dur-fast) var(--ease);
+    }
+
+    .port-value:hover {
+        background: var(--surface-container-high);
+    }
+
+    .directory-row {
+        display: flex;
+        gap: 0;
+    }
+
+    .directory-input {
+        flex: 1;
+        padding: 10px 14px;
+        background: var(--surface-container-low);
+        border: 1px solid var(--outline-variant);
+        border-right: none;
+        border-radius: var(--radius) 0 0 var(--radius);
+        color: var(--on-surface);
+        font-size: 13px;
+        font-weight: 500;
         outline: none;
+        cursor: pointer;
+    }
+
+    .directory-browse {
+        padding: 10px 16px;
+        background: var(--primary);
+        color: var(--on-primary);
+        border: 1px solid var(--primary);
+        border-radius: 0 var(--radius) var(--radius) 0;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color var(--dur-fast) var(--ease);
+    }
+
+    .directory-browse:hover {
+        background: color-mix(in srgb, var(--primary) 90%, transparent);
+    }
+
+    select.theme-select {
+        padding: 8px 32px 8px 12px;
+        background: var(--surface-container);
+        border: 1px solid var(--outline-variant);
+        border-radius: var(--radius);
+        color: var(--on-surface);
+        font-size: 14px;
+        font-weight: 500;
+        outline: none;
+        cursor: pointer;
+        min-width: 140px;
         appearance: auto;
         -webkit-appearance: auto;
         -moz-appearance: auto;
-        min-width: 120px;
-        text-align: left;
     }
 
-    .theme-select:hover {
-        border-color: var(--accent);
+    select.theme-select:hover {
+        background: var(--surface-container-high);
     }
 
-    .theme-select:focus {
-        border-color: var(--accent);
+    select.theme-select:focus {
+        border-color: var(--primary);
+        box-shadow: var(--shadow-glow);
     }
-
-    .option-hint {
-        font-size: 0.78rem;
-        color: var(--text-tertiary);
-        margin: 0;
-    }
-`
+`;
 
 export default SettingsStyle;

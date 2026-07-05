@@ -23,14 +23,28 @@
   },
   "route": {
     "home": "Home",
-    "textSharing": "Text Share",
-    "history": "History",
-    "settings": "Settings"
+    "textSharing": "Share Text",
+    "history": "Transfer Log",
+    "settings": "Settings",
+    "about": "About"
+  },
+  "navbar": {
+    "tagline": "LAN file & text sharing"
   },
   "home": {
-    "subtitle": "LAN file sharing tool over HTTP",
-    "scanTips": "Scan with other devices on LAN",
-    "orVisit": "Or visit",
+    "scanTips": "Scan within LAN",
+    "detailsTitle": "Device Info",
+    "deviceName": "Device Name",
+    "localIp": "Local IP",
+    "port": "Port",
+    "status": "Status",
+    "listening": "Listening...",
+    "manualDesc": "If scanning is unavailable, access manually",
+    "copyTooltip": "Click to copy",
+    "notRunning": "Not Running",
+    "serviceUnavailable": "Service Unavailable",
+    "reasonTitle": "Reason",
+    "reasonPortOccupied": "Port {{port}} is occupied",
     "firstRun": {
       "title": "First Run",
       "content": "You haven't set up a file sharing directory yet. Other devices will not be able to access shared files via browser.\nSet it up now?",
@@ -47,18 +61,44 @@
     "selectDirTitle": "Select Sharing Root Directory"
   },
   "settings": {
+    "pageTitle": "Settings",
     "sectionBasic": "Basic",
     "sectionSharing": "Sharing",
+    "sectionNetwork": "Network Configuration",
+    "sectionNetworkHint": "Manage connectivity and ports.",
+    "sectionSystem": "System Preferences",
+    "sectionSystemHint": "Application startup and behavior.",
+    "sectionAppearance": "Appearance",
+    "sectionAppearanceHint": "Customize visual theme and language.",
+    "sectionPermissions": "Web Permissions",
+    "sectionPermissionsHint": "Control remote access capabilities.",
+    "sectionRecords": "Recording Settings",
+    "sectionRecordsHint": "Control operation logging from Web pages.",
+    "sectionStorage": "Storage",
+    "sectionStorageHint": "Manage file destinations.",
     "option": {
       "port": "HTTP Server Port",
+      "portDesc": "Click to change internal port",
       "autostart": "Auto Start",
+      "autostartDesc": "Launch application on system startup",
       "theme": "Theme",
+      "themeDesc": "Select application theme",
       "language": "Language",
+      "languageDesc": "Select interface language",
       "shareRoot": "Sharing Root",
+      "shareRootDesc": "Default location for received files",
       "webUpload": "Web Upload",
+      "webUploadDesc": "Allow file uploads via browser",
       "uploadOverwrite": "Upload Overwrite",
+      "uploadOverwriteDesc": "Allow overwriting existing files on upload",
       "webRename": "Web Rename",
-      "webDelete": "Web Delete"
+      "webRenameDesc": "Allow renaming files via browser",
+      "webDelete": "Web Delete",
+      "webDeleteDesc": "Allow deleting files via browser",
+      "recordCopy": "Record Text Copy",
+      "recordCopyDesc": "Log text copy operations from Web pages",
+      "recordDownload": "Record File Download",
+      "recordDownloadDesc": "Log file download operations from Web pages"
     },
     "themeOption": {
       "system": "Follow System",
@@ -86,22 +126,36 @@
       }
     },
     "labels": {
+      "browse": "Browse",
       "clickToSelect": "Click to select directory",
       "clickToChange": "Click to change directory",
       "clickToModify": "Click to modify port"
     }
   },
   "history": {
+    "pageTitle": "Transfer Log",
+    "pageDesc": "View transfer records between devices.",
+    "filterAll": "All",
+    "filterFiles": "Files",
+    "filterText": "Text",
+    "status": { "file": "Sent", "text": "Received" },
     "type": {
       "text": "Text",
       "file": "File"
     },
+    "detailTitle": "Record Detail",
+    "noPreview": "(File preview not supported)",
+    "noCopyRecords": "No copy records",
+    "copyRecordsTitle": "Copy Records",
+    "copyRecordsSeq": "#",
     "tableHeader": {
       "type": "Type",
       "time": "Time",
       "sourceIp": "Source IP",
-      "overwrite": "Overwrite",
-      "content": "Content"
+      "overwrite": "Overwritten",
+      "content": "Content",
+      "status": "Status",
+      "size": "Size"
     },
     "clearDialog": {
       "title": "Confirm Clear",
@@ -113,14 +167,59 @@
       "textCleared": "Text records cleared",
       "fileCleared": "File records cleared"
     },
+    "overwrite": {
+      "yes": "Overwritten",
+      "no": "Not overwritten"
+    },
+    "fileFolder": "Folder",
+    "fileName": "File Name",
     "clearTextButton": "Clear Text Records",
     "clearFileButton": "Clear File Records",
     "contextMenu": {
+      "viewDetail": "View Detail",
+      "openFileLocation": "Open File Location",
       "copyContent": "Copy Content",
-      "deleteRecord": "Delete Record"
+      "copyPath": "Copy Path",
+      "copyIp": "Copy IP",
+      "deleteRecord": "Delete Record",
+      "viewCopyRecords": "View Copy Records"
     }
   },
+  "about": {
+    "title": "LAN Share",
+    "version": "v1.0.2",
+    "openSource": {
+      "title": "Open Source",
+      "repository": "Repository",
+      "author": "Author",
+      "authorName": "Somunsm"
+    },
+    "license": {
+      "title": "License",
+      "name": "MIT License"
+    },
+    "tech": {
+      "title": "Tech Stack",
+      "rust": "Rust Core",
+      "tauri": "Tauri",
+      "react": "React + Vite",
+      "sqlite": "SQLite"
+    },
+    "checkUpdates": "Check for Updates"
+  },
   "textSharing": {
+    "pageTitle": "Share Text Locally",
+    "pageDesc": "Shared text can be viewed or copied by other devices on the LAN via browser.",
+    "deleteCascadeWarning": "Deleting this record will also delete related copy records. Continue?",
+    "clearButton": "Clear",
+    "recentTitle": "Recent Text Shares",
+    "sentBadge": "Sent",
+    "copyButton": "Copy",
+    "viewButton": "View",
+    "detailTitle": "Message Detail",
+    "detailTime": "Time",
+    "detailIp": "Source IP",
+    "detailContent": "Content",
     "placeholder": "Enter text to share",
     "shareButton": "Share",
     "tableHeader": {
@@ -129,7 +228,9 @@
       "content": "Content"
     },
     "contextMenu": {
+      "viewDetail": "View Detail",
       "copyContent": "Copy Content",
+      "copyIp": "Copy IP",
       "deleteRecord": "Delete Record"
     }
   }

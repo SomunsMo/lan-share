@@ -32,6 +32,14 @@ pub fn get_cmd_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
         system::set_theme_setting,
         system::get_language,
         system::set_language,
-        system::is_sharing_root_configured
+        system::is_sharing_root_configured,
+        system::get_device_name,
+        system::open_file_location,
+        system::open_folder,
+        system::get_record_copy_enabled,
+        system::set_record_copy_enabled,
+        system::get_record_download_enabled,
+        system::set_record_download_enabled,
+        system::get_copy_records
     ]
 }

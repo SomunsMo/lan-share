@@ -22,6 +22,7 @@ pub mod http_server {
     pub mod responses;
     pub mod path_handler {
         pub mod file_sharing_handler;
+        pub mod record_handler;
         pub mod text_sharing_handler;
         pub mod web_handler;
     }

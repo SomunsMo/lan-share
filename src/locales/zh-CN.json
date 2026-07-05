@@ -23,14 +23,28 @@
   },
   "route": {
     "home": "主页",
-    "textSharing": "文本共享",
-    "history": "历史记录",
-    "settings": "设置"
+    "textSharing": "共享文本",
+    "history": "传输日志",
+    "settings": "设置",
+    "about": "关于"
+  },
+  "navbar": {
+    "tagline": "局域网文件与文本共享"
   },
   "home": {
-    "subtitle": "基于 Http 的局域网文件传输工具",
-    "scanTips": "在其他设备浏览器扫码",
-    "orVisit": "或访问",
+    "scanTips": "局域网内扫码",
+    "detailsTitle": "设备信息",
+    "deviceName": "设备名称",
+    "localIp": "局域网 IP",
+    "port": "端口号",
+    "status": "状态",
+    "listening": "运行中...",
+    "manualDesc": "如果无法扫码，请手动访问",
+    "copyTooltip": "点击复制",
+    "notRunning": "未运行",
+    "serviceUnavailable": "服务不可用",
+    "reasonTitle": "异常原因",
+    "reasonPortOccupied": "端口 {{port}} 被占用",
     "firstRun": {
       "title": "首次运行",
       "content": "您还没有设置文件共享目录，其他设备将无法通过浏览器访问共享文件。\n是否立即设置？",
@@ -47,18 +61,44 @@
     "selectDirTitle": "选择共享根目录"
   },
   "settings": {
+    "pageTitle": "设置",
     "sectionBasic": "基础",
     "sectionSharing": "共享",
+    "sectionNetwork": "网络配置",
+    "sectionNetworkHint": "管理连接和端口设置。",
+    "sectionSystem": "系统偏好",
+    "sectionSystemHint": "应用启动和行为设置。",
+    "sectionAppearance": "外观",
+    "sectionAppearanceHint": "自定义视觉主题和语言。",
+    "sectionPermissions": "Web 权限",
+    "sectionPermissionsHint": "控制远程访问能力。",
+    "sectionRecords": "记录设置",
+    "sectionRecordsHint": "控制 Web 页面的操作记录。",
+    "sectionStorage": "存储",
+    "sectionStorageHint": "管理文件存储位置。",
     "option": {
       "port": "Http Server端口",
+      "portDesc": "点击修改内部端口",
       "autostart": "开机自启",
+      "autostartDesc": "开机时自动启动应用",
       "theme": "主题",
+      "themeDesc": "选择应用主题",
       "language": "语言",
+      "languageDesc": "选择界面语言",
       "shareRoot": "共享根目录",
+      "shareRootDesc": "接收文件的默认存储位置",
       "webUpload": "网页端上传",
+      "webUploadDesc": "允许通过 Web 上传文件",
       "uploadOverwrite": "上传可覆盖",
+      "uploadOverwriteDesc": "上传时允许覆盖同名文件",
       "webRename": "网页端重命名",
-      "webDelete": "网页端删除"
+      "webRenameDesc": "允许通过 Web 重命名文件",
+      "webDelete": "网页端删除",
+      "webDeleteDesc": "允许通过 Web 删除文件",
+      "recordCopy": "记录文本复制",
+      "recordCopyDesc": "记录 Web 页面的文本复制操作",
+      "recordDownload": "记录文件下载",
+      "recordDownloadDesc": "记录 Web 页面的文件下载操作"
     },
     "themeOption": {
       "system": "跟随系统",
@@ -86,22 +126,36 @@
       }
     },
     "labels": {
+      "browse": "浏览",
       "clickToSelect": "点击选择目录",
       "clickToChange": "点击更改目录",
       "clickToModify": "点击修改端口"
     }
   },
   "history": {
+    "pageTitle": "传输日志",
+    "pageDesc": "查看设备间的传输日志。",
+    "filterAll": "全部",
+    "filterFiles": "文件",
+    "filterText": "文本",
+    "status": { "file": "已发送", "text": "已接收" },
     "type": {
       "text": "文本",
       "file": "文件"
     },
+    "detailTitle": "记录详情",
+    "noPreview": "（不支持预览文件）",
+    "noCopyRecords": "暂无复制记录",
+    "copyRecordsTitle": "复制记录",
+    "copyRecordsSeq": "序号",
     "tableHeader": {
       "type": "类型",
       "time": "时间",
       "sourceIp": "来源IP",
-      "overwrite": "覆盖",
-      "content": "内容"
+      "overwrite": "是否覆盖",
+      "content": "内容",
+      "status": "状态",
+      "size": "大小"
     },
     "clearDialog": {
       "title": "确认清空",
@@ -113,14 +167,59 @@
       "textCleared": "文本记录已清空",
       "fileCleared": "文件记录已清空"
     },
+    "overwrite": {
+      "yes": "覆盖上传",
+      "no": "未覆盖"
+    },
+    "fileFolder": "文件夹",
+    "fileName": "文件名",
     "clearTextButton": "清空文本记录",
     "clearFileButton": "清空文件记录",
     "contextMenu": {
+      "viewDetail": "查看详情",
+      "openFileLocation": "打开文件位置",
       "copyContent": "复制内容",
-      "deleteRecord": "删除记录"
+      "copyPath": "复制路径",
+      "copyIp": "复制 IP",
+      "deleteRecord": "删除记录",
+      "viewCopyRecords": "查看复制记录"
     }
   },
+  "about": {
+    "title": "LAN Share",
+    "version": "v1.0.2",
+    "openSource": {
+      "title": "开源",
+      "repository": "仓库地址",
+      "author": "作者",
+      "authorName": "Somunsm"
+    },
+    "license": {
+      "title": "许可证",
+      "name": "MIT License"
+    },
+    "tech": {
+      "title": "技术栈",
+      "rust": "Rust Core",
+      "tauri": "Tauri",
+      "react": "React + Vite",
+      "sqlite": "SQLite"
+    },
+    "checkUpdates": "检查更新"
+  },
   "textSharing": {
+    "pageTitle": "共享文本",
+    "pageDesc": "共享文本后，局域网内其他设备可通过浏览器查看或复制。",
+    "deleteCascadeWarning": "删除该记录会导致相关的复制记录也会被删除，确定继续？",
+    "clearButton": "清空",
+    "recentTitle": "最近共享",
+    "sentBadge": "已发送",
+    "copyButton": "复制",
+    "viewButton": "查看",
+    "detailTitle": "消息详情",
+    "detailTime": "时间",
+    "detailIp": "来源 IP",
+    "detailContent": "内容",
     "placeholder": "请输入要分享的文本",
     "shareButton": "共享",
     "tableHeader": {
@@ -129,7 +228,9 @@
       "content": "内容"
     },
     "contextMenu": {
+      "viewDetail": "查看详情",
       "copyContent": "复制内容",
+      "copyIp": "复制 IP",
       "deleteRecord": "删除记录"
     }
   }

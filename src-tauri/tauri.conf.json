@@ -15,8 +15,8 @@
         "title": "LAN Share",
         "width": 900,
         "height": 500,
-        "minWidth": 800,
-        "minHeight": 400
+        "minWidth": 980,
+        "minHeight": 630
       }
     ],
     "security": {

@@ -1,5 +1,13 @@
 use crate::db::dao::config_dao;
 use crate::db::dao::upload_dao;
+use serde::Serialize;
+
+#[derive(Serialize)]
+pub struct ServerStatus {
+    pub running: bool,
+    pub port: u16,
+    pub reason: String,
+}
 
 /// 获取本机内网IP
 #[tauri::command]
@@ -7,17 +15,25 @@ pub fn get_local_ip() -> String {
     local_ip_address::local_ip().unwrap().to_string()
 }
 
-/// 清空共享文本记录
+/// 获取设备名称
+#[tauri::command]
+pub fn get_device_name() -> String {
+    std::env::var("COMPUTERNAME")
+        .or_else(|_| std::env::var("HOSTNAME"))
+        .unwrap_or_else(|_| "Unknown Device".to_string())
+}
+
+/// 清空共享文本记录（同时清空关联的复制记录）
 #[tauri::command]
 pub async fn clear_sharing_text() -> u64 {
-    let result_count = upload_dao::remove_all(1).await.unwrap_or(0);
-    log::info!("清空共享文本记录{}条", result_count);
+    let result_count = upload_dao::remove_by_types(&[1, 3]).await.unwrap_or(0);
+    log::info!("清空共享文本和复制记录{}条", result_count);
     result_count
 }
 
 /// 获取文本共享历史记录
 #[tauri::command]
-pub async fn get_text_sharing_history() -> Result<Vec<crate::db::entity::UploadRecord>, String> {
+pub async fn get_text_sharing_history() -> Result<Vec<crate::db::entity::TransferRecord>, String> {
     match upload_dao::list_by_type(1).await {
         Ok(records) => Ok(records),
         Err(err) => {
@@ -27,10 +43,10 @@ pub async fn get_text_sharing_history() -> Result<Vec<crate::db::entity::UploadR
     }
 }
 
-/// 删除指定的文本共享记录
+/// 删除指定的文本共享记录（级联删除关联的复制记录）
 #[tauri::command]
 pub async fn delete_text_sharing_record(id: i64) -> Result<u64, String> {
-    match upload_dao::remove(id).await {
+    match upload_dao::remove_text_cascade(id).await {
         Ok(count) => Ok(count),
         Err(err) => {
             log::error!("删除文本共享记录失败: {}", err);
@@ -48,7 +64,7 @@ pub async fn share_text_to_lan(text_data: String) -> Result<(), String> {
     log::info!("来自[{}]的文本：{}", local_ip, text_data);
 
     // 将文本保存到数据库
-    match upload_dao::add(1, &text_data, &local_ip, false).await {
+    match upload_dao::add(1, &text_data, None, &local_ip, false).await {
         Ok(_) => {
             log::info!("文本分享成功");
             Ok(())
@@ -298,14 +314,20 @@ pub fn get_running_port() -> u16 {
 }
 
 /// 获取HTTP服务器运行状态（前端主动查询）
-/// 返回 Ok(端口号) 表示服务器正常运行，Err(端口号) 表示端口被占用
 #[tauri::command]
-pub fn get_server_status() -> Result<u16, u16> {
+pub fn get_server_status() -> ServerStatus {
     let port = *crate::config::config::get_running_http_port();
-    if crate::config::config::OCCUPIED_PORT.get().is_some() {
-        Err(port)
-    } else {
-        Ok(port)
+    match crate::config::config::OCCUPIED_PORT.get() {
+        Some(p) => ServerStatus {
+            running: false,
+            port: *p,
+            reason: "port_occupied".to_string(),
+        },
+        None => ServerStatus {
+            running: true,
+            port,
+            reason: String::new(),
+        },
     }
 }
 
@@ -326,17 +348,17 @@ pub async fn set_http_port(port: u16) -> Result<(), String> {
     Ok(())
 }
 
-/// 清空文件上传记录
+/// 清空文件上传记录（同时清空关联的下载记录）
 #[tauri::command]
 pub async fn clear_sharing_file() -> u64 {
-    let result_count = upload_dao::remove_all(2).await.unwrap_or(0);
-    log::info!("清空文件上传记录{}条", result_count);
+    let result_count = upload_dao::remove_by_types(&[2, 4]).await.unwrap_or(0);
+    log::info!("清空文件和下载记录{}条", result_count);
     result_count
 }
 
 /// 获取文件上传历史记录
 #[tauri::command]
-pub async fn get_file_sharing_history() -> Result<Vec<crate::db::entity::UploadRecord>, String> {
+pub async fn get_file_sharing_history() -> Result<Vec<crate::db::entity::TransferRecord>, String> {
     match upload_dao::list_by_type(2).await {
         Ok(records) => Ok(records),
         Err(err) => {
@@ -346,7 +368,7 @@ pub async fn get_file_sharing_history() -> Result<Vec<crate::db::entity::UploadR
     }
 }
 
-/// 删除指定的文件上传记录
+/// 删除指定的文件上传记录（不关联下载记录）
 #[tauri::command]
 pub async fn delete_file_sharing_record(id: i64) -> Result<u64, String> {
     match upload_dao::remove(id).await {
@@ -358,14 +380,156 @@ pub async fn delete_file_sharing_record(id: i64) -> Result<u64, String> {
     }
 }
 
-/// 获取所有上传历史记录（文本+文件）
+/// 获取所有历史记录（排除复制记录）
 #[tauri::command]
-pub async fn get_all_upload_history() -> Result<Vec<crate::db::entity::UploadRecord>, String> {
+pub async fn get_all_upload_history() -> Result<Vec<crate::db::entity::TransferRecord>, String> {
     match upload_dao::list_all().await {
+        Ok(records) => {
+            // 过滤掉复制记录（action_type=3），它们通过子弹窗查看
+            let filtered: Vec<_> = records.into_iter().filter(|r| r.action_type != 3).collect();
+            Ok(filtered)
+        }
+        Err(err) => {
+            log::error!("获取所有历史记录失败: {}", err);
+            Err(err.to_string())
+        }
+    }
+}
+
+/// 获取指定文本记录的复制记录
+#[tauri::command]
+pub async fn get_copy_records(source_id: i64) -> Result<Vec<crate::db::entity::TransferRecord>, String> {
+    match upload_dao::list_copies_by_source(source_id).await {
         Ok(records) => Ok(records),
         Err(err) => {
-            log::error!("获取所有上传历史记录失败: {}", err);
+            log::error!("获取复制记录失败: {}", err);
             Err(err.to_string())
+        }
+    }
+}
+
+// ===== 记录开关设置 =====
+
+/// 获取复制记录开关
+#[tauri::command]
+pub async fn get_record_copy_enabled() -> Result<bool, String> {
+    match config_dao::get_config_value("record_copy_enabled").await {
+        Ok(Some(value)) => Ok(value.parse::<bool>().unwrap_or(false)),
+        Ok(None) => Ok(false),
+        Err(e) => {
+            log::warn!("获取复制记录设置失败: {}", e);
+            Ok(false)
+        }
+    }
+}
+
+/// 设置复制记录开关
+#[tauri::command]
+pub async fn set_record_copy_enabled(enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+    if let Err(e) = config_dao::set_config("record_copy_enabled", value).await {
+        log::error!("保存复制记录设置失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+    log::info!("复制记录设置已更新为: {}", enabled);
+    Ok(())
+}
+
+/// 获取下载记录开关
+#[tauri::command]
+pub async fn get_record_download_enabled() -> Result<bool, String> {
+    match config_dao::get_config_value("record_download_enabled").await {
+        Ok(Some(value)) => Ok(value.parse::<bool>().unwrap_or(false)),
+        Ok(None) => Ok(false),
+        Err(e) => {
+            log::warn!("获取下载记录设置失败: {}", e);
+            Ok(false)
+        }
+    }
+}
+
+/// 设置下载记录开关
+#[tauri::command]
+pub async fn set_record_download_enabled(enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+    if let Err(e) = config_dao::set_config("record_download_enabled", value).await {
+        log::error!("保存下载记录设置失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+    log::info!("下载记录设置已更新为: {}", enabled);
+    Ok(())
+}
+
+/// 在文件管理器中打开文件位置
+#[tauri::command]
+pub async fn open_file_location(filename: String) -> Result<(), String> {
+    // content 存储的是绝对路径，直接使用即可
+    let full_path = std::path::PathBuf::from(&filename);
+
+    if !full_path.exists() {
+        log::warn!("文件不存在: {}", filename);
+        return Err(format!("文件不存在: {}", filename));
+    }
+
+    let result = if cfg!(target_os = "windows") {
+        // Windows explorer 需要使用反斜杠
+        let win_path = full_path.to_string_lossy().replace('/', "\\");
+        std::process::Command::new("explorer")
+            .arg("/select,")
+            .arg(&win_path)
+            .spawn()
+    } else if cfg!(target_os = "macos") {
+        std::process::Command::new("open")
+            .arg("-R")
+            .arg(&full_path)
+            .spawn()
+    } else {
+        // Linux: open parent directory
+        let parent = full_path.parent().unwrap_or(&full_path);
+        std::process::Command::new("xdg-open")
+            .arg(parent)
+            .spawn()
+    };
+
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("无法打开文件位置: {}", e);
+            Err(format!("无法打开文件位置: {}", e))
+        }
+    }
+}
+
+/// 在文件管理器中打开文件夹
+#[tauri::command]
+pub async fn open_folder(path: String) -> Result<(), String> {
+    let full_path = std::path::PathBuf::from(&path);
+
+    if !full_path.exists() || !full_path.is_dir() {
+        log::warn!("文件夹不存在: {}", path);
+        return Err(format!("文件夹不存在: {}", path));
+    }
+
+    let result = if cfg!(target_os = "windows") {
+        let win_path = full_path.to_string_lossy().replace('/', "\\");
+        std::process::Command::new("explorer")
+            .arg(&win_path)
+            .spawn()
+    } else if cfg!(target_os = "macos") {
+        std::process::Command::new("open")
+            .arg(&full_path)
+            .spawn()
+    } else {
+        std::process::Command::new("xdg-open")
+            .arg(&full_path)
+            .spawn()
+    };
+
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("无法打开文件夹: {}", e);
+            Err(format!("无法打开文件夹: {}", e))
         }
     }
 }

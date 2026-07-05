@@ -27,3 +27,10 @@ dist-ssr
 src-tauri/target/
 target
 /.claude/
+
+# Skill artifacts (keep local only)
+.superpowers/
+docs/superpowers/
+PROJECT_UNDERSTANDING.md
+style-preview.html
+style-reference.md
