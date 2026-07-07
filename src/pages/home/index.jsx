@@ -121,7 +121,7 @@ function Home() {
                             <div className="placeholder-icon">
                                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                             </div>
-                            <Typography variant="body1" color="var(--on-surface-variant)" textAlign="center">
+                            <Typography variant="body1" color="var(--on-surface-variant)" sx={{ textAlign: 'center' }}>
                                 {t('home.serviceUnavailable') || 'Service Unavailable'}
                             </Typography>
                         </div>
@@ -180,7 +180,7 @@ function Home() {
                             <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>
                                 {t('home.manualDesc')}
                             </Typography>
-                            <Box onClick={copyUrl} title={t('home.copyTooltip')} sx={{ bgcolor: 'var(--surface-container-lowest)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', p: 2, cursor: 'pointer' }}>
+                            <Box onClick={copyUrl} title={t('home.copyTooltip')} sx={{ bgcolor: 'var(--surface-container-lowest)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', p: 2, cursor: 'pointer', textAlign: 'center' }}>
                                 <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--primary)', userSelect: 'all', fontFamily: 'var(--font-family-heading)' }}>
                                     {webUrl ? webUrl.replace('http://', '') : ''}
                                 </Typography>
