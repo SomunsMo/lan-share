@@ -174,7 +174,6 @@
   },
   "about": {
     "title": "LAN Share",
-    "version": "v1.0.2",
     "openSource": {
       "title": "开源仓库"
     },
@@ -182,7 +181,17 @@
       "title": "许可证",
       "name": "MIT License"
     },
-    "checkUpdates": "检查更新"
+    "checkUpdates": "检查更新",
+    "update": {
+      "title": "发现新版本",
+      "newVersion": "最新版本：{{version}}",
+      "download": "去下载",
+      "later": "稍后再说",
+      "checking": "检查中...",
+      "upToDate": "已是最新版本",
+      "error": "检查更新失败：{{error}}",
+      "noReleaseNotes": "暂无发布说明"
+    }
   },
   "textSharing": {
     "pageTitle": "共享文本",

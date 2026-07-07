@@ -174,7 +174,6 @@
   },
   "about": {
     "title": "LAN Share",
-    "version": "v1.0.2",
     "openSource": {
       "title": "Open Source Repository"
     },
@@ -182,7 +181,17 @@
       "title": "License",
       "name": "MIT License"
     },
-    "checkUpdates": "Check for Updates"
+    "checkUpdates": "Check for Updates",
+    "update": {
+      "title": "New Version Available",
+      "newVersion": "Latest version: {{version}}",
+      "download": "Download",
+      "later": "Later",
+      "checking": "Checking...",
+      "upToDate": "Already up to date",
+      "error": "Update check failed: {{error}}",
+      "noReleaseNotes": "No release notes"
+    }
   },
   "textSharing": {
     "pageTitle": "Share Text Locally",
