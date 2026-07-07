@@ -160,14 +160,31 @@ const AppStyle = styled.div`
 
     .content {
         display: flex;
+        flex-direction: column;
         width: 100%;
         max-width: 1400px;
         padding: 0 20px 20px;
         margin: 0 auto;
+        align-items: center;
+        box-sizing: border-box;
+    }
+
+    .textRow {
+        display: flex;
         flex-wrap: wrap;
         justify-content: center;
+        width: 100%;
         gap: 0;
-        box-sizing: border-box;
+    }
+
+    .fileRow {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+
+        > * {
+            width: 100%;
+        }
     }
 `
 
