@@ -742,3 +742,119 @@ pub async fn set_theme_setting(theme: String) -> Result<(), String> {
     log::info!("主题设置已更新为: {}", theme);
     Ok(())
 }
+
+// ===== 检查更新 =====
+
+#[derive(Debug, Serialize)]
+pub struct UpdateCheckResult {
+    pub has_update: bool,
+    pub latest_version: String,
+    pub release_notes: String,
+    pub download_url: String,
+    pub error: Option<String>,
+}
+
+/// 获取当前应用版本号（从 Cargo.toml 编译时读取）
+#[tauri::command]
+pub fn get_app_version() -> String {
+    format!("v{}", env!("CARGO_PKG_VERSION"))
+}
+
+/// 检查 GitHub 上是否有新版本
+#[tauri::command]
+pub async fn check_update() -> UpdateCheckResult {
+    let current = env!("CARGO_PKG_VERSION");
+    let client = reqwest::Client::builder()
+        .user_agent(format!("lan-share/{}", current))
+        .build();
+
+    let client = match client {
+        Ok(c) => c,
+        Err(e) => {
+            return UpdateCheckResult {
+                has_update: false,
+                latest_version: String::new(),
+                release_notes: String::new(),
+                download_url: "https://github.com/SomunsMo/lan-share/releases".to_string(),
+                error: Some(format!("创建 HTTP 客户端失败: {}", e)),
+            };
+        }
+    };
+
+    let resp = client
+        .get("https://api.github.com/repos/SomunsMo/lan-share/releases/latest")
+        .send()
+        .await;
+
+    let resp = match resp {
+        Ok(r) => r,
+        Err(e) => {
+            return UpdateCheckResult {
+                has_update: false,
+                latest_version: String::new(),
+                release_notes: String::new(),
+                download_url: "https://github.com/SomunsMo/lan-share/releases".to_string(),
+                error: Some(format!("网络请求失败: {}", e)),
+            };
+        }
+    };
+
+    if !resp.status().is_success() {
+        return UpdateCheckResult {
+            has_update: false,
+            latest_version: String::new(),
+            release_notes: String::new(),
+            download_url: "https://github.com/SomunsMo/lan-share/releases".to_string(),
+            error: Some(format!("GitHub API 返回异常状态码: {}", resp.status())),
+        };
+    }
+
+    let body: Result<serde_json::Value, _> = resp.json().await;
+    let body = match body {
+        Ok(b) => b,
+        Err(e) => {
+            return UpdateCheckResult {
+                has_update: false,
+                latest_version: String::new(),
+                release_notes: String::new(),
+                download_url: "https://github.com/SomunsMo/lan-share/releases".to_string(),
+                error: Some(format!("解析响应数据失败: {}", e)),
+            };
+        }
+    };
+
+    let tag_name = body["tag_name"].as_str().unwrap_or("");
+    let latest_version = tag_name.trim_start_matches('v');
+    let release_notes = body["body"].as_str().unwrap_or("");
+    let html_url = body["html_url"].as_str().unwrap_or("https://github.com/SomunsMo/lan-share/releases");
+
+    let has_update = compare_versions(latest_version, current);
+
+    UpdateCheckResult {
+        has_update,
+        latest_version: format!("v{}", latest_version),
+        release_notes: release_notes.to_string(),
+        download_url: html_url.to_string(),
+        error: None,
+    }
+}
+
+/// 比较两个版本号。latest > current 返回 true
+fn compare_versions(latest: &str, current: &str) -> bool {
+    let parse = |v: &str| -> Vec<u32> {
+        v.trim_start_matches('v')
+            .split('.')
+            .filter_map(|s| s.parse::<u32>().ok())
+            .collect()
+    };
+    let latest_parts = parse(latest);
+    let current_parts = parse(current);
+    for (l, c) in latest_parts.iter().zip(current_parts.iter()) {
+        if l > c {
+            return true;
+        } else if l < c {
+            return false;
+        }
+    }
+    latest_parts.len() > current_parts.len()
+}
