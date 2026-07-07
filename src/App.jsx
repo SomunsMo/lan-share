@@ -36,6 +36,34 @@ function App() {
         loadTheme();
     }, []);
 
+    // 加载主题色并初始化 MUI palette CSS 变量
+    useEffect(() => {
+        const loadThemeColor = async () => {
+            try {
+                const json = await invoke('get_theme_color');
+                const { h, s, l } = JSON.parse(json);
+                const html = document.documentElement;
+                html.style.setProperty('--hue-primary', h);
+                html.style.setProperty('--sat-primary', `${s}%`);
+                html.style.setProperty('--lig-primary', `${l}%`);
+            } catch (e) {
+                // 使用 AppLight.css 中的默认值
+            }
+            // 始终设置 --mui-palette-* 变量（默认值已由 AppLight.css 提供）
+            const html = document.documentElement;
+            const muiRoots = document.querySelectorAll('[data-mui-color-scheme]');
+            (muiRoots.length ? [...muiRoots] : [html]).forEach(el => {
+                el.style.setProperty('--mui-palette-primary-main', 'var(--primary)');
+                el.style.setProperty('--mui-palette-primary-contrastText', 'var(--on-primary)');
+                el.style.setProperty('--mui-palette-primary-dark', 'var(--primary-hover)');
+                el.style.setProperty('--mui-palette-secondary-main', 'var(--secondary)');
+                el.style.setProperty('--mui-palette-background-default', 'var(--surface-bright)');
+                el.style.setProperty('--mui-palette-background-paper', 'var(--surface-container-lowest)');
+            });
+        };
+        loadThemeColor();
+    }, []);
+
     // 屏蔽右键菜单
     const disableContextMenu = (e) => {
         e.preventDefault();
