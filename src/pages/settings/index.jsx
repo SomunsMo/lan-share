@@ -23,6 +23,7 @@ function Settings() {
     const [recordCopyEnabled, setRecordCopyEnabled] = useState(false);
     const [recordDownloadEnabled, setRecordDownloadEnabled] = useState(false);
     const [autostartEnabled, setAutostartEnabled] = useState(false);
+    const [autostartMinimized, setAutostartMinimized] = useState(false);
     const [httpPort, setHttpPort] = useState(3000);
     const [themeSetting, setThemeSetting] = useState("system");
     const [huePrimary, setHuePrimary] = useState(() => {
@@ -171,6 +172,18 @@ function Settings() {
         };
 
         fetchAutostartSetting();
+
+        const fetchAutostartMinimizedSetting = async () => {
+            try {
+                const enabled = await invoke('get_autostart_minimized');
+                setAutostartMinimized(enabled);
+            } catch (error) {
+                console.error('获取开机最小化启动设置失败:', error);
+                setAutostartMinimized(false);
+            }
+        };
+
+        fetchAutostartMinimizedSetting();
 
         const fetchThemeSetting = async () => {
             try {
@@ -453,6 +466,19 @@ function Settings() {
         }
     };
 
+    const handleAutostartMinimizedChange = async (event) => {
+        const checked = event.target.checked;
+        setAutostartMinimized(checked);
+
+        try {
+            await invoke('set_autostart_minimized', {enabled: checked});
+        } catch (error) {
+            console.error('保存开机最小化启动设置失败:', error);
+            setAutostartMinimized(!checked);
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.autostartMinimized'), error: error.message}), type: 'error'});
+        }
+    };
+
     const optionMap = [
         {
             name: t('settings.sectionNetwork'),
@@ -481,6 +507,13 @@ function Settings() {
                     desc: t('settings.option.autostartDesc'),
                     content: (
                         <Switch checked={autostartEnabled} onChange={handleAutostartChange} />
+                    ),
+                },
+                {
+                    name: t('settings.option.autostartMinimized'),
+                    desc: t('settings.option.autostartMinimizedDesc'),
+                    content: (
+                        <Switch checked={autostartMinimized} disabled={!autostartEnabled} onChange={handleAutostartMinimizedChange} />
                     ),
                 },
             ]
@@ -620,7 +653,6 @@ function Settings() {
                             {sectionIcons[section.icon]}
                             <Typography variant="h6" fontSize="1.5rem" fontWeight={600} sx={{ color: 'var(--on-surface)' }}>{section.name}</Typography>
                         </div>
-                        <Typography variant="body2" fontSize="0.875rem" sx={{ color: 'var(--on-surface-variant)' }}>{section.hint}</Typography>
                     </div>
                     <div className="section-body">
                         {section.options.map((opt, oi) => (
