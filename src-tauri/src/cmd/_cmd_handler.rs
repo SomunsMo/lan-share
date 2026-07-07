@@ -27,7 +27,7 @@ pub fn get_cmd_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
         system::clear_sharing_file,
         system::get_file_sharing_history,
         system::delete_file_sharing_record,
-        system::get_all_upload_history,
+        system::get_transfer_log,
         system::get_theme_setting,
         system::set_theme_setting,
         system::get_language,
@@ -40,6 +40,8 @@ pub fn get_cmd_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
         system::set_record_copy_enabled,
         system::get_record_download_enabled,
         system::set_record_download_enabled,
-        system::get_copy_records
+        system::get_copy_records,
+        system::get_theme_color,
+        system::set_theme_color
     ]
 }

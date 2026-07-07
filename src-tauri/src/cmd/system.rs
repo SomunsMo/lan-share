@@ -3,6 +3,12 @@ use crate::db::dao::upload_dao;
 use serde::Serialize;
 
 #[derive(Serialize)]
+pub struct PaginatedResult {
+    pub records: Vec<crate::db::entity::TransferRecord>,
+    pub has_more: bool,
+}
+
+#[derive(Serialize)]
 pub struct ServerStatus {
     pub running: bool,
     pub port: u16,
@@ -380,17 +386,31 @@ pub async fn delete_file_sharing_record(id: i64) -> Result<u64, String> {
     }
 }
 
-/// 获取所有历史记录（排除复制记录）
+/// 分页查询历史记录（支持游标、搜索、排序、类型过滤）
 #[tauri::command]
-pub async fn get_all_upload_history() -> Result<Vec<crate::db::entity::TransferRecord>, String> {
-    match upload_dao::list_all().await {
-        Ok(records) => {
-            // 过滤掉复制记录（action_type=3），它们通过子弹窗查看
-            let filtered: Vec<_> = records.into_iter().filter(|r| r.action_type != 3).collect();
-            Ok(filtered)
-        }
+pub async fn get_transfer_log(
+    cursor_id: Option<i64>,
+    limit: Option<i64>,
+    search: Option<String>,
+    sort_order: Option<String>,
+    action_types: Option<Vec<i64>>,
+) -> Result<PaginatedResult, String> {
+    let limit = limit.unwrap_or(20);
+    let sort_order = sort_order.unwrap_or_else(|| "desc".to_string());
+    let action_types_ref = action_types.as_deref();
+
+    match upload_dao::query_paginated(
+        cursor_id,
+        limit,
+        search.as_deref(),
+        &sort_order,
+        action_types_ref,
+    )
+    .await
+    {
+        Ok((records, has_more)) => Ok(PaginatedResult { records, has_more }),
         Err(err) => {
-            log::error!("获取所有历史记录失败: {}", err);
+            log::error!("分页查询历史记录失败: {}", err);
             Err(err.to_string())
         }
     }
@@ -555,6 +575,31 @@ pub async fn set_language(language: String) -> Result<(), String> {
         return Err(format!("保存配置失败: {}", e));
     }
     log::info!("语言设置已更新为: {}", language);
+    Ok(())
+}
+
+/// 获取主题色设置（JSON: {"h":218,"s":100,"l":39}）
+#[tauri::command]
+pub async fn get_theme_color() -> Result<String, String> {
+    match config_dao::get_config_value("theme_color").await {
+        Ok(Some(value)) => Ok(value),
+        Ok(None) => Ok("{\"h\":210,\"s\":100,\"l\":40}".to_string()),
+        Err(e) => {
+            log::warn!("获取主题色设置失败: {}", e);
+            Ok("{\"h\":210,\"s\":100,\"l\":40}".to_string())
+        }
+    }
+}
+
+/// 设置主题色
+#[tauri::command]
+pub async fn set_theme_color(h: u16, s: u16, l: u16) -> Result<(), String> {
+    let value = format!("{{\"h\":{},\"s\":{},\"l\":{}}}", h, s, l);
+    if let Err(e) = config_dao::set_config("theme_color", &value).await {
+        log::error!("保存主题色设置到数据库失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+    log::info!("主题色已更新为: {}", value);
     Ok(())
 }
 
