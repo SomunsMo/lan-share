@@ -290,11 +290,124 @@ pub async fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), S
     use tauri_plugin_autostart::ManagerExt;
     if enabled {
         app.autolaunch().enable().map_err(|e| e.to_string())?;
+        // 启用后根据最小化设置追加参数
+        let minimized = get_autostart_minimized_inner().await.unwrap_or(false);
+        update_autostart_args(minimized);
     } else {
         app.autolaunch().disable().map_err(|e| e.to_string())?;
     }
     log::info!("开机自启已更新为: {}", enabled);
     Ok(())
+}
+
+/// 获取开机最小化启动状态
+#[tauri::command]
+pub async fn get_autostart_minimized() -> Result<bool, String> {
+    get_autostart_minimized_inner().await.map_err(|e| e.to_string())
+}
+
+async fn get_autostart_minimized_inner() -> Result<bool, sqlx::Error> {
+    match config_dao::get_config_value("autostart_minimized").await {
+        Ok(Some(val)) => Ok(val == "true"),
+        Ok(None) => Ok(false),
+        Err(e) => Err(e),
+    }
+}
+
+/// 设置开机最小化启动状态
+#[tauri::command]
+pub async fn set_autostart_minimized(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+    config_dao::set_config("autostart_minimized", value)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // 如果开机自启已启用，同步更新 autostart 命令行参数
+    use tauri_plugin_autostart::ManagerExt;
+    if app.autolaunch().is_enabled().unwrap_or(false) {
+        update_autostart_args(enabled);
+    }
+
+    log::info!("开机最小化启动已更新为: {}", enabled);
+    Ok(())
+}
+
+/// 更新 autostart 命令行参数
+fn update_autostart_args(minimized: bool) {
+    let arg = "--silent";
+    let exe = std::env::current_exe().ok();
+    let exe_path = match &exe {
+        Some(p) => p.to_string_lossy().to_string(),
+        None => return,
+    };
+
+    #[cfg(target_os = "windows")]
+    {
+        use winreg::enums::*;
+        use winreg::RegKey;
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        if let Ok(run) = hkcu.open_subkey_with_flags(
+            r"Software\Microsoft\Windows\CurrentVersion\Run",
+            KEY_READ | KEY_SET_VALUE,
+        ) {
+            let key_name = "LAN Share";
+            if minimized {
+                let value = format!("\"{}\" {}", exe_path, arg);
+                let _ = run.set_value(key_name, &value);
+            } else {
+                let value = format!("\"{}\"", exe_path);
+                let _ = run.set_value(key_name, &value);
+            }
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let bundle_id = "cn.sommo.lan-share";
+        let plist_path = dirs::home_dir()
+            .map(|h| h.join(format!("Library/LaunchAgents/{}.plist", bundle_id)));
+        if let Some(path) = plist_path {
+            if path.exists() {
+                // 简单地通过 defaults 命令修改
+                let val = if minimized { "YES" } else { "NO" };
+                let _ = std::process::Command::new("defaults")
+                    .args([
+                        "write",
+                        bundle_id,
+                        "ProgramArguments",
+                        "-array",
+                        &exe_path,
+                        arg,
+                    ])
+                    .output();
+            }
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let desktop_name = "lan-share.desktop"; // 可能需要调整
+        let desktop_path = dirs::data_dir()
+            .map(|d| d.join("autostart").join(desktop_name));
+        if let Some(path) = desktop_path {
+            if path.exists() {
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    let new_content = if minimized {
+                        // 如果尚未包含参数则追加
+                        if content.contains(arg) {
+                            content
+                        } else {
+                            content.replace("Exec=", &format!("Exec={} ", arg))
+                        }
+                    } else {
+                        content.replace(&format!(" {} ", arg), " ")
+                            .replace(&format!("{}", arg), "")
+                    };
+                    let _ = std::fs::write(&path, new_content);
+                }
+            }
+        }
+    }
 }
 
 /// 获取HTTP服务配置端口（可能还未生效，重启后才生效）

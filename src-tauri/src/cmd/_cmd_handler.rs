@@ -20,6 +20,8 @@ pub fn get_cmd_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
         system::set_upload_overwrite_enabled,
         system::get_autostart,
         system::set_autostart,
+        system::get_autostart_minimized,
+        system::set_autostart_minimized,
         system::get_http_port,
         system::set_http_port,
         system::get_running_port,
