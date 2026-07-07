@@ -6,7 +6,7 @@ const theme = createTheme({
   colorSchemes: {
     light: {
       palette: {
-        primary: { main: '#004ac6' },
+        primary: { main: '#004ac6', contrastText: '#ffffff' },
         secondary: { main: '#505f76' },
         error: { main: '#ba1a1a' },
         success: { main: '#2e7d32' },
@@ -15,7 +15,7 @@ const theme = createTheme({
     },
     dark: {
       palette: {
-        primary: { main: '#b4c5ff' },
+        primary: { main: '#b4c5ff', contrastText: '#003ea8' },
         secondary: { main: '#b7c8e1' },
         error: { main: '#ffb4ab' },
         success: { main: '#2e7d32' },
@@ -25,7 +25,7 @@ const theme = createTheme({
   },
   shape: { borderRadius: 8 },
   typography: {
-    fontFamily: '"PingFang SC","Microsoft YaHei",system-ui,sans-serif',
+    fontFamily: '"Alibaba PuHuiTi 3.0","PingFang SC","Microsoft YaHei",system-ui,sans-serif',
     fontSize: 15,
   },
 });

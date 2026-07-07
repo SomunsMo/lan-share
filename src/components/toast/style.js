@@ -45,7 +45,7 @@ export const ToastItemInner = styled.div`
   gap: 12px;
   padding: 14px 20px;
   background: var(--surface-container-lowest);
-  border: 1px solid var(--outline-variant);
+  border: var(--glass-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-md);
   backdrop-filter: blur(12px);

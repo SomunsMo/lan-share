@@ -14,6 +14,9 @@ importers:
       '@emotion/styled':
         specifier: ^11.14.1
         version: 11.14.1(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.3))(@types/react@19.2.17)(react@19.2.3)
+      '@fontpkg/alibaba-pu-hui-ti-3-0':
+        specifier: ^3.1.2
+        version: 3.1.2
       '@mui/material':
         specifier: ^9.2.0
         version: 9.2.0(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.3))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.3))(@types/react@19.2.17)(react@19.2.3))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -215,6 +218,9 @@ packages:
 
   '@emotion/weak-memoize@0.4.0':
     resolution: {integrity: sha512-snKqtPW01tN0ui7yu9rGv69aJXr/a/Ywvl11sUjNtEcRc+ng/mQriFL0wLXMef74iHa/EkftbDzU9F8iFbH+zg==}
+
+  '@fontpkg/alibaba-pu-hui-ti-3-0@3.1.2':
+    resolution: {integrity: sha512-AX2WCJzi65qfGQYKBjNQWlSyWcB6N4QGjgsueTvQUw405LaCOA39XUTbmKKkznvLxnCQkV2fgwhEOteHmMGy1g==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -1228,6 +1234,8 @@ snapshots:
   '@emotion/utils@1.4.2': {}
 
   '@emotion/weak-memoize@0.4.0': {}
+
+  '@fontpkg/alibaba-pu-hui-ti-3-0@3.1.2': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:

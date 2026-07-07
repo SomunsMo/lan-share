@@ -97,12 +97,13 @@ function DialogItem({ dialog, index, closeDialog }) {
         <Dialog
             open={true}
             onClose={() => handleClose(false)}
+            transitionDuration={0}
             slotProps={{
                 backdrop: {
                     sx: { zIndex: 9000 + index }
                 }
             }}
-            sx={{ '& .MuiDialog-paper': { zIndex: 9001 + index } }}
+            sx={{ '& .MuiDialog-paper': { zIndex: 9001 + index, minWidth: 500 } }}
         >
             {dialog.title && <DialogTitle>{dialog.title}</DialogTitle>}
             <DialogContent>
