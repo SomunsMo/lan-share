@@ -168,6 +168,11 @@ const AboutStyle = styled.div`
     }
 
 
+
+/* Dialog 内容区域 */
+.MuiDialogContent-root {
+    max-height: 400px;
+}
 `;
 
 export default AboutStyle;
