@@ -66,6 +66,10 @@ async fn init() {
         log::error!("设置共享根目录失败: {}", e);
     }
 
+    // 读取窗口状态，存入全局供setup同步使用
+    let ws = config_dao::get_config_value("window_state").await.ok().flatten();
+    let _ = lan_share_lib::config::config::WINDOW_STATE_JSON.set(ws);
+
     // 读取HTTP端口配置，存入全局供setup使用
     let port = config_dao::get_config_value("http_port")
         .await

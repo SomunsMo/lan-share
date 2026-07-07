@@ -45,7 +45,80 @@ pub mod embedded {
 }
 
 use log::error;
+use serde::{Deserialize, Serialize};
 use tauri::Manager;
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct WindowState {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+}
+
+const WINDOW_MIN_W: u32 = 800;
+const WINDOW_MIN_H: u32 = 500;
+
+fn save_window_state(window: &tauri::Window) {
+    if let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) {
+        let state = WindowState {
+            x: pos.x,
+            y: pos.y,
+            width: size.width,
+            height: size.height,
+        };
+        if let Ok(json) = serde_json::to_string(&state) {
+            tauri::async_runtime::spawn(async move {
+                let _ = crate::db::dao::config_dao::set_config("window_state", &json).await;
+            });
+        }
+    }
+}
+
+fn load_window_state() -> Option<WindowState> {
+    crate::config::config::WINDOW_STATE_JSON
+        .get()
+        .and_then(|opt| opt.as_ref())
+        .and_then(|json| serde_json::from_str(json).ok())
+}
+
+fn get_monitor_containing(window: &tauri::WebviewWindow, x: i32, y: i32) -> Option<tauri::Monitor> {
+    let monitors = window.available_monitors().ok()?;
+    monitors.into_iter().find(|m| {
+        let mpos = m.position();
+        let msize = m.size();
+        x >= mpos.x && x < mpos.x + msize.width as i32
+            && y >= mpos.y && y < mpos.y + msize.height as i32
+    })
+}
+
+fn clamp_and_center(window: &tauri::WebviewWindow, saved: &WindowState) -> (i32, i32, u32, u32) {
+    let monitor = get_monitor_containing(window, saved.x, saved.y)
+        .or_else(|| window.primary_monitor().ok().flatten());
+    let (mpos, msize) = match &monitor {
+        Some(m) => (m.position(), m.size()),
+        None => return (saved.x, saved.y, saved.width.max(WINDOW_MIN_W), saved.height.max(WINDOW_MIN_H)),
+    };
+
+    let width = saved.width.min(msize.width).max(WINDOW_MIN_W);
+    let height = saved.height.min(msize.height).max(WINDOW_MIN_H);
+    let x = saved.x.clamp(mpos.x, mpos.x + msize.width as i32 - width as i32);
+    let y = saved.y.clamp(mpos.y, mpos.y + msize.height as i32 - height as i32);
+    (x, y, width, height)
+}
+
+fn center_on_primary(window: &tauri::WebviewWindow) -> (i32, i32, u32, u32) {
+    if let Ok(Some(monitor)) = window.primary_monitor() {
+        let msize = monitor.size();
+        let width = WINDOW_MIN_W.min(msize.width);
+        let height = WINDOW_MIN_H.min(msize.height);
+        let x = (msize.width as i32 - width as i32) / 2;
+        let y = (msize.height as i32 - height as i32) / 2;
+        (x.max(0), y.max(0), width, height)
+    } else {
+        (0, 0, WINDOW_MIN_W, WINDOW_MIN_H)
+    }
+}
 
 /// 使用 listeners crate 检测端口是否被占用
 fn is_port_occupied(port: u16) -> bool {
@@ -163,6 +236,24 @@ pub fn run() {
         ))
         .invoke_handler(get_cmd_handler())
         .setup(|app| {
+            // 检测是否以最小化模式启动
+            let is_silent = std::env::args().any(|a| a == "--silent");
+            if let Some(window) = app.get_webview_window("main") {
+                // 恢复窗口状态
+                if let Some(saved) = load_window_state() {
+                    let (x, y, w, h) = clamp_and_center(&window, &saved);
+                    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+                    let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+                } else {
+                    let (x, y, w, h) = center_on_primary(&window);
+                    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+                    let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+                }
+                if !is_silent {
+                    let _ = window.show();
+                }
+            }
+
             // 构建系统托盘
             tray::create_tray_menu(&app.handle());
 
@@ -196,6 +287,8 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                // 保存窗口位置和尺寸
+                save_window_state(window);
                 // 拦截关闭请求，将窗口隐藏到托盘而不是关闭
                 api.prevent_close();
                 window.hide().unwrap();

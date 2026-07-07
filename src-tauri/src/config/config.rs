@@ -4,6 +4,9 @@ use std::sync::OnceLock;
 use log::error;
 use tokio::sync::RwLock;
 
+/// 窗口状态JSON（init中从DB读取，供setup同步使用）
+pub static WINDOW_STATE_JSON: OnceLock<Option<String>> = OnceLock::new();
+
 /// 软件配置目录
 pub static CONFIG_DIR: OnceLock<PathBuf> = OnceLock::new();
 pub fn get_config_dir() -> &'static PathBuf {
