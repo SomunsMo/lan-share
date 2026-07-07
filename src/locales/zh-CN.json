@@ -1,5 +1,6 @@
 {
   "common": {
+    "loading": "加载中...",
     "button": {
       "cancel": "取消",
       "confirm": "确定",
@@ -32,14 +33,16 @@
     "tagline": "局域网文件与文本共享"
   },
   "home": {
-    "scanTips": "局域网内扫码",
+    "scanTips": "扫码连接",
+    "scanTipsDesc": "请确保访问的设备与本设备\n处于同一局域网",
     "detailsTitle": "设备信息",
     "deviceName": "设备名称",
     "localIp": "局域网 IP",
     "port": "端口号",
     "status": "状态",
     "listening": "运行中...",
-    "manualDesc": "如果无法扫码，请手动访问",
+    "manualTitle": "手动连接方式",
+    "manualDesc": "若访问设备无法扫码，可用浏览器手动输入下面地址访问",
     "copyTooltip": "点击复制",
     "notRunning": "未运行",
     "serviceUnavailable": "服务不可用",
@@ -83,6 +86,8 @@
       "autostartDesc": "开机时自动启动应用",
       "theme": "主题",
       "themeDesc": "选择应用主题",
+      "themeColor": "主题色",
+      "themeColorDesc": "点击色块选择自定义主题色",
       "language": "语言",
       "languageDesc": "选择界面语言",
       "shareRoot": "共享根目录",
@@ -98,7 +103,11 @@
       "recordCopy": "记录文本复制",
       "recordCopyDesc": "记录 Web 页面的文本复制操作",
       "recordDownload": "记录文件下载",
-      "recordDownloadDesc": "记录 Web 页面的文件下载操作"
+      "recordDownloadDesc": "记录 Web 页面的文件下载操作",
+      "clearTextRecords": "清空文本记录",
+      "clearTextRecordsDesc": "删除所有文本共享记录",
+      "clearFileRecords": "清空文件记录",
+      "clearFileRecordsDesc": "删除所有文件传输记录"
     },
     "themeOption": {
       "system": "跟随系统",
@@ -143,6 +152,11 @@
       "text": "文本",
       "file": "文件"
     },
+    "typeLabel": {
+      "text": "分享文本",
+      "upload": "上传文件",
+      "download": "下载文件"
+    },
     "detailTitle": "记录详情",
     "noPreview": "（不支持预览文件）",
     "noCopyRecords": "暂无复制记录",
@@ -171,10 +185,21 @@
       "yes": "覆盖上传",
       "no": "未覆盖"
     },
+    "tag": {
+      "size": "大小",
+      "overwriteYes": "覆盖",
+      "overwriteNo": "未覆盖"
+    },
+    "tagTooltip": {
+      "ip": "来源IP",
+      "size": "文件体积",
+      "overwrite": "上传时覆盖了原文件"
+    },
     "fileFolder": "文件夹",
     "fileName": "文件名",
-    "clearTextButton": "清空文本记录",
-    "clearFileButton": "清空文件记录",
+    "searchPlaceholder": "搜索文本内容或文件路径...",
+    "noMoreRecords": "没有更多记录了",
+    "noSearchResults": "没有找到匹配的记录",
     "contextMenu": {
       "viewDetail": "查看详情",
       "openFileLocation": "打开文件位置",

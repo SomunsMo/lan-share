@@ -8,7 +8,6 @@ import {useTranslation} from "react-i18next";
 import {calcMenuPosition} from "../../utils/menu.js";
 import CopyButton from "../../components/copyButton/index.jsx";
 import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -28,9 +27,15 @@ function History() {
     });
     const [menuVersion, setMenuVersion] = useState(0);
     const [activeFilter, setActiveFilter] = useState("all");
+    const [searchQuery, setSearchQuery] = useState('');
+    const [sortOrder, setSortOrder] = useState('desc');
+    const [hasMore, setHasMore] = useState(true);
+    const [loading, setLoading] = useState(false);
     const historyContainerRef = useRef(null);
+    const listBodyRef = useRef(null);
     const contextMenuRef = useRef(null);
     const mousePosRef = useRef({ x: 0, y: 0 });
+    const cursorIdRef = useRef(null);
     const {showToast} = useToast();
     const {showDialog} = useDialog();
 
@@ -112,7 +117,7 @@ function History() {
                         <Table size="small" stickyHeader>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell sx={{ fontWeight: 600, color: 'var(--on-surface-variant)', width: 50 }}>{t('history.copyRecordsSeq')}</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, color: 'var(--on-surface-variant)', width: 50, whiteSpace: 'nowrap' }}>{t('history.copyRecordsSeq')}</TableCell>
                                     <TableCell sx={{ fontWeight: 600, color: 'var(--on-surface-variant)' }}>{t('history.tableHeader.time')}</TableCell>
                                     <TableCell sx={{ fontWeight: 600, color: 'var(--on-surface-variant)' }}>{t('history.tableHeader.sourceIp')}</TableCell>
                                 </TableRow>
@@ -210,26 +215,82 @@ function History() {
         setContextMenu({visible: false, x: 0, y: 0, item: null});
     }, []);
 
-    const loadHistory = useCallback(async () => {
+    const formatRecord = (record) => ({
+        id: record.id,
+        type: record.action_type,
+        time: record.created_at.replace(/-/g, '/'),
+        ip: record.ip,
+        content: record.content,
+        isOverwrite: record.is_overwrite === 1
+    });
+
+    const getActionTypes = (filter) => {
+        if (filter === 'files') return [2, 4];
+        if (filter === 'text') return [1];
+        return [1, 2, 4];
+    };
+
+    // 搜索防抖
+    const [debouncedQuery, setDebouncedQuery] = useState('');
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    const loadPage = useCallback(async (reset = false) => {
+        if (loading) return;
+        if (!reset && !hasMore) return;
+
+        setLoading(true);
+        const currentCursorId = reset ? null : cursorIdRef.current;
+
         try {
-            const records = await invoke('get_all_upload_history');
-            const formattedRecords = records.map(record => ({
-                id: record.id,
-                type: record.action_type,
-                time: record.created_at.replace(/-/g, '/'),
-                ip: record.ip,
-                content: record.content,
-                isOverwrite: record.is_overwrite === 1
-            }));
-            setHistory(formattedRecords);
+            const result = await invoke('get_transfer_log', {
+                cursorId: currentCursorId,
+                limit: 20,
+                search: debouncedQuery || null,
+                sortOrder,
+                actionTypes: getActionTypes(activeFilter),
+            });
+
+            const newRecords = (result.records || []).map(formatRecord);
+            if (reset) {
+                setHistory(newRecords);
+            } else {
+                setHistory(prev => [...prev, ...newRecords]);
+            }
+            cursorIdRef.current = newRecords.length > 0 ? newRecords[newRecords.length - 1].id : null;
+            setHasMore(result.has_more);
         } catch (error) {
             console.error('获取历史记录失败:', error);
+        } finally {
+            setLoading(false);
         }
-    }, []);
+    }, [loading, hasMore, debouncedQuery, sortOrder, activeFilter]);
+
+    // 搜索/排序/过滤变化时重置分页
+    useEffect(() => {
+        cursorIdRef.current = null;
+        setHasMore(true);
+        setLoading(false);
+        loadPage(true);
+    }, [debouncedQuery, sortOrder, activeFilter]);
+
+    // 滚动加载
+    const handleScroll = useCallback(() => {
+        const el = listBodyRef.current;
+        if (!el || loading || !hasMore) return;
+        if (el.scrollHeight - el.scrollTop - el.clientHeight < 150) {
+            loadPage(false);
+        }
+    }, [loading, hasMore, loadPage]);
 
     useEffect(() => {
-        loadHistory();
-    }, [loadHistory]);
+        const el = listBodyRef.current;
+        if (!el) return;
+        el.addEventListener('scroll', handleScroll);
+        return () => el.removeEventListener('scroll', handleScroll);
+    }, [handleScroll]);
 
     useEffect(() => {
         const handleClickOutside = () => {
@@ -244,53 +305,51 @@ function History() {
         };
     }, [contextMenu.visible]);
 
-    const filteredHistory = history.filter(item => {
-        if (activeFilter === "all") return item.type !== 3;
-        if (activeFilter === "files") return item.type === 2 || item.type === 4;
-        if (activeFilter === "text") return item.type === 1;
-        return true;
-    });
-
     const getTypeLabel = (type) => {
-        if (type === 1 || type === 3) return t('history.type.text');
+        if (type === 1) return t('history.type.text');
         return t('history.type.file');
     };
 
-    const clearText = async () => {
-        const confirmed = await showDialog({
-            title: t('history.clearDialog.title'),
-            content: t('history.clearDialog.contentText'),
-            buttons: [
-                {label: 'common.button.cancel', value: false},
-                {label: t('history.clearDialog.buttonClear'), value: true, primary: true, danger: true},
-            ],
-        });
-        if (!confirmed) return;
-        let resultCount = await invoke("clear_sharing_text");
-        showToast({message: t('history.toast.textCleared'), type: 'success'});
-        loadHistory();
-    }
+    const getTypeLabelKey = (type) => {
+        switch (type) {
+            case 1: return 'history.typeLabel.text';
+            case 2: return 'history.typeLabel.upload';
+            case 4: return 'history.typeLabel.download';
+            default: return 'history.typeLabel.text';
+        }
+    };
 
-    const clearFile = async () => {
-        const confirmed = await showDialog({
-            title: t('history.clearDialog.title'),
-            content: t('history.clearDialog.contentFile'),
-            buttons: [
-                {label: 'common.button.cancel', value: false},
-                {label: t('history.clearDialog.buttonClear'), value: true, primary: true, danger: true},
-            ],
-        });
-        if (!confirmed) return;
-        let resultCount = await invoke("clear_sharing_file");
-        showToast({message: t('history.toast.fileCleared'), type: 'success'});
-        loadHistory();
-    }
+    const getTypeIconClass = (type) => {
+        switch (type) {
+            case 1: return 'text';
+            case 2: return 'upload';
+            case 4: return 'download';
+            default: return 'text';
+        }
+    };
+
+    const getTypeIcon = (type) => {
+        switch (type) {
+            case 1:
+                return <svg viewBox="0 0 24 24"><path d="M5 5h14"/><path d="M12 5v15"/></svg>;
+            case 2:
+                return <svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>;
+            case 4:
+                return <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
+            default:
+                return <svg viewBox="0 0 24 24"><path d="M5 5h14"/><path d="M12 5v15"/></svg>;
+        }
+    };
+
+    const handleSortToggle = () => {
+        setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+    };
 
     return (
         <HistoryStyle>
             <div className="page-header">
-                <Typography variant="h4" fontSize="1.5rem" fontWeight={700}>{t('history.pageTitle')}</Typography>
-                <Typography variant="body2" fontSize="0.82rem" color="var(--on-surface-variant)">{t('history.pageDesc')}</Typography>
+                <Typography variant="h4" sx={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--on-surface)' }}>{t('history.pageTitle')}</Typography>
+                <Typography variant="body2" fontSize="1.125rem" sx={{ color: 'var(--on-surface-variant)' }}>{t('history.pageDesc')}</Typography>
             </div>
 
             <div className="header-actions">
@@ -305,9 +364,20 @@ function History() {
                         </button>
                     ))}
                 </div>
-                <div className="clear-actions">
-                    <Button variant="outlined" color="error" size="small" onClick={clearText}>{t('history.clearTextButton')}</Button>
-                    <Button variant="outlined" color="error" size="small" onClick={clearFile}>{t('history.clearFileButton')}</Button>
+                <div className="search-box">
+                    <svg className="search-icon" viewBox="0 0 24 24" width="16" height="16"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input
+                        type="text"
+                        className="search-input"
+                        placeholder={t('history.searchPlaceholder')}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    {searchQuery && (
+                        <svg className="search-clear" viewBox="0 0 24 24" width="16" height="16" onClick={() => setSearchQuery('')}>
+                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    )}
                 </div>
             </div>
 
@@ -315,30 +385,44 @@ function History() {
                 <div className="list-header">
                     <div>{t('history.tableHeader.type')}</div>
                     <div>{t('history.tableHeader.content')}</div>
-                    <div className="item-size">{t('history.tableHeader.size') || 'Size'}</div>
-                    <div className="item-ip">{t('history.tableHeader.sourceIp')}</div>
-                    <div className="item-time">{t('history.tableHeader.time')}</div>
+                    <div></div>
+                    <div className="item-time sortable" onClick={handleSortToggle}>
+                        {t('history.tableHeader.time')}
+                        <span className="sort-indicator">{sortOrder === 'desc' ? ' ↓' : ' ↑'}</span>
+                    </div>
                 </div>
-                <div className="list-body">
-                    {filteredHistory.map((item) => (
+                <div className="list-body" ref={listBodyRef}>
+                    {history.map((item) => (
                         <div
-                            className={"list-row" + (item.type === 2 && item.isOverwrite ? " row-error" : "")}
+                            className="list-row"
                             key={item.id}
                             onContextMenu={(e) => showContextMenu(e, item)}
                         >
-                            <div className={"type-icon " + (item.type === 2 ? "file" : "text")}>
-                                {item.type === 2 ? (
-                                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                ) : (
-                                    <svg viewBox="0 0 24 24"><path d="M5 5h14"/><path d="M12 5v15"/></svg>
-                                )}
+                            <div className={"type-icon " + getTypeIconClass(item.type)} title={t(getTypeLabelKey(item.type))}>
+                                {getTypeIcon(item.type)}
                             </div>
                             <div className="item-name">{item.content}</div>
-                            <div className="item-size">{item.type === 2 ? (item.content ? item.content.length + 'B' : '-') : '-'}</div>
-                            <div className="item-ip">{item.ip}</div>
+                            <div className="item-tags">
+                                <span className="item-tag ip" title={t('history.tagTooltip.ip')}>{item.ip}</span>
+                                {item.type === 2 && (
+                                    <span className="item-tag size" title={t('history.tagTooltip.size')}>{item.content ? item.content.length + 'B' : '-'}</span>
+                                )}
+                                {item.type === 2 && item.isOverwrite && (
+                                    <span className="item-tag overwrite" title={t('history.tagTooltip.overwrite')}>{t('history.tag.overwriteYes')}</span>
+                                )}
+                            </div>
                             <div className="item-time">{item.time}</div>
                         </div>
                     ))}
+                    {loading && (
+                        <div className="list-loading">{t('common.loading') || 'Loading...'}</div>
+                    )}
+                    {!hasMore && history.length > 0 && (
+                        <div className="list-loading list-end">{t('history.noMoreRecords') || 'No more records'}</div>
+                    )}
+                    {!loading && history.length === 0 && (
+                        <div className="list-loading list-empty">{t('history.noSearchResults')}</div>
+                    )}
                 </div>
             </div>
 

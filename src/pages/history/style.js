@@ -48,8 +48,9 @@ const HistoryStyle = styled.div`
         border: none;
         border-radius: 6px;
         cursor: pointer;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 500;
+        letter-spacing: 0.02em;
         color: var(--on-surface-variant);
         background: transparent;
         transition: all var(--dur-fast) var(--ease);
@@ -58,6 +59,7 @@ const HistoryStyle = styled.div`
 
     .filter-tab:hover {
         color: var(--on-surface);
+        background: var(--surface-container-highest);
     }
 
     .filter-tab.active {
@@ -66,46 +68,95 @@ const HistoryStyle = styled.div`
         box-shadow: var(--shadow-sm);
     }
 
-    .clear-actions {
+    .search-box {
         display: flex;
+        align-items: center;
         gap: 8px;
-    }
-
-    .clear-btn {
-        padding: 6px 14px;
-        font-size: 12px;
-        background: transparent;
-        color: var(--error);
-        border: 1px solid var(--outline-variant);
+        background: var(--surface-container-low);
         border-radius: var(--radius);
-        cursor: pointer;
-        transition: all var(--dur-fast) var(--ease);
+        padding: 4px 12px;
+        border: var(--glass-border);
+        transition: border-color var(--dur-fast) var(--ease);
+        min-width: 300px;
+        width: 300px;
     }
 
-    .clear-btn:hover {
-        background: var(--error-container);
-        border-color: var(--error);
+    .search-box:hover {
+        border-color: var(--primary);
+    }
+
+    .search-icon {
+        flex-shrink: 0;
+        fill: none;
+        stroke: var(--on-surface-variant);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        opacity: 0.6;
+    }
+
+    .search-input {
+        border: none;
+        background: transparent;
+        outline: none;
+        box-shadow: none;
+        -webkit-appearance: none;
+        font-size: 14px;
+        color: var(--on-surface);
+        width: 100%;
+        padding: 6px 0;
+    }
+
+    .search-input:focus {
+        outline: none;
+        box-shadow: none;
+    }
+
+    .search-input::placeholder {
+        color: var(--on-surface-variant);
+        opacity: 0.5;
+    }
+
+    .search-clear {
+        flex-shrink: 0;
+        cursor: pointer;
+        fill: none;
+        stroke: var(--on-surface-variant);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        opacity: 0.5;
+        transition: opacity var(--dur-fast) var(--ease);
+    }
+
+    .search-clear:hover {
+        opacity: 1;
     }
 
     .list-container {
         background: var(--surface-container-lowest);
-        border: 1px solid var(--outline-variant);
+        border: var(--glass-border);
         border-radius: var(--radius-md);
         overflow: hidden;
         box-shadow: var(--shadow-sm);
         flex: 1;
         display: flex;
         flex-direction: column;
+        transition: border-color var(--dur-fast) var(--ease);
+    }
+
+    .list-container:hover {
+        border-color: var(--primary);
     }
 
     .list-header {
         display: grid;
-        grid-template-columns: 48px 1fr 80px 100px 140px;
+        grid-template-columns: 48px 1fr 200px 140px;
         gap: 16px;
         align-items: center;
         padding: 12px 20px;
         background: var(--surface-container-low);
-        border-bottom: 1px solid var(--outline-variant);
+        border-bottom: var(--glass-border);
         font-size: 12px;
         font-weight: 500;
         letter-spacing: 0.05em;
@@ -120,11 +171,11 @@ const HistoryStyle = styled.div`
 
     .list-row {
         display: grid;
-        grid-template-columns: 48px 1fr 80px 100px 140px;
+        grid-template-columns: 48px 1fr 200px 140px;
         gap: 16px;
         align-items: center;
         padding: 14px 20px;
-        border-bottom: 1px solid var(--outline-variant);
+        border-bottom: var(--glass-border);
         cursor: pointer;
         transition: background-color var(--dur-fast) var(--ease);
     }
@@ -137,14 +188,6 @@ const HistoryStyle = styled.div`
         background: var(--surface-container-low);
     }
 
-    .list-row.row-error {
-        background: color-mix(in srgb, var(--error-container) 10%, transparent);
-    }
-
-    .list-row.row-error:hover {
-        background: color-mix(in srgb, var(--error-container) 18%, transparent);
-    }
-
     .type-icon {
         width: 36px;
         height: 36px;
@@ -154,7 +197,7 @@ const HistoryStyle = styled.div`
         justify-content: center;
     }
 
-    .type-icon.file {
+    .type-icon.upload {
         background: var(--surface-container);
         color: var(--primary);
     }
@@ -162,6 +205,11 @@ const HistoryStyle = styled.div`
     .type-icon.text {
         background: var(--surface-container-highest);
         color: var(--secondary);
+    }
+
+    .type-icon.download {
+        background: var(--surface-container-highest);
+        color: var(--on-surface-variant);
     }
 
     .type-icon svg {
@@ -183,14 +231,37 @@ const HistoryStyle = styled.div`
         white-space: nowrap;
     }
 
-    .item-size {
-        font-size: 14px;
-        color: var(--on-surface-variant);
+    .item-tags {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
     }
 
-    .item-ip {
-        font-size: 13px;
-        color: var(--on-surface-variant);
+    .item-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        line-height: 1.6;
+        white-space: nowrap;
+    }
+
+    .item-tag.ip {
+        background: #E3F2FD;
+        color: #1565C0;
+    }
+
+    .item-tag.size {
+        background: #E8F5E9;
+        color: #2E7D32;
+    }
+
+    .item-tag.overwrite {
+        background: #FFF3E0;
+        color: #E65100;
     }
 
     .item-time {
@@ -199,11 +270,42 @@ const HistoryStyle = styled.div`
         letter-spacing: 0.02em;
     }
 
+    .item-time.sortable {
+        cursor: pointer;
+        user-select: none;
+        transition: color var(--dur-fast) var(--ease);
+    }
+
+    .item-time.sortable:hover {
+        color: var(--primary);
+    }
+
+    .sort-indicator {
+        font-size: 11px;
+    }
+
+    .list-loading {
+        text-align: center;
+        padding: 16px;
+        font-size: 13px;
+        color: var(--on-surface-variant);
+    }
+
+    .list-end {
+        opacity: 0.6;
+        font-size: 12px;
+    }
+
+    .list-empty {
+        opacity: 0.6;
+        font-size: 12px;
+    }
+
     .context-menu {
         position: fixed;
         z-index: 10000;
         background: var(--surface);
-        border: 1px solid var(--outline-variant);
+        border: var(--glass-border);
         border-radius: var(--radius);
         box-shadow: var(--shadow-md);
         backdrop-filter: blur(24px);
@@ -219,8 +321,9 @@ const HistoryStyle = styled.div`
         padding: 8px 16px;
         border-radius: 6px;
         cursor: pointer;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 500;
+        letter-spacing: 0.02em;
         color: var(--on-surface);
         background: none;
         border: none;

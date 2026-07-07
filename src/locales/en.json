@@ -1,5 +1,6 @@
 {
   "common": {
+    "loading": "Loading...",
     "button": {
       "cancel": "Cancel",
       "confirm": "Confirm",
@@ -32,14 +33,16 @@
     "tagline": "LAN file & text sharing"
   },
   "home": {
-    "scanTips": "Scan within LAN",
+    "scanTips": "Scan to Connect",
+    "scanTipsDesc": "Ensure other devices are on the same network as this computer",
     "detailsTitle": "Device Info",
     "deviceName": "Device Name",
     "localIp": "Local IP",
     "port": "Port",
     "status": "Status",
     "listening": "Listening...",
-    "manualDesc": "If scanning is unavailable, access manually",
+    "manualTitle": "Manual Connection",
+    "manualDesc": "Enter this address in your browser if scanning doesn't work",
     "copyTooltip": "Click to copy",
     "notRunning": "Not Running",
     "serviceUnavailable": "Service Unavailable",
@@ -83,6 +86,8 @@
       "autostartDesc": "Launch application on system startup",
       "theme": "Theme",
       "themeDesc": "Select application theme",
+      "themeColor": "Theme Color",
+      "themeColorDesc": "Click the swatch to pick a custom color",
       "language": "Language",
       "languageDesc": "Select interface language",
       "shareRoot": "Sharing Root",
@@ -98,7 +103,11 @@
       "recordCopy": "Record Text Copy",
       "recordCopyDesc": "Log text copy operations from Web pages",
       "recordDownload": "Record File Download",
-      "recordDownloadDesc": "Log file download operations from Web pages"
+      "recordDownloadDesc": "Log file download operations from Web pages",
+      "clearTextRecords": "Clear Text Records",
+      "clearTextRecordsDesc": "Delete all text sharing records",
+      "clearFileRecords": "Clear File Records",
+      "clearFileRecordsDesc": "Delete all file transfer records"
     },
     "themeOption": {
       "system": "Follow System",
@@ -143,6 +152,11 @@
       "text": "Text",
       "file": "File"
     },
+    "typeLabel": {
+      "text": "Share text",
+      "upload": "Upload file",
+      "download": "Download file"
+    },
     "detailTitle": "Record Detail",
     "noPreview": "(File preview not supported)",
     "noCopyRecords": "No copy records",
@@ -171,10 +185,21 @@
       "yes": "Overwritten",
       "no": "Not overwritten"
     },
+    "tag": {
+      "size": "Size",
+      "overwriteYes": "Overwrite",
+      "overwriteNo": "Not overwritten"
+    },
+    "tagTooltip": {
+      "ip": "Source IP",
+      "size": "File size",
+      "overwrite": "Overwritten existing file on upload"
+    },
     "fileFolder": "Folder",
     "fileName": "File Name",
-    "clearTextButton": "Clear Text Records",
-    "clearFileButton": "Clear File Records",
+    "searchPlaceholder": "Search by text content or file path...",
+    "noMoreRecords": "No more records",
+    "noSearchResults": "No matching records found",
     "contextMenu": {
       "viewDetail": "View Detail",
       "openFileLocation": "Open File Location",
