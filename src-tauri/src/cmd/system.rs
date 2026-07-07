@@ -1,6 +1,7 @@
 use crate::db::dao::config_dao;
 use crate::db::dao::upload_dao;
 use serde::Serialize;
+use std::error::Error;
 
 #[derive(Serialize)]
 pub struct PaginatedResult {
@@ -764,13 +765,14 @@ pub fn get_app_version() -> String {
 #[tauri::command]
 pub async fn check_update() -> UpdateCheckResult {
     let current = env!("CARGO_PKG_VERSION");
-    let client = reqwest::Client::builder()
+    let client = match reqwest::Client::builder()
         .user_agent(format!("lan-share/{}", current))
-        .build();
-
-    let client = match client {
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+    {
         Ok(c) => c,
         Err(e) => {
+            log::error!("创建 HTTP 客户端失败: {}", e);
             return UpdateCheckResult {
                 has_update: false,
                 latest_version: String::new(),
@@ -781,20 +783,25 @@ pub async fn check_update() -> UpdateCheckResult {
         }
     };
 
-    let resp = client
+    let resp = match client
         .get("https://api.github.com/repos/SomunsMo/lan-share/releases/latest")
         .send()
-        .await;
-
-    let resp = match resp {
+        .await
+    {
         Ok(r) => r,
         Err(e) => {
+            let detail = if let Some(source) = e.source() {
+                format!("{} (原因: {})", e, source)
+            } else {
+                format!("{}", e)
+            };
+            log::error!("检查更新网络请求失败: {}", detail);
             return UpdateCheckResult {
                 has_update: false,
                 latest_version: String::new(),
                 release_notes: String::new(),
                 download_url: "https://github.com/SomunsMo/lan-share/releases".to_string(),
-                error: Some(format!("网络请求失败: {}", e)),
+                error: Some(format!("网络请求失败: {}", detail)),
             };
         }
     };
