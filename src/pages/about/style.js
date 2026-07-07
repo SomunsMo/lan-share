@@ -147,35 +147,27 @@ const AboutStyle = styled.div`
         text-decoration: underline;
     }
 
-    .license-svg {
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-    }
-
-    .tech-tags {
-        display: flex;
-        flex-wrap: wrap;
+    .license-large {
+        display: inline-flex;
+        align-items: center;
         gap: 8px;
-    }
-
-    .tech-tag {
-        padding: 4px 10px;
-        background: var(--surface-container);
-        color: var(--on-surface-variant);
+        padding: 8px 16px;
+        background: var(--surface-container-high);
+        color: var(--on-surface);
         border-radius: var(--radius);
-        font-size: 12px;
-        font-weight: 500;
         border: var(--glass-border);
+        font-size: 15px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: text-decoration var(--dur-fast) var(--ease);
+        width: fit-content;
     }
 
-    .cta-area {
-        width: 100%;
-        max-width: 400px;
-        margin-top: -24px;
+    .license-large:hover {
+        text-decoration: underline;
     }
+
+
 `;
 
 export default AboutStyle;

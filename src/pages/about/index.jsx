@@ -16,6 +16,11 @@ function About() {
                 </div>
                 <Typography variant="h4" fontSize="3rem" fontWeight={700} sx={{ color: 'var(--on-surface)' }} className="hero-title">{t('about.title')}</Typography>
                 <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, letterSpacing: '0.05em', color: 'var(--on-surface-variant)' }} className="hero-version">{t('about.version')}</Typography>
+                <Button variant="outlined" size="small" startIcon={
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                }>
+                    {t('about.checkUpdates')}
+                </Button>
             </div>
 
             <div className="bento-grid">
@@ -25,42 +30,23 @@ function About() {
                         <Typography variant="subtitle1" fontSize="1rem" fontWeight={600} sx={{ color: 'var(--on-surface)' }}>{t('about.openSource.title')}</Typography>
                     </div>
                     <div className="info-row">
-                        <span className="info-label">{t('about.openSource.repository')}</span>
                         <span className="info-value"><a href="https://github.com/SomunsMo/lan-share" target="_blank" rel="noopener noreferrer">github.com/SomunsMo/lan-share</a></span>
-                    </div>
-                    <div className="info-row">
-                        <span className="info-label">{t('about.license.title')}</span>
-                        <div className="license-badge" onClick={() => openUrl('https://opensource.org/licenses/MIT')}>
-                            <svg viewBox="0 0 24 24" width="14" height="14" className="license-svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                            MIT License
-                        </div>
                     </div>
                 </div>
 
                 <div className="info-card">
                     <div className="info-card-header">
                         <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                        <Typography variant="subtitle1" fontSize="1rem" fontWeight={600} sx={{ color: 'var(--on-surface)' }}>{t('about.tech.title')}</Typography>
+                        <Typography variant="subtitle1" fontSize="1rem" fontWeight={600} sx={{ color: 'var(--on-surface)' }}>{t('about.license.title')}</Typography>
                     </div>
                     <div className="info-row">
-                        <div className="tech-tags">
-                            <span className="tech-tag">Rust</span>
-                            <span className="tech-tag">Tauri</span>
-                            <span className="tech-tag">Vite</span>
-                            <span className="tech-tag">React</span>
-                            <span className="tech-tag">SQLite</span>
+                        <div className="license-large" onClick={() => openUrl('https://opensource.org/licenses/MIT')}>
+                            {t('about.license.name')}
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="cta-area">
-                <Button variant="outlined" startIcon={
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                }>
-                    {t('about.checkUpdates')}
-                </Button>
-            </div>
         </AboutStyle>
     );
 }
