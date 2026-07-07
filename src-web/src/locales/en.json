@@ -2,17 +2,9 @@
   "common": {
     "button": {
       "cancel": "Cancel",
-      "confirm": "Confirm",
-      "delete": "Delete",
-      "copy": "Copy",
-      "download": "Download",
-      "rename": "Rename",
-      "upload": "Upload"
+      "confirm": "Confirm"
     },
     "toast": {
-      "copySuccess": "Link copied",
-      "copyFailed": "Copy link failed",
-      "deleteSuccess": "Deleted successfully",
       "operationFailed": "Operation failed"
     }
   },

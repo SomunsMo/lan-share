@@ -2,17 +2,9 @@
   "common": {
     "button": {
       "cancel": "取消",
-      "confirm": "确定",
-      "delete": "删除",
-      "copy": "复制",
-      "download": "下载",
-      "rename": "重命名",
-      "upload": "上传文件"
+      "confirm": "确定"
     },
     "toast": {
-      "copySuccess": "链接已复制",
-      "copyFailed": "复制链接失败",
-      "deleteSuccess": "删除成功",
       "operationFailed": "操作失败"
     }
   },

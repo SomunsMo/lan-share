@@ -3,23 +3,10 @@
     "loading": "Loading...",
     "button": {
       "cancel": "Cancel",
-      "confirm": "Confirm",
-      "delete": "Delete",
-      "copy": "Copy",
-      "download": "Download",
-      "rename": "Rename",
-      "upload": "Upload"
+      "confirm": "Confirm"
     },
     "toast": {
-      "copySuccess": "Copied",
-      "copyFailed": "Copy failed",
-      "deleteSuccess": "Deleted successfully",
       "operationFailed": "Operation failed"
-    },
-    "overwrite": {
-      "yes": "Yes",
-      "no": "No",
-      "dash": "-"
     }
   },
   "route": {
@@ -54,36 +41,23 @@
       "buttonLater": "Later",
       "buttonNow": "Set Up Now"
     },
-    "portWarning": {
-      "title": "HTTP Service Not Started",
-      "desc": "Port {{port}} is occupied by another program. The HTTP server cannot start.",
-      "stepTitle": "Available solutions:",
-      "step1": "Change the HTTP Server port in Settings and restart the app",
-      "step2": "Close the program occupying the port"
-    },
     "selectDirTitle": "Select Sharing Root Directory"
   },
   "settings": {
     "pageTitle": "Settings",
-    "sectionBasic": "Basic",
-    "sectionSharing": "Sharing",
     "sectionNetwork": "Network Configuration",
-    "sectionNetworkHint": "Manage connectivity and ports.",
     "sectionSystem": "System Preferences",
-    "sectionSystemHint": "Application startup and behavior.",
     "sectionAppearance": "Appearance",
-    "sectionAppearanceHint": "Customize visual theme and language.",
     "sectionPermissions": "Web Permissions",
-    "sectionPermissionsHint": "Control remote access capabilities.",
     "sectionRecords": "Recording Settings",
-    "sectionRecordsHint": "Control operation logging from Web pages.",
     "sectionStorage": "Storage",
-    "sectionStorageHint": "Manage file destinations.",
     "option": {
       "port": "HTTP Server Port",
-      "portDesc": "Click to change internal port",
+      "portDesc": "Service port for providing web UI and file sharing to other devices",
       "autostart": "Auto Start",
       "autostartDesc": "Launch application on system startup",
+      "autostartMinimized": "Auto Start Minimized",
+      "autostartMinimizedDesc": "Run silently in the system tray on startup without opening the main window",
       "theme": "Theme",
       "themeDesc": "Select application theme",
       "themeColor": "Theme Color",
@@ -91,7 +65,7 @@
       "language": "Language",
       "languageDesc": "Select interface language",
       "shareRoot": "Sharing Root",
-      "shareRootDesc": "Default location for received files",
+      "shareRootDesc": "Root directory for providing file sharing services",
       "webUpload": "Web Upload",
       "webUploadDesc": "Allow file uploads via browser",
       "uploadOverwrite": "Upload Overwrite",
@@ -105,7 +79,7 @@
       "recordDownload": "Record File Download",
       "recordDownloadDesc": "Log file download operations from Web pages",
       "clearTextRecords": "Clear Text Records",
-      "clearTextRecordsDesc": "Delete all text sharing records",
+      "clearTextRecordsDesc": "Delete all text sharing records (including associated copy records)",
       "clearFileRecords": "Clear File Records",
       "clearFileRecordsDesc": "Delete all file transfer records"
     },
@@ -136,26 +110,18 @@
     },
     "labels": {
       "browse": "Browse",
-      "clickToSelect": "Click to select directory",
-      "clickToChange": "Click to change directory",
-      "clickToModify": "Click to modify port"
+      "clickToSelect": "Click to select directory"
     }
   },
   "history": {
     "pageTitle": "Transfer Log",
-    "pageDesc": "View transfer records between devices.",
+    "pageDesc": "View transfer records between devices",
     "filterAll": "All",
     "filterFiles": "Files",
     "filterText": "Text",
-    "status": { "file": "Sent", "text": "Received" },
     "type": {
       "text": "Text",
       "file": "File"
-    },
-    "typeLabel": {
-      "text": "Share text",
-      "upload": "Upload file",
-      "download": "Download file"
     },
     "detailTitle": "Record Detail",
     "noPreview": "(File preview not supported)",
@@ -167,9 +133,7 @@
       "time": "Time",
       "sourceIp": "Source IP",
       "overwrite": "Overwritten",
-      "content": "Content",
-      "status": "Status",
-      "size": "Size"
+      "content": "Content"
     },
     "clearDialog": {
       "title": "Confirm Clear",
@@ -186,9 +150,7 @@
       "no": "Not overwritten"
     },
     "tag": {
-      "size": "Size",
-      "overwriteYes": "Overwrite",
-      "overwriteNo": "Not overwritten"
+      "overwriteYes": "Overwrite"
     },
     "tagTooltip": {
       "ip": "Source IP",
@@ -214,31 +176,20 @@
     "title": "LAN Share",
     "version": "v1.0.2",
     "openSource": {
-      "title": "Open Source",
-      "repository": "Repository",
-      "author": "Author",
-      "authorName": "Somunsm"
+      "title": "Open Source Repository"
     },
     "license": {
       "title": "License",
       "name": "MIT License"
     },
-    "tech": {
-      "title": "Tech Stack",
-      "rust": "Rust Core",
-      "tauri": "Tauri",
-      "react": "React + Vite",
-      "sqlite": "SQLite"
-    },
     "checkUpdates": "Check for Updates"
   },
   "textSharing": {
     "pageTitle": "Share Text Locally",
-    "pageDesc": "Shared text can be viewed or copied by other devices on the LAN via browser.",
+    "pageDesc": "Shared text can be viewed or copied by other devices on the LAN via browser",
     "deleteCascadeWarning": "Deleting this record will also delete related copy records. Continue?",
     "clearButton": "Clear",
     "recentTitle": "Recent Text Shares",
-    "sentBadge": "Sent",
     "copyButton": "Copy",
     "viewButton": "View",
     "detailTitle": "Message Detail",
@@ -247,11 +198,6 @@
     "detailContent": "Content",
     "placeholder": "Enter text to share",
     "shareButton": "Share",
-    "tableHeader": {
-      "time": "Time",
-      "sourceIp": "Source IP",
-      "content": "Content"
-    },
     "contextMenu": {
       "viewDetail": "View Detail",
       "copyContent": "Copy Content",
