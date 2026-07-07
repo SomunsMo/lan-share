@@ -9,9 +9,11 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import {useToast} from "@/components/toast/index.jsx";
 
 function About() {
     const { t } = useTranslation();
+    const {showToast} = useToast();
     const [appVersion, setAppVersion] = useState('');
     const [checking, setChecking] = useState(false);
     const [updateResult, setUpdateResult] = useState(null);
@@ -26,17 +28,17 @@ function About() {
         try {
             const result = await invoke('check_update');
             if (result.error) {
-                // Toast will be integrated in Task 4
+                showToast({message: t('about.update.error', {error: result.error}), type: 'error'});
                 return;
             }
             if (result.has_update) {
                 setUpdateResult(result);
                 setShowUpdateDialog(true);
             } else {
-                // Toast will be integrated in Task 4
+                showToast({message: t('about.update.upToDate'), type: 'success'});
             }
         } catch (e) {
-            // Toast will be integrated in Task 4
+            showToast({message: t('about.update.error', {error: e}), type: 'error'});
         } finally {
             setChecking(false);
         }
