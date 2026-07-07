@@ -1,4 +1,4 @@
-import styled from "styled-components";
+import styled from "@emotion/styled";
 import Card from "../Card/Card.js";
 
 export const FileCard = styled(Card)`
