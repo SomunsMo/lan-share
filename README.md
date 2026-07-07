@@ -300,7 +300,7 @@ The desktop React UI calls the Rust backend via Tauri IPC. 25 commands grouped b
 | `get_file_sharing_history` | Get file sharing history |
 | `delete_file_sharing_record` | Delete a specific file record |
 | `clear_sharing_file` | Clear all file sharing records |
-| `get_all_upload_history` | Get all upload history |
+| `get_transfer_log` | Get paginated transfer log |
 | `is_sharing_root_configured` | Check if a shared directory is configured |
 
 ### Permission Control
