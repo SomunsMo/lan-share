@@ -14,36 +14,35 @@ function About() {
                 <div className="hero-icon">
                     <img src="/icon.png" alt="LAN Share"/>
                 </div>
-                <Typography variant="h4" fontSize="2rem" fontWeight={700} className="hero-title">{t('about.title')}</Typography>
-                <Typography variant="body2" fontSize="0.75rem" color="var(--on-surface-variant)" className="hero-version">{t('about.version')}</Typography>
+                <Typography variant="h4" fontSize="3rem" fontWeight={700} sx={{ color: 'var(--on-surface)' }} className="hero-title">{t('about.title')}</Typography>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 500, letterSpacing: '0.05em', color: 'var(--on-surface-variant)' }} className="hero-version">{t('about.version')}</Typography>
             </div>
 
             <div className="bento-grid">
                 <div className="info-card">
                     <div className="info-card-header">
                         <svg viewBox="0 0 24 24"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
-                        <Typography variant="subtitle1" fontSize="1.125rem" fontWeight={600}>{t('about.openSource.title')}</Typography>
+                        <Typography variant="subtitle1" fontSize="1rem" fontWeight={600} sx={{ color: 'var(--on-surface)' }}>{t('about.openSource.title')}</Typography>
                     </div>
                     <div className="info-row">
                         <span className="info-label">{t('about.openSource.repository')}</span>
                         <span className="info-value"><a href="https://github.com/SomunsMo/lan-share" target="_blank" rel="noopener noreferrer">github.com/SomunsMo/lan-share</a></span>
+                    </div>
+                    <div className="info-row">
+                        <span className="info-label">{t('about.license.title')}</span>
+                        <div className="license-badge" onClick={() => openUrl('https://opensource.org/licenses/MIT')}>
+                            <svg viewBox="0 0 24 24" width="14" height="14" className="license-svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            MIT License
+                        </div>
                     </div>
                 </div>
 
                 <div className="info-card">
                     <div className="info-card-header">
                         <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                        <Typography variant="subtitle1" fontSize="1.125rem" fontWeight={600}>{t('about.license.title')}</Typography>
+                        <Typography variant="subtitle1" fontSize="1rem" fontWeight={600} sx={{ color: 'var(--on-surface)' }}>{t('about.tech.title')}</Typography>
                     </div>
                     <div className="info-row">
-                        <Typography variant="body2" fontSize="0.75rem" color="var(--on-surface-variant)" className="info-label">{t('about.license.title')}</Typography>
-                        <div className="license-badge" onClick={() => openUrl('https://opensource.org/licenses/MIT')}>
-                            <svg viewBox="0 0 24 24" width="14" height="14" className="license-svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                            MIT License
-                        </div>
-                    </div>
-                    <div className="info-row">
-                        <Typography variant="body2" fontSize="0.75rem" color="var(--on-surface-variant)" className="info-label">{t('about.tech.title')}</Typography>
                         <div className="tech-tags">
                             <span className="tech-tag">Rust</span>
                             <span className="tech-tag">Tauri</span>

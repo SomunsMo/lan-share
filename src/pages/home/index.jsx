@@ -100,12 +100,19 @@ function Home() {
                 <div className="qr-panel">
                     {serverStatus?.running ? (
                         <>
-                            <Paper elevation={1} sx={{ p: 3, bgcolor: 'var(--surface-container-lowest)', border: '1px solid var(--outline-variant)', borderRadius: 'var(--radius-md)' }}>
-                                <QRCodeSVG value={webUrl} fgColor={qrFgColor} bgColor={"transparent"} />
+                            <Paper elevation={1} sx={{ p: '24px', bgcolor: 'var(--surface-container-lowest)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', width: 'fit-content', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <QRCodeSVG value={webUrl} fgColor={qrFgColor} bgColor={"transparent"} size={180} />
                             </Paper>
                             <Box sx={{ textAlign: 'center' }}>
-                                <Typography variant="body1" fontSize="0.92rem" fontWeight={600} color="var(--on-surface)">
+                                <Typography
+                                    sx={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--on-surface)', fontFamily: 'var(--font-family-heading)' }}
+                                >
                                     {t('home.scanTips')}
+                                </Typography>
+                                <Typography
+                                    sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)', mt: 0.5, whiteSpace: 'pre-line' }}
+                                >
+                                    {t('home.scanTipsDesc')}
                                 </Typography>
                             </Box>
                         </>
@@ -123,38 +130,40 @@ function Home() {
 
                 <div className="details-panel">
                     <div>
-                            <Typography variant="overline" display="block" color="var(--on-surface-variant)" sx={{ mb: 2 }}>
+                        <Typography
+                            sx={{ fontSize: '0.75rem', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--secondary)', fontFamily: 'var(--font-family-label)', mb: 2 }}
+                        >
                             {t('home.detailsTitle') || 'Local Device Details'}
                         </Typography>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid var(--outline-variant)' }}>
-                            <Typography variant="body1" fontSize="0.82rem" color="var(--on-surface-variant)">{t('home.deviceName') || 'Device Name'}</Typography>
-                            <Typography variant="body1" fontSize="0.85rem" fontWeight={600} color="var(--on-surface)">{deviceName}</Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid var(--border)' }}>
+                            <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.deviceName') || 'Device Name'}</Typography>
+                            <Typography sx={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--on-surface)' }}>{deviceName}</Typography>
                         </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid var(--outline-variant)' }}>
-                            <Typography variant="body1" fontSize="0.82rem" color="var(--on-surface-variant)">{t('home.localIp') || 'Local IP'}</Typography>
-                            <Box component="code" sx={{ fontSize: '0.85rem', fontWeight: 500, bgcolor: 'var(--surface-container)', px: 1, py: 0.5, borderRadius: 'var(--radius)' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid var(--border)' }}>
+                            <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.localIp') || 'Local IP'}</Typography>
+                            <Box component="code" sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--on-surface)', bgcolor: 'var(--surface-container)', px: 1, py: 0.5, borderRadius: 'var(--radius)', fontFamily: 'var(--font-family-label)' }}>
                                 {ipAddr}
                             </Box>
                         </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid var(--outline-variant)' }}>
-                            <Typography variant="body1" fontSize="0.82rem" color="var(--on-surface-variant)">{t('home.port') || 'Port'}</Typography>
-                            <Box component="code" sx={{ fontSize: '0.85rem', fontWeight: 500, bgcolor: 'var(--surface-container)', px: 1, py: 0.5, borderRadius: 'var(--radius)' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid var(--border)' }}>
+                            <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.port') || 'Port'}</Typography>
+                            <Box component="code" sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--on-surface)', bgcolor: 'var(--surface-container)', px: 1, py: 0.5, borderRadius: 'var(--radius)', fontFamily: 'var(--font-family-label)' }}>
                                 {portNum}
                             </Box>
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1 }}>
-                            <Typography variant="body1" fontSize="0.82rem" color="var(--on-surface-variant)">{t('home.status') || 'Status'}</Typography>
+                            <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.status') || 'Status'}</Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: serverStatus?.running ? '#22c55e' : 'var(--error)', boxShadow: serverStatus?.running ? '0 0 6px #22c55e' : 'none' }} />
-                                <Typography variant="body1" fontSize="0.85rem" color={serverStatus?.running ? 'var(--on-surface)' : 'var(--error)'}>
+                                <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: serverStatus?.running ? 'var(--on-surface)' : 'var(--error)', fontFamily: 'var(--font-family-label)' }}>
                                     {serverStatus?.running ? (t('home.listening') || 'Listening...') : (t('home.notRunning') || 'Not Running')}
                                 </Typography>
                             </Box>
                         </Box>
                         {!serverStatus?.running && serverStatus?.reason === 'port_occupied' && (
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1 }}>
-                                <Typography variant="body1" fontSize="0.82rem" color="var(--on-surface-variant)">{t('home.reasonTitle') || 'Reason'}</Typography>
-                                <Typography variant="body1" fontSize="0.85rem" color="var(--error)" sx={{ wordBreak: 'break-word', textAlign: 'right', maxWidth: 200 }}>
+                                <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.reasonTitle') || 'Reason'}</Typography>
+                                <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--error)', fontFamily: 'var(--font-family-label)', wordBreak: 'break-word', textAlign: 'right', maxWidth: 200 }}>
                                     {t('home.reasonPortOccupied', { port: portNum })}
                                 </Typography>
                             </Box>
@@ -162,12 +171,17 @@ function Home() {
                     </div>
 
                     {serverStatus?.running && (
-                        <Paper elevation={0} sx={{ p: 3, bgcolor: 'var(--surface-container-low)', border: '1px solid var(--outline-variant)', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: 1 }}>
-                            <Typography variant="body1" fontSize="0.85rem" color="var(--on-surface)">
+                        <Paper elevation={0} sx={{ p: 3, bgcolor: 'var(--surface-container-low)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                            <Typography
+                                sx={{ fontSize: '0.75rem', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--secondary)', fontFamily: 'var(--font-family-label)' }}
+                            >
+                                {t('home.manualTitle')}
+                            </Typography>
+                            <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>
                                 {t('home.manualDesc')}
                             </Typography>
-                            <Box onClick={copyUrl} title={t('home.copyTooltip')} sx={{ bgcolor: 'var(--surface-container-lowest)', border: '1px solid var(--outline-variant)', borderRadius: 'var(--radius)', p: 2, cursor: 'pointer' }}>
-                                <Typography variant="body1" fontSize="0.85rem" fontWeight={700} color="var(--primary)" sx={{ userSelect: 'all', fontFamily: 'monospace' }}>
+                            <Box onClick={copyUrl} title={t('home.copyTooltip')} sx={{ bgcolor: 'var(--surface-container-lowest)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', p: 2, cursor: 'pointer' }}>
+                                <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--primary)', userSelect: 'all', fontFamily: 'var(--font-family-heading)' }}>
                                     {webUrl ? webUrl.replace('http://', '') : ''}
                                 </Typography>
                             </Box>

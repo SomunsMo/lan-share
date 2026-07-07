@@ -202,8 +202,8 @@ function TextSharingManager(props) {
     return (
         <TextSharingManagerStyle>
             <div className="page-header">
-                <Typography variant="h4" fontSize="1.5rem" fontWeight={700}>{t('textSharing.pageTitle')}</Typography>
-                <Typography variant="body2" fontSize="0.82rem" color="var(--on-surface-variant)">{t('textSharing.pageDesc')}</Typography>
+                <Typography variant="h4" sx={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--on-surface)' }}>{t('textSharing.pageTitle')}</Typography>
+                <Typography variant="body2" fontSize="1.125rem" sx={{ color: 'var(--on-surface-variant)' }}>{t('textSharing.pageDesc')}</Typography>
             </div>
 
             <div className="compose-panel">
@@ -213,22 +213,22 @@ function TextSharingManager(props) {
                     placeholder={t('textSharing.placeholder')}
                     multiline
                     fullWidth
-                    minRows={4}
-                    maxRows={12}
+                    minRows={6}
+                    maxRows={10}
                     variant="outlined"
-                    sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'var(--surface-container-low)' } }}
+                    sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'transparent' } }}
                 />
                 <div className="compose-footer">
                     <span className="char-count">{textValue.length} characters</span>
                     <div className="compose-actions">
-                        <Button variant="text" onClick={() => setTextValue("")} size="small">{t('textSharing.clearButton')}</Button>
-                        <Button variant="contained" onClick={shareTextViaTauri} size="small">{t('textSharing.shareButton')}</Button>
+                        <Button variant="text" onClick={() => setTextValue("")} size="small" sx={{ '&:hover': { background: 'var(--surface-container-highest)' } }}>{t('textSharing.clearButton')}</Button>
+                        <Button variant="contained" onClick={shareTextViaTauri} size="small" sx={{ '&:hover': { backgroundColor: 'var(--primary-hover)' } }}>{t('textSharing.shareButton')}</Button>
                     </div>
                 </div>
             </div>
 
             <div className="history-section">
-                <Typography variant="h6" fontSize="1rem" fontWeight={600} sx={{ mb: 1.5 }}>{t('textSharing.recentTitle')}</Typography>
+                <Typography variant="h6" fontSize="1.5rem" fontWeight={600} sx={{ color: 'var(--on-surface)', mb: 1.5 }}>{t('textSharing.recentTitle')}</Typography>
                 <div className="history-scroll" ref={historyContainerRef}>
                     <div className="history-grid">
                     {history.map((item) => (
@@ -246,7 +246,7 @@ function TextSharingManager(props) {
                                 <Button variant="outlined" size="small" onClick={() => copyToClipboard(item.content)}>
                                     {t('textSharing.copyButton')}
                                 </Button>
-                                <Button variant="text" size="small" onClick={() => viewDetail(item)}>
+                                <Button variant="text" size="small" onClick={() => viewDetail(item)} sx={{ '&:hover': { background: 'var(--surface-container-highest)' } }}>
                                     {t('textSharing.viewButton')}
                                 </Button>
                             </div>

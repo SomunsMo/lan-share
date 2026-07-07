@@ -28,7 +28,6 @@ const TextSharingManagerStyle = styled.div`
 
     .compose-panel {
         flex-shrink: 0;
-        height: 260px;
         display: flex;
         flex-direction: column;
         background: var(--glass-bg);
@@ -38,26 +37,27 @@ const TextSharingManagerStyle = styled.div`
         border-radius: var(--radius-md);
         box-shadow: var(--shadow-sm);
         overflow: hidden;
+        transition: border-color var(--dur-fast) var(--ease);
     }
 
-    .compose-panel textarea {
+    .compose-panel:hover {
+        border-color: var(--primary);
+    }
+
+    .compose-panel .MuiOutlinedInput-root {
         flex: 1;
-        width: 100%;
-        border: none;
         background: transparent;
-        padding: 16px;
-        font-size: 18px;
-        line-height: 1.6;
-        color: var(--on-surface);
-        box-sizing: border-box;
-        resize: none;
-        display: block;
     }
 
-    .compose-panel textarea:focus,
-    .compose-panel textarea:focus-visible {
-        outline: none;
-        box-shadow: none;
+    .compose-panel .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline {
+        border: none;
+    }
+
+    .compose-panel .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+        border: none;
+    }
+
+    .compose-panel .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
         border: none;
     }
 
@@ -70,8 +70,7 @@ const TextSharingManagerStyle = styled.div`
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 12px 16px;
-        border-top: 1px solid var(--outline-variant);
+        padding: 0 16px 16px;
     }
 
     .char-count {
@@ -84,42 +83,6 @@ const TextSharingManagerStyle = styled.div`
     .compose-actions {
         display: flex;
         gap: 8px;
-    }
-
-    .btn-clear {
-        padding: 8px 16px;
-        background: var(--surface-container-high);
-        color: var(--on-surface);
-        border: 1px solid var(--outline-variant);
-        border-radius: var(--radius);
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: background-color var(--dur-fast) var(--ease);
-    }
-
-    .btn-clear:hover {
-        background: var(--surface-container-highest);
-    }
-
-    .btn-share {
-        padding: 8px 24px;
-        background: var(--primary);
-        color: var(--on-primary);
-        border: none;
-        border-radius: var(--radius);
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: background-color var(--dur-fast) var(--ease);
-    }
-
-    .btn-share:hover {
-        background: color-mix(in srgb, var(--primary) 90%, transparent);
-    }
-
-    .btn-share:active, .btn-clear:active {
-        transform: scale(0.97);
     }
 
     .history-section {
@@ -161,12 +124,13 @@ const TextSharingManagerStyle = styled.div`
         flex-direction: column;
         gap: 12px;
         box-shadow: var(--shadow-sm);
-        transition: box-shadow var(--dur-fast) var(--ease);
+        transition: box-shadow var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
         position: relative;
     }
 
     .history-card:hover {
         box-shadow: var(--shadow-md);
+        border-color: var(--primary);
     }
 
     .card-header {
@@ -176,13 +140,14 @@ const TextSharingManagerStyle = styled.div`
     }
 
     .card-ip {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 500;
+        letter-spacing: 0.02em;
         color: var(--primary);
     }
 
     .card-time {
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 500;
         letter-spacing: 0.05em;
         text-transform: uppercase;
@@ -216,8 +181,9 @@ const TextSharingManagerStyle = styled.div`
 
     .card-action-btn {
         padding: 8px;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 500;
+        letter-spacing: 0.02em;
         cursor: pointer;
         border-radius: var(--radius);
         transition: background-color var(--dur-fast) var(--ease);
@@ -231,14 +197,14 @@ const TextSharingManagerStyle = styled.div`
     }
 
     .card-action-copy:hover {
-        background: color-mix(in srgb, var(--primary) 90%, transparent);
+        background: var(--primary-hover);
     }
 
     .card-action-view {
         flex: 2;
         background: var(--surface);
         color: var(--primary);
-        border: 1px solid var(--outline-variant);
+        border: var(--glass-border);
     }
 
     .card-action-view:hover {
@@ -251,7 +217,7 @@ const TextSharingManagerStyle = styled.div`
         position: fixed;
         z-index: 10000;
         background: var(--surface);
-        border: 1px solid var(--outline-variant);
+        border: var(--glass-border);
         border-radius: var(--radius);
         box-shadow: var(--shadow-md);
         backdrop-filter: blur(24px);
@@ -267,8 +233,9 @@ const TextSharingManagerStyle = styled.div`
         padding: 8px 16px;
         border-radius: 6px;
         cursor: pointer;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 500;
+        letter-spacing: 0.02em;
         color: var(--on-surface);
         background: none;
         border: none;

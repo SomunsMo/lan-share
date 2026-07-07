@@ -47,7 +47,7 @@ const AboutStyle = styled.div`
         font-size: 12px;
         font-weight: 500;
         letter-spacing: 0.02em;
-        border: 1px solid var(--outline-variant);
+        border: var(--glass-border);
     }
 
     .bento-grid {
@@ -66,10 +66,15 @@ const AboutStyle = styled.div`
 
     .info-card {
         background: var(--surface-container-lowest);
-        border: 1px solid var(--outline-variant);
+        border: var(--glass-border);
         border-radius: var(--radius-md);
         padding: 24px;
         box-shadow: var(--shadow-sm);
+        transition: border-color var(--dur-fast) var(--ease);
+    }
+
+    .info-card:hover {
+        border-color: var(--primary);
     }
 
     .info-card-header {
@@ -95,6 +100,10 @@ const AboutStyle = styled.div`
         gap: 4px;
     }
 
+    .info-row + .info-row {
+        margin-top: 16px;
+    }
+
     .info-label {
         font-size: 12px;
         font-weight: 500;
@@ -104,7 +113,8 @@ const AboutStyle = styled.div`
     }
 
     .info-value {
-        font-size: 14px;
+        font-size: 16px;
+        font-weight: 400;
         color: var(--on-surface);
     }
 
@@ -125,9 +135,10 @@ const AboutStyle = styled.div`
         background: var(--surface-container-high);
         color: var(--on-surface);
         border-radius: var(--radius);
-        border: 1px solid var(--outline-variant);
-        font-size: 13px;
+        border: var(--glass-border);
+        font-size: 14px;
         font-weight: 500;
+        letter-spacing: 0.02em;
         cursor: pointer;
         transition: text-decoration var(--dur-fast) var(--ease);
     }
@@ -157,7 +168,7 @@ const AboutStyle = styled.div`
         border-radius: var(--radius);
         font-size: 12px;
         font-weight: 500;
-        border: 1px solid var(--outline-variant);
+        border: var(--glass-border);
     }
 
     .cta-area {

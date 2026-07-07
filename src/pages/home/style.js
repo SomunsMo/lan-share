@@ -28,6 +28,12 @@ const HomeStyle = styled.div`
         gap: 24px;
     }
 
+    .details-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
     .placeholder-panel {
         display: flex;
         flex-direction: column;

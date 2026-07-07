@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import SettingsStyle from "./style.js";
 import {invoke} from "@tauri-apps/api/core";
 import {open} from '@tauri-apps/plugin-dialog';
@@ -25,6 +25,57 @@ function Settings() {
     const [autostartEnabled, setAutostartEnabled] = useState(false);
     const [httpPort, setHttpPort] = useState(3000);
     const [themeSetting, setThemeSetting] = useState("system");
+    const [huePrimary, setHuePrimary] = useState(() => {
+        try {
+            const val = getComputedStyle(document.documentElement).getPropertyValue('--hue-primary').trim();
+            return val ? parseInt(val, 10) : 210;
+        } catch { return 210; }
+    });
+    const [satPrimary, setSatPrimary] = useState(() => {
+        try {
+            const val = getComputedStyle(document.documentElement).getPropertyValue('--sat-primary').trim();
+            return val ? parseInt(val, 10) : 100;
+        } catch { return 100; }
+    });
+    const [ligPrimary, setLigPrimary] = useState(() => {
+        try {
+            const val = getComputedStyle(document.documentElement).getPropertyValue('--lig-primary').trim();
+            return val ? parseInt(val, 10) : 40;
+        } catch { return 40; }
+    });
+    const [primaryColorHex, setPrimaryColorHex] = useState('#0065ca');
+
+    const hslToHex = (h, s, l) => {
+        s /= 100; l /= 100;
+        const a = s * Math.min(l, 1 - l);
+        const f = (n) => {
+            const k = (n + h / 30) % 12;
+            return l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        };
+        const hex = (x) => Math.round(x * 255).toString(16).padStart(2, '0');
+        return `#${hex(f(0))}${hex(f(8))}${hex(f(4))}`;
+    };
+
+    const hexToHsl = (hex) => {
+        const r = parseInt(hex.slice(1, 3), 16) / 255;
+        const g = parseInt(hex.slice(3, 5), 16) / 255;
+        const b = parseInt(hex.slice(5, 7), 16) / 255;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const delta = max - min;
+        const l = (max + min) / 2;
+        if (delta < 0.01) return { h: 0, s: 0, l: Math.round(l * 100) };
+        const s = delta / (1 - Math.abs(2 * l - 1));
+        let h = 0;
+        if (max === r) h = ((g - b) / delta) % 6;
+        else if (max === g) h = (b - r) / delta + 2;
+        else h = (r - g) / delta + 4;
+        return {
+            h: Math.round(((h * 60) % 360 + 360) % 360),
+            s: Math.round(s * 100),
+            l: Math.round(l * 100),
+        };
+    };
     const {showToast} = useToast();
     const {showDialog} = useDialog();
 
@@ -144,6 +195,33 @@ function Settings() {
         };
 
         fetchHttpPort();
+
+        const fetchThemeColor = async () => {
+            try {
+                const json = await invoke('get_theme_color');
+                const { h, s, l } = JSON.parse(json);
+                setHuePrimary(h);
+                setSatPrimary(s);
+                setLigPrimary(l);
+                setPrimaryColorHex(hslToHex(h, s, l));
+                document.documentElement.style.setProperty('--hue-primary', h);
+                document.documentElement.style.setProperty('--sat-primary', `${s}%`);
+                document.documentElement.style.setProperty('--lig-primary', `${l}%`);
+                const muiRoots = document.querySelectorAll('[data-mui-color-scheme]');
+                (muiRoots.length ? [...muiRoots] : [document.documentElement]).forEach(el => {
+                    el.style.setProperty('--mui-palette-primary-main', 'var(--primary)');
+                    el.style.setProperty('--mui-palette-primary-contrastText', 'var(--on-primary)');
+                    el.style.setProperty('--mui-palette-primary-dark', 'var(--primary-hover)');
+                    el.style.setProperty('--mui-palette-secondary-main', 'var(--secondary)');
+                    el.style.setProperty('--mui-palette-background-default', 'var(--surface-bright)');
+                    el.style.setProperty('--mui-palette-background-paper', 'var(--surface-container-lowest)');
+                });
+            } catch (error) {
+                console.error('加载主题色设置失败:', error);
+            }
+        };
+
+        fetchThemeColor();
     }, []);
 
     const handleThemeChange = async (event) => {
@@ -173,6 +251,40 @@ function Settings() {
     const handleLanguageChange = async (event) => {
         const newLang = event.target.value;
         await changeLanguage(newLang);
+    };
+
+    const saveThemeColorRef = useRef(null);
+
+    const applyThemeColor = (h, s, l) => {
+        document.documentElement.style.setProperty('--hue-primary', h);
+        document.documentElement.style.setProperty('--sat-primary', `${s}%`);
+        document.documentElement.style.setProperty('--lig-primary', `${l}%`);
+        const muiRoots = document.querySelectorAll('[data-mui-color-scheme]');
+        (muiRoots.length ? [...muiRoots] : [document.documentElement]).forEach(el => {
+            el.style.setProperty('--mui-palette-primary-main', 'var(--primary)');
+            el.style.setProperty('--mui-palette-primary-contrastText', 'var(--on-primary)');
+            el.style.setProperty('--mui-palette-primary-dark', 'var(--primary-hover)');
+            el.style.setProperty('--mui-palette-secondary-main', 'var(--secondary)');
+            el.style.setProperty('--mui-palette-background-default', 'var(--surface-bright)');
+            el.style.setProperty('--mui-palette-background-paper', 'var(--surface-container-lowest)');
+        });
+    };
+
+    const handleColorPick = (event) => {
+        const hex = event.target.value;
+        setPrimaryColorHex(hex);
+        const { h, s, l } = hexToHsl(hex);
+        setHuePrimary(h);
+        setSatPrimary(s);
+        setLigPrimary(l);
+        applyThemeColor(h, s, l);
+
+        if (saveThemeColorRef.current) clearTimeout(saveThemeColorRef.current);
+        saveThemeColorRef.current = setTimeout(() => {
+            invoke('set_theme_color', {h, s, l}).catch(err => {
+                console.error('保存主题色失败:', err);
+            });
+        }, 300);
     };
 
     const handlePortClick = async () => {
@@ -300,6 +412,34 @@ function Settings() {
         }
     };
 
+    const clearTextRecords = async () => {
+        const confirmed = await showDialog({
+            title: t('history.clearDialog.title'),
+            content: t('history.clearDialog.contentText'),
+            buttons: [
+                {label: 'common.button.cancel', value: false},
+                {label: t('history.clearDialog.buttonClear'), value: true, primary: true, danger: true},
+            ],
+        });
+        if (!confirmed) return;
+        await invoke("clear_sharing_text");
+        showToast({message: t('history.toast.textCleared'), type: 'success'});
+    };
+
+    const clearFileRecords = async () => {
+        const confirmed = await showDialog({
+            title: t('history.clearDialog.title'),
+            content: t('history.clearDialog.contentFile'),
+            buttons: [
+                {label: 'common.button.cancel', value: false},
+                {label: t('history.clearDialog.buttonClear'), value: true, primary: true, danger: true},
+            ],
+        });
+        if (!confirmed) return;
+        await invoke("clear_sharing_file");
+        showToast({message: t('history.toast.fileCleared'), type: 'success'});
+    };
+
     const handleAutostartChange = async (event) => {
         const checked = event.target.checked;
         setAutostartEnabled(checked);
@@ -323,7 +463,7 @@ function Settings() {
                     name: t('settings.option.port'),
                     desc: t('settings.option.portDesc'),
                     content: (
-                        <Button variant="text" onClick={handlePortClick} sx={{ textTransform: 'none', gap: 0.5, fontSize: '0.82rem', color: 'var(--accent)' }}>
+                        <Button variant="text" onClick={handlePortClick} sx={{ textTransform: 'none', gap: 0.5, fontSize: '0.875rem', color: 'var(--accent)', '&:hover': { background: 'var(--surface-container-highest)' } }}>
                             {httpPort}
                             <svg viewBox="0 0 24 24" width="16" height="16" style={{fill:'none',stroke:'currentColor',strokeWidth:2}}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </Button>
@@ -354,7 +494,7 @@ function Settings() {
                     name: t('settings.option.theme'),
                     desc: t('settings.option.themeDesc'),
                     content: (
-                        <Select value={themeSetting} onChange={handleThemeChange} size="small" sx={{ minWidth: 120, fontSize: '0.82rem' }}>
+                        <Select value={themeSetting} onChange={handleThemeChange} size="small" sx={{ minWidth: 120, fontSize: '0.875rem' }}>
                             <MenuItem value="system">{t('settings.themeOption.system')}</MenuItem>
                             <MenuItem value="light">{t('settings.themeOption.light')}</MenuItem>
                             <MenuItem value="dark">{t('settings.themeOption.dark')}</MenuItem>
@@ -362,10 +502,23 @@ function Settings() {
                     ),
                 },
                 {
+                    name: t('settings.option.themeColor'),
+                    desc: t('settings.option.themeColorDesc'),
+                    content: (
+                        <div className="hue-picker">
+                            <label className="color-swatch-wrap">
+                                <span className="color-swatch" style={{ background: `hsl(${huePrimary}, ${satPrimary}%, ${ligPrimary}%)` }} />
+                                <input type="color" value={primaryColorHex} onChange={handleColorPick} className="color-input-hidden" />
+                            </label>
+                            <span className="hue-label">{huePrimary}° {satPrimary}% {ligPrimary}%</span>
+                        </div>
+                    ),
+                },
+                {
                     name: t('settings.option.language'),
                     desc: t('settings.option.languageDesc'),
                     content: (
-                        <Select value={i18n.language} onChange={handleLanguageChange} size="small" sx={{ minWidth: 120, fontSize: '0.82rem' }}>
+                        <Select value={i18n.language} onChange={handleLanguageChange} size="small" sx={{ minWidth: 120, fontSize: '0.875rem' }}>
                             <MenuItem value="zh-CN">{t('settings.languageOption.zh-CN')}</MenuItem>
                             <MenuItem value="en">{t('settings.languageOption.en')}</MenuItem>
                         </Select>
@@ -415,6 +568,16 @@ function Settings() {
                     desc: t('settings.option.recordDownloadDesc'),
                     content: (<Switch checked={recordDownloadEnabled} onChange={handleRecordDownloadChange} />),
                 },
+                {
+                    name: t('settings.option.clearTextRecords'),
+                    desc: t('settings.option.clearTextRecordsDesc'),
+                    content: (<Button variant="outlined" color="error" size="small" onClick={clearTextRecords}>{t('history.clearDialog.buttonClear')}</Button>),
+                },
+                {
+                    name: t('settings.option.clearFileRecords'),
+                    desc: t('settings.option.clearFileRecordsDesc'),
+                    content: (<Button variant="outlined" color="error" size="small" onClick={clearFileRecords}>{t('history.clearDialog.buttonClear')}</Button>),
+                },
             ]
         },
         {
@@ -427,8 +590,8 @@ function Settings() {
                     desc: t('settings.option.shareRootDesc'),
                     content: (
                         <div className="directory-row">
-                            <TextField size="small" value={selectedDirectory} slotProps={{ input: { readOnly: true } }} onClick={selectDirectory} sx={{ cursor: 'pointer', flex: 1, '& input': { fontSize: '0.85rem', cursor: 'pointer' } }} />
-                            <Button variant="contained" size="small" onClick={selectDirectory}>{t('settings.labels.browse')}</Button>
+                            <TextField size="small" value={selectedDirectory} slotProps={{ input: { readOnly: true } }} onClick={selectDirectory} sx={{ cursor: 'pointer', flex: 1, '& input': { fontSize: '0.875rem', cursor: 'pointer' } }} />
+                            <Button variant="contained" size="small" onClick={selectDirectory} sx={{ '&:hover': { backgroundColor: 'var(--primary-hover)' } }}>{t('settings.labels.browse')}</Button>
                         </div>
                     ),
                 },
@@ -448,23 +611,23 @@ function Settings() {
     return (
         <SettingsStyle>
             <div className="page-header">
-                <Typography variant="h4" fontSize="1.5rem" fontWeight={700}>{t('settings.pageTitle') || 'Settings'}</Typography>
+                <Typography variant="h4" sx={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--on-surface)' }}>{t('settings.pageTitle') || 'Settings'}</Typography>
             </div>
             {optionMap.map((section, si) => (
                 <div className="section-card" key={si}>
                     <div className="section-header">
                         <div className="section-header-top">
                             {sectionIcons[section.icon]}
-                            <Typography variant="h6" fontSize="1rem" fontWeight={600}>{section.name}</Typography>
+                            <Typography variant="h6" fontSize="1.5rem" fontWeight={600} sx={{ color: 'var(--on-surface)' }}>{section.name}</Typography>
                         </div>
-                        <Typography variant="body2" fontSize="0.78rem" color="var(--on-surface-variant)">{section.hint}</Typography>
+                        <Typography variant="body2" fontSize="0.875rem" sx={{ color: 'var(--on-surface-variant)' }}>{section.hint}</Typography>
                     </div>
                     <div className="section-body">
                         {section.options.map((opt, oi) => (
                             <div className="option-row" key={oi}>
                                 <div className="option-label">
-                                    <Typography variant="subtitle2" fontSize="0.88rem" fontWeight={600}>{opt.name}</Typography>
-                                    {opt.desc && <Typography variant="caption" fontSize="0.78rem" color="var(--on-surface-variant)">{opt.desc}</Typography>}
+                                    <Typography variant="subtitle2" fontSize="0.875rem" fontWeight={600} sx={{ color: 'var(--on-surface)' }}>{opt.name}</Typography>
+                                    {opt.desc && <Typography variant="caption" fontSize="0.875rem" sx={{ color: 'var(--on-surface-variant)' }}>{opt.desc}</Typography>}
                                 </div>
                                 {opt.content}
                             </div>
