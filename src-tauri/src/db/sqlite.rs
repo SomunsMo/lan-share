@@ -54,7 +54,7 @@ async fn init_table() {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS config (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            cfg_key TEXT NOT NULL, -- 配置key
+            cfg_key TEXT NOT NULL UNIQUE, -- 配置key
             cfg_value TEXT NOT NULL, -- 配置值
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP -- 创建时间
         )",
@@ -62,6 +62,12 @@ async fn init_table() {
     .execute(get_pool())
     .await
     .unwrap();
+
+    // 兼容旧数据库：已有表没有 UNIQUE 约束，补建唯一索引
+    sqlx::query("CREATE UNIQUE INDEX IF NOT EXISTS idx_config_cfg_key ON config(cfg_key)")
+        .execute(get_pool())
+        .await
+        .unwrap();
 
     // 传输记录表（统一存储上传/下载/复制记录）
     // action_type: 1=文本分享, 2=文件分享, 3=文本复制, 4=文件下载

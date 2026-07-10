@@ -26,53 +26,17 @@ pub async fn get_config_value(key: &str) -> Result<Option<String>, Error> {
     }
 }
 
-/// 更新配置
-async fn update_config(key: &str, value: &str, timestamp: &str) -> Result<(), Error> {
-    let result = sqlx::query("UPDATE config SET cfg_value = ?, created_at = ? WHERE cfg_key = ?")
-        .bind(value)
-        .bind(timestamp)
-        .bind(key)
-        .execute(get_pool())
-        .await;
-
-    match result {
-        Ok(_) => Ok(()),
-        Err(e) => Err(e),
-    }
-}
-
-/// 设置配置
+/// 设置配置（使用 UPSERT，依赖 cfg_key 上的 UNIQUE 约束）
 pub async fn set_config(key: &str, value: &str) -> Result<(), Error> {
     let now = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-
-    // 检查配置是否存在
-    let exists_result = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM config WHERE cfg_key = ?)")
-        .bind(key)
-        .fetch_one(get_pool())
-        .await;
-
-    match exists_result {
-        Ok(exists) => {
-            if exists {
-                // 如果存在，则更新
-                update_config(key, value, &now).await
-            } else {
-                // 如果不存在，则插入
-                let result = sqlx::query(
-                    "INSERT INTO config (cfg_key, cfg_value, created_at) VALUES (?, ?, ?)",
-                )
-                .bind(key)
-                .bind(value)
-                .bind(&now)
-                .execute(get_pool())
-                .await;
-
-                match result {
-                    Ok(_) => Ok(()),
-                    Err(e) => Err(e),
-                }
-            }
-        }
-        Err(e) => Err(e),
-    }
+    sqlx::query(
+        "INSERT INTO config (cfg_key, cfg_value, created_at) VALUES (?, ?, ?) \
+         ON CONFLICT(cfg_key) DO UPDATE SET cfg_value = excluded.cfg_value, created_at = excluded.created_at",
+    )
+    .bind(key)
+    .bind(value)
+    .bind(&now)
+    .execute(get_pool())
+    .await?;
+    Ok(())
 }
