@@ -2374,6 +2374,8 @@ dependencies = [
  "log",
  "mime_guess",
  "multer",
+ "objc2",
+ "objc2-app-kit",
  "reqwest",
  "serde",
  "serde_json",

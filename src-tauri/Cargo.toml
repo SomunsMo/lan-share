@@ -62,5 +62,11 @@ listeners = "0.5"
 ctor = "0.6.0"
 tauri-plugin-single-instance = "2"
 tauri-plugin-autostart = "2"
-winreg = "0.52"
 dirs = "6"
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.52"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = "0.3"
