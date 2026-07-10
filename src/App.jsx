@@ -81,16 +81,16 @@ function App() {
     }, []);
 
     return (
-        <DialogProvider>
-            <ToastProvider>
+        <ToastProvider>
+            <DialogProvider>
                 <div className="container">
                     <Navbar/>
                     <main className={"content"}>
                         {useRoutes(routes)}
                     </main>
                 </div>
-            </ToastProvider>
-        </DialogProvider>
+            </DialogProvider>
+        </ToastProvider>
     );
 }
 

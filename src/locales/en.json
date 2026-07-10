@@ -6,7 +6,8 @@
       "confirm": "Confirm"
     },
     "toast": {
-      "operationFailed": "Operation failed"
+      "operationFailed": "Operation failed",
+      "copied": "Copied"
     }
   },
   "route": {
@@ -122,6 +123,11 @@
     "type": {
       "text": "Text",
       "file": "File"
+    },
+    "typeLabel": {
+      "text": "Share text",
+      "upload": "Upload file",
+      "download": "Download file"
     },
     "detailTitle": "Record Detail",
     "noPreview": "(File preview not supported)",

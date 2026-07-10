@@ -9,9 +9,11 @@ import copy from 'copy-to-clipboard';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
+import {useToast} from "@/components/toast/index.jsx";
 
 function Home() {
     const { t } = useTranslation();
+    const {showToast} = useToast();
     const [webUrl, setWebUrl] = useState("");
     const [serverStatus, setServerStatus] = useState(null);
     const [qrFgColor, setQrFgColor] = useState("#213547");
@@ -89,6 +91,7 @@ function Home() {
     const copyUrl = () => {
         const addr = webUrl ? webUrl.replace('http://', '') : '';
         copy(addr);
+        showToast({message: t('common.toast.copied'), type: 'success'});
     }
 
     const ipAddr = webUrl ? webUrl.split('/')[2].split(':')[0] : '';
@@ -137,7 +140,11 @@ function Home() {
                         </Typography>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid var(--border)' }}>
                             <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.deviceName') || 'Device Name'}</Typography>
-                            <Typography sx={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--on-surface)' }}>{deviceName}</Typography>
+                            <Typography
+                                title={t('home.copyTooltip')}
+                                onClick={() => { copy(deviceName); showToast({message: t('common.toast.copied'), type: 'success'}); }}
+                                sx={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--on-surface)', cursor: 'pointer', '&:hover': { color: 'var(--primary)' } }}
+                            >{deviceName}</Typography>
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid var(--border)' }}>
                             <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.localIp') || 'Local IP'}</Typography>
@@ -180,8 +187,8 @@ function Home() {
                             <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>
                                 {t('home.manualDesc')}
                             </Typography>
-                            <Box onClick={copyUrl} title={t('home.copyTooltip')} sx={{ bgcolor: 'var(--surface-container-lowest)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', p: 2, cursor: 'pointer', textAlign: 'center' }}>
-                                <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--primary)', userSelect: 'all', fontFamily: 'var(--font-family-heading)' }}>
+                            <Box onClick={copyUrl} title={t('home.copyTooltip')} sx={{ cursor: 'pointer', textAlign: 'center', color: 'var(--on-surface-variant)', '&:hover': { color: 'var(--primary)' } }}>
+                                <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, fontFamily: 'var(--font-family-heading)' }}>
                                     {webUrl ? webUrl.replace('http://', '') : ''}
                                 </Typography>
                             </Box>
