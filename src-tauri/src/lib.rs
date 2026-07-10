@@ -56,6 +56,8 @@ struct WindowState {
     height: u32,
 }
 
+const WINDOW_DEFAULT_W: u32 = 980;
+const WINDOW_DEFAULT_H: u32 = 650;
 const WINDOW_MIN_W: u32 = 800;
 const WINDOW_MIN_H: u32 = 500;
 
@@ -110,13 +112,13 @@ fn clamp_and_center(window: &tauri::WebviewWindow, saved: &WindowState) -> (i32,
 fn center_on_primary(window: &tauri::WebviewWindow) -> (i32, i32, u32, u32) {
     if let Ok(Some(monitor)) = window.primary_monitor() {
         let msize = monitor.size();
-        let width = WINDOW_MIN_W.min(msize.width);
-        let height = WINDOW_MIN_H.min(msize.height);
+        let width = WINDOW_DEFAULT_W.min(msize.width);
+        let height = WINDOW_DEFAULT_H.min(msize.height);
         let x = (msize.width as i32 - width as i32) / 2;
         let y = (msize.height as i32 - height as i32) / 2;
         (x.max(0), y.max(0), width, height)
     } else {
-        (0, 0, WINDOW_MIN_W, WINDOW_MIN_H)
+        (0, 0, WINDOW_DEFAULT_W, WINDOW_DEFAULT_H)
     }
 }
 
