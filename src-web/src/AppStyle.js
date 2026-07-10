@@ -17,6 +17,7 @@ const AppStyle = styled.div`
     }
 
     .appTitle {
+        margin-top: 10px;
         font-size: 1.8rem;
         font-weight: 600;
         letter-spacing: -0.01em;
@@ -82,6 +83,7 @@ const AppStyle = styled.div`
         background-image: none;
         text-align: center;
         min-width: 72px;
+        font-size: 0.78rem;
     }
 
     .appSubtitle {

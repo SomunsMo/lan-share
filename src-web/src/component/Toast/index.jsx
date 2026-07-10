@@ -3,6 +3,7 @@ import {
     ToastContainerWrapper,
     ToastItemOuter,
     ToastItemInner,
+    ToastBar,
     ToastMessage,
     ToastCloseBtn,
 } from './ToastStyle';
@@ -103,8 +104,9 @@ function ToastItem({ toast, onClose }) {
     return (
         <ToastItemOuter $collapsing={isCollapsing} $height={height}>
             <ToastItemInner ref={innerRef} $type={toast.type} $exiting={isExiting}>
+                <ToastBar $type={toast.type} />
                 <ToastMessage>{toast.message}</ToastMessage>
-                <ToastCloseBtn onClick={() => onClose(toast.id)}>✕</ToastCloseBtn>
+                <ToastCloseBtn onClick={() => onClose(toast.id)}>×</ToastCloseBtn>
             </ToastItemInner>
         </ToastItemOuter>
     );
