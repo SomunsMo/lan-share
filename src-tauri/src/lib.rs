@@ -60,7 +60,7 @@ const WINDOW_MIN_W: u32 = 800;
 const WINDOW_MIN_H: u32 = 500;
 
 fn save_window_state(window: &tauri::Window) {
-    if let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) {
+    if let (Ok(pos), Ok(size)) = (window.outer_position(), window.inner_size()) {
         let state = WindowState {
             x: pos.x,
             y: pos.y,
