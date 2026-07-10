@@ -31,7 +31,6 @@ fn toggle_window_visibility(app: &AppHandle) {
         match window.is_visible().unwrap_or(false) {
             true => {
                 let _ = window.hide();
-                #[cfg(target_os = "macos")]
                 crate::macos::set_dock_icon(false);
             }
             false => {

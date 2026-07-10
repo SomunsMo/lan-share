@@ -90,8 +90,10 @@ fn get_monitor_containing(window: &tauri::WebviewWindow, x: i32, y: i32) -> Opti
     monitors.into_iter().find(|m| {
         let mpos = m.position();
         let msize = m.size();
-        x >= mpos.x && x < mpos.x + msize.width as i32
-            && y >= mpos.y && y < mpos.y + msize.height as i32
+        x >= mpos.x
+            && x < mpos.x + msize.width as i32
+            && y >= mpos.y
+            && y < mpos.y + msize.height as i32
     })
 }
 
@@ -100,13 +102,24 @@ fn clamp_and_center(window: &tauri::WebviewWindow, saved: &WindowState) -> (i32,
         .or_else(|| window.primary_monitor().ok().flatten());
     let (mpos, msize) = match &monitor {
         Some(m) => (m.position(), m.size()),
-        None => return (saved.x, saved.y, saved.width.max(WINDOW_MIN_W), saved.height.max(WINDOW_MIN_H)),
+        None => {
+            return (
+                saved.x,
+                saved.y,
+                saved.width.max(WINDOW_MIN_W),
+                saved.height.max(WINDOW_MIN_H),
+            )
+        }
     };
 
     let width = saved.width.min(msize.width).max(WINDOW_MIN_W);
     let height = saved.height.min(msize.height).max(WINDOW_MIN_H);
-    let x = saved.x.clamp(mpos.x, mpos.x + msize.width as i32 - width as i32);
-    let y = saved.y.clamp(mpos.y, mpos.y + msize.height as i32 - height as i32);
+    let x = saved
+        .x
+        .clamp(mpos.x, mpos.x + msize.width as i32 - width as i32);
+    let y = saved
+        .y
+        .clamp(mpos.y, mpos.y + msize.height as i32 - height as i32);
     (x, y, width, height)
 }
 
@@ -255,7 +268,7 @@ pub fn run() {
                 if !is_silent {
                     let _ = window.show();
                 } else {
-                    crate::macos::set_dock_icon(false);
+                    macos::set_dock_icon(false);
                 }
             }
 
@@ -297,8 +310,7 @@ pub fn run() {
                 // 拦截关闭请求，将窗口隐藏到托盘而不是关闭
                 api.prevent_close();
                 window.hide().unwrap();
-                #[cfg(target_os = "macos")]
-                crate::macos::set_dock_icon(false);
+                macos::set_dock_icon(false);
             }
         })
         .build(tauri::generate_context!())
