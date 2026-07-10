@@ -761,12 +761,19 @@ pub fn get_app_version() -> String {
     format!("v{}", env!("CARGO_PKG_VERSION"))
 }
 
+/// 获取开源仓库地址
+#[tauri::command]
+pub fn get_repo_url() -> String {
+    crate::config::config::REPO_URL.to_string()
+}
+
 /// 检查 GitHub 上是否有新版本
 #[tauri::command]
 pub async fn check_update() -> UpdateCheckResult {
     let current = env!("CARGO_PKG_VERSION");
+    let releases_url = format!("{}/releases", crate::config::config::REPO_URL);
     let client = match reqwest::Client::builder()
-        .user_agent(format!("lan-share/{}", current))
+        .user_agent("lan-share")
         .timeout(std::time::Duration::from_secs(15))
         .build()
     {
@@ -777,14 +784,14 @@ pub async fn check_update() -> UpdateCheckResult {
                 has_update: false,
                 latest_version: String::new(),
                 release_notes: String::new(),
-                download_url: "https://github.com/SomunsMo/lan-share/releases".to_string(),
+                download_url: releases_url.clone(),
                 error: Some(format!("创建 HTTP 客户端失败: {}", e)),
             };
         }
     };
 
     let resp = match client
-        .get("https://api.github.com/repos/SomunsMo/lan-share/releases/latest")
+        .get(crate::config::config::REPO_API.to_string() + "/releases/latest")
         .send()
         .await
     {
@@ -800,7 +807,7 @@ pub async fn check_update() -> UpdateCheckResult {
                 has_update: false,
                 latest_version: String::new(),
                 release_notes: String::new(),
-                download_url: "https://github.com/SomunsMo/lan-share/releases".to_string(),
+                download_url: releases_url.clone(),
                 error: Some(format!("网络请求失败: {}", detail)),
             };
         }
@@ -811,7 +818,7 @@ pub async fn check_update() -> UpdateCheckResult {
             has_update: false,
             latest_version: String::new(),
             release_notes: String::new(),
-            download_url: "https://github.com/SomunsMo/lan-share/releases".to_string(),
+            download_url: releases_url.clone(),
             error: Some(format!("GitHub API 返回异常状态码: {}", resp.status())),
         };
     }
@@ -824,7 +831,7 @@ pub async fn check_update() -> UpdateCheckResult {
                 has_update: false,
                 latest_version: String::new(),
                 release_notes: String::new(),
-                download_url: "https://github.com/SomunsMo/lan-share/releases".to_string(),
+                download_url: releases_url.clone(),
                 error: Some(format!("解析响应数据失败: {}", e)),
             };
         }
@@ -833,7 +840,7 @@ pub async fn check_update() -> UpdateCheckResult {
     let tag_name = body["tag_name"].as_str().unwrap_or("");
     let latest_version = tag_name.trim_start_matches('v');
     let release_notes = body["body"].as_str().unwrap_or("");
-    let html_url = body["html_url"].as_str().unwrap_or("https://github.com/SomunsMo/lan-share/releases");
+    let html_url = body["html_url"].as_str().unwrap_or(&releases_url);
 
     let has_update = compare_versions(latest_version, current);
 

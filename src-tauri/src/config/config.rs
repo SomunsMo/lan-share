@@ -4,6 +4,11 @@ use std::sync::OnceLock;
 use log::error;
 use tokio::sync::RwLock;
 
+/// 开源仓库地址（编译时定死，用于关于页链接和版本更新检查）
+pub const REPO_URL: &str = "https://github.com/SomunsMo/lan-share";
+/// GitHub API 地址（用于检查新版本）
+pub const REPO_API: &str = "https://api.github.com/repos/SomunsMo/lan-share";
+
 /// 窗口状态JSON（init中从DB读取，供setup同步使用）
 pub static WINDOW_STATE_JSON: OnceLock<Option<String>> = OnceLock::new();
 
