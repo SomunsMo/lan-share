@@ -335,15 +335,14 @@ pub async fn set_autostart_minimized(app: tauri::AppHandle, enabled: bool) -> Re
 
 /// 更新 autostart 命令行参数
 fn update_autostart_args(minimized: bool) {
-    let arg = "--silent";
-    let exe = std::env::current_exe().ok();
-    let exe_path = match &exe {
-        Some(p) => p.to_string_lossy().to_string(),
-        None => return,
-    };
-
     #[cfg(target_os = "windows")]
     {
+        let arg = "--silent";
+        let exe = std::env::current_exe().ok();
+        let exe_path = match &exe {
+            Some(p) => p.to_string_lossy().to_string(),
+            None => return,
+        };
         use winreg::enums::*;
         use winreg::RegKey;
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
@@ -364,37 +363,55 @@ fn update_autostart_args(minimized: bool) {
 
     #[cfg(target_os = "macos")]
     {
-        let bundle_id = "cn.sommo.lan-share";
+        let label = "LAN Share";
+        let exe = std::env::current_exe().ok();
+        let exe_path = match &exe {
+            Some(p) => p.to_string_lossy().to_string(),
+            None => return,
+        };
         let plist_path = dirs::home_dir()
-            .map(|h| h.join(format!("Library/LaunchAgents/{}.plist", bundle_id)));
+            .map(|h| h.join(format!("Library/LaunchAgents/{}.plist", label)));
         if let Some(path) = plist_path {
             if path.exists() {
-                // 简单地通过 defaults 命令修改
-                let val = if minimized { "YES" } else { "NO" };
-                let _ = std::process::Command::new("defaults")
-                    .args([
-                        "write",
-                        bundle_id,
-                        "ProgramArguments",
-                        "-array",
-                        &exe_path,
-                        arg,
-                    ])
-                    .output();
+                let args = if minimized {
+                    format!(
+                        "  <array><string>{}</string><string>--silent</string></array>",
+                        exe_path
+                    )
+                } else {
+                    format!("  <array><string>{}</string></array>", exe_path)
+                };
+                let content = format!(
+                    r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+  <key>Label</key>
+  <string>{}</string>
+  <key>ProgramArguments</key>
+{}
+  <key>RunAtLoad</key>
+  <true/>
+  </dict>
+</plist>
+"#,
+                    label, args
+                );
+                let _ = std::fs::write(&path, content);
             }
         }
     }
 
     #[cfg(target_os = "linux")]
     {
-        let desktop_name = "lan-share.desktop"; // 可能需要调整
+        let arg = "--silent";
+        let desktop_name = "lan-share.desktop";
         let desktop_path = dirs::data_dir()
             .map(|d| d.join("autostart").join(desktop_name));
         if let Some(path) = desktop_path {
             if path.exists() {
                 if let Ok(content) = std::fs::read_to_string(&path) {
                     let new_content = if minimized {
-                        // 如果尚未包含参数则追加
                         if content.contains(arg) {
                             content
                         } else {
