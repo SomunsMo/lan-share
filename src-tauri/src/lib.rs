@@ -37,6 +37,7 @@ pub mod utils {
     pub mod path;
 }
 
+pub mod macos;
 pub mod tray;
 
 /// 由 build.rs 构建 src-web 并嵌入的 HTML
@@ -253,6 +254,8 @@ pub fn run() {
                 }
                 if !is_silent {
                     let _ = window.show();
+                } else {
+                    crate::macos::set_dock_icon(false);
                 }
             }
 
@@ -294,6 +297,8 @@ pub fn run() {
                 // 拦截关闭请求，将窗口隐藏到托盘而不是关闭
                 api.prevent_close();
                 window.hide().unwrap();
+                #[cfg(target_os = "macos")]
+                crate::macos::set_dock_icon(false);
             }
         })
         .build(tauri::generate_context!())

@@ -31,6 +31,8 @@ fn toggle_window_visibility(app: &AppHandle) {
         match window.is_visible().unwrap_or(false) {
             true => {
                 let _ = window.hide();
+                #[cfg(target_os = "macos")]
+                crate::macos::set_dock_icon(false);
             }
             false => {
                 show_and_focus_window(&window);
@@ -61,5 +63,7 @@ pub(crate) fn show_window(app: &AppHandle) {
 fn show_and_focus_window(window: &tauri::WebviewWindow) {
     let _ = window.show();
     let _ = window.set_focus();
+    #[cfg(target_os = "macos")]
+    crate::macos::set_dock_icon(true);
 }
 
