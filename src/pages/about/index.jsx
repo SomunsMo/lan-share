@@ -15,12 +15,14 @@ function About() {
     const { t } = useTranslation();
     const {showToast} = useToast();
     const [appVersion, setAppVersion] = useState('');
+    const [repoUrl, setRepoUrl] = useState('https://github.com/SomunsMo/lan-share');
     const [checking, setChecking] = useState(false);
     const [updateResult, setUpdateResult] = useState(null);
     const [showUpdateDialog, setShowUpdateDialog] = useState(false);
 
     useEffect(() => {
         invoke('get_app_version').then(setAppVersion).catch(() => setAppVersion(''));
+        invoke('get_repo_url').then(setRepoUrl).catch(() => {});
     }, []);
 
     const handleCheckUpdate = async () => {
@@ -73,7 +75,7 @@ function About() {
                         <Typography variant="subtitle1" fontSize="1rem" fontWeight={600} sx={{ color: 'var(--on-surface)' }}>{t('about.openSource.title')}</Typography>
                     </div>
                     <div className="info-row">
-                        <span className="info-value"><a href="https://github.com/SomunsMo/lan-share" target="_blank" rel="noopener noreferrer">github.com/SomunsMo/lan-share</a></span>
+                        <span className="info-value"><a href={repoUrl} target="_blank" rel="noopener noreferrer">{repoUrl.replace('https://', '')}</a></span>
                     </div>
                 </div>
 
@@ -83,9 +85,7 @@ function About() {
                         <Typography variant="subtitle1" fontSize="1rem" fontWeight={600} sx={{ color: 'var(--on-surface)' }}>{t('about.license.title')}</Typography>
                     </div>
                     <div className="info-row">
-                        <div className="license-large" onClick={() => openUrl('https://opensource.org/licenses/MIT')}>
-                            {t('about.license.name')}
-                        </div>
+                        <span className="info-value"><a onClick={() => openUrl(`${repoUrl}/blob/master/LICENSE`)}>{t('about.license.name')}</a></span>
                     </div>
                 </div>
             </div>
@@ -93,10 +93,10 @@ function About() {
             <Dialog open={showUpdateDialog} onClose={() => setShowUpdateDialog(false)} maxWidth="sm" fullWidth>
                 <DialogTitle>{t('about.update.title')}</DialogTitle>
                 <DialogContent dividers>
-                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1, userSelect: 'text' }}>
                         {t('about.update.newVersion', { version: updateResult?.latest_version })}
                     </Typography>
-                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'var(--on-surface-variant)' }}>
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'var(--on-surface-variant)', userSelect: 'text' }}>
                         {updateResult?.release_notes || t('about.update.noReleaseNotes')}
                     </Typography>
                 </DialogContent>

@@ -483,7 +483,6 @@ function Settings() {
         {
             name: t('settings.sectionNetwork'),
             icon: 'settings',
-            hint: t('settings.sectionNetworkHint'),
             options: [
                 {
                     name: t('settings.option.port'),
@@ -500,7 +499,6 @@ function Settings() {
         {
             name: t('settings.sectionSystem'),
             icon: 'power',
-            hint: t('settings.sectionSystemHint'),
             options: [
                 {
                     name: t('settings.option.autostart'),
@@ -521,7 +519,6 @@ function Settings() {
         {
             name: t('settings.sectionAppearance'),
             icon: 'palette',
-            hint: t('settings.sectionAppearanceHint'),
             options: [
                 {
                     name: t('settings.option.theme'),
@@ -562,7 +559,6 @@ function Settings() {
         {
             name: t('settings.sectionPermissions'),
             icon: 'shield',
-            hint: t('settings.sectionPermissionsHint'),
             options: [
                 {
                     name: t('settings.option.webUpload'),
@@ -589,7 +585,6 @@ function Settings() {
         {
             name: t('settings.sectionRecords'),
             icon: 'clock',
-            hint: t('settings.sectionRecordsHint'),
             options: [
                 {
                     name: t('settings.option.recordCopy'),
@@ -616,7 +611,6 @@ function Settings() {
         {
             name: t('settings.sectionStorage'),
             icon: 'folder',
-            hint: t('settings.sectionStorageHint'),
             options: [
                 {
                     name: t('settings.option.shareRoot'),

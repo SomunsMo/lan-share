@@ -121,53 +121,12 @@ const AboutStyle = styled.div`
     .info-value a {
         color: var(--primary);
         text-decoration: none;
+        cursor: pointer;
     }
 
     .info-value a:hover {
         text-decoration: underline;
     }
-
-    .license-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 12px;
-        background: var(--surface-container-high);
-        color: var(--on-surface);
-        border-radius: var(--radius);
-        border: var(--glass-border);
-        font-size: 14px;
-        font-weight: 500;
-        letter-spacing: 0.02em;
-        cursor: pointer;
-        transition: text-decoration var(--dur-fast) var(--ease);
-    }
-
-    .license-badge:hover {
-        text-decoration: underline;
-    }
-
-    .license-large {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
-        background: var(--surface-container-high);
-        color: var(--on-surface);
-        border-radius: var(--radius);
-        border: var(--glass-border);
-        font-size: 15px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: text-decoration var(--dur-fast) var(--ease);
-        width: fit-content;
-    }
-
-    .license-large:hover {
-        text-decoration: underline;
-    }
-
-
 
 /* Dialog 内容区域 */
 .MuiDialogContent-root {

@@ -203,13 +203,13 @@ const HistoryStyle = styled.div`
     }
 
     .type-icon.text {
-        background: var(--surface-container-highest);
-        color: var(--secondary);
+        background: var(--surface-container);
+        color: var(--primary);
     }
 
     .type-icon.download {
-        background: var(--surface-container-highest);
-        color: var(--on-surface-variant);
+        background: var(--surface-container);
+        color: var(--primary);
     }
 
     .type-icon svg {

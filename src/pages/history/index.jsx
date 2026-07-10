@@ -42,10 +42,11 @@ function History() {
     const copyToClipboard = useCallback((text) => {
         try {
             copy(text);
+            showToast({message: t('common.toast.copied'), type: 'success'});
         } catch (err) {
             console.error('复制失败:', err);
         }
-    }, []);
+    }, [showToast, t]);
 
     const openFileLocation = useCallback(async (item) => {
         try {
@@ -126,8 +127,8 @@ function History() {
                                 {records.map((r, i) => (
                                     <TableRow key={r.id}>
                                         <TableCell sx={{ color: 'var(--on-surface-variant)' }}>{i + 1}</TableCell>
-                                        <TableCell sx={{ color: 'var(--on-surface)' }}>{r.created_at.replace(/-/g, '/')}</TableCell>
-                                        <TableCell sx={{ color: 'var(--on-surface)' }}>{r.ip}</TableCell>
+                                        <TableCell sx={{ color: 'var(--on-surface)', userSelect: 'text' }}>{r.created_at.replace(/-/g, '/')}</TableCell>
+                                        <TableCell sx={{ color: 'var(--on-surface)', userSelect: 'text' }}>{r.ip}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -151,37 +152,37 @@ function History() {
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 24px' }}>
                         <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.tableHeader.type')}</span>
-                        <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)' }}>{getTypeLabel(item.type)}</span>
+                        <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{getTypeLabel(item.type)}</span>
                         <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.tableHeader.time')}</span>
-                        <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)' }}>{item.time}</span>
+                        <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.time}</span>
                         <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.tableHeader.sourceIp')}</span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)' }}>{item.ip}</span>
+                            <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.ip}</span>
                             <CopyButton text={item.ip} />
                         </span>
                         {item.type === 2 && (
                             <>
                                 <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.tableHeader.overwrite')}</span>
-                                <span style={{ fontSize: '13px', color: item.isOverwrite ? 'var(--error)' : 'var(--on-surface-variant)' }}>{item.isOverwrite ? t('history.overwrite.yes') : t('history.overwrite.no')}</span>
+                                <span style={{ fontSize: '13px', color: item.isOverwrite ? 'var(--error)' : 'var(--on-surface-variant)', userSelect: 'text' }}>{item.isOverwrite ? t('history.overwrite.yes') : t('history.overwrite.no')}</span>
                                 <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.fileFolder')}</span>
                                 <span>
-                                    <span
-                                        style={{ fontSize: '13px', color: 'var(--primary)', cursor: 'pointer', textDecoration: 'none' }}
-                                        onClick={() => openFolder(item.content)}
-                                        onMouseEnter={e => e.target.style.textDecoration = 'underline'}
-                                        onMouseLeave={e => e.target.style.textDecoration = 'none'}
-                                    >{getFileFolder(item.content)}</span>
+                                <span
+                                    style={{ fontSize: '13px', color: 'var(--primary)', cursor: 'pointer', textDecoration: 'none', userSelect: 'text' }}
+                                    onClick={() => openFolder(item.content)}
+                                    onMouseEnter={e => e.target.style.textDecoration = 'underline'}
+                                    onMouseLeave={e => e.target.style.textDecoration = 'none'}
+                                >{getFileFolder(item.content)}</span>
                                 </span>
                                 <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.fileName')}</span>
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)' }}>{getFileName(item.content)}</span>
+                                    <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{getFileName(item.content)}</span>
                                     <CopyButton text={getFileName(item.content)} />
                                 </span>
                             </>
                         )}
                     </div>
                     <hr style={{ border: 'none', borderTop: '1px solid var(--outline-variant)', margin: '12px 0' }} />
-                    <div style={{ maxHeight: '40vh', overflowY: 'auto', fontSize: '14px', lineHeight: 1.6, color: 'var(--on-surface)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{item.type === 2 ? t('history.noPreview') : item.content}</div>
+                    <div style={{ maxHeight: '40vh', overflowY: 'auto', fontSize: '14px', lineHeight: 1.6, color: 'var(--on-surface)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', userSelect: 'text' }}>{item.type === 2 ? t('history.noPreview') : item.content}</div>
                 </div>
             ),
             buttons: [

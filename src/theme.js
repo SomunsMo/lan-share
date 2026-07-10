@@ -28,6 +28,20 @@ const theme = createTheme({
     fontFamily: '"Alibaba PuHuiTi 3.0","PingFang SC","Microsoft YaHei",system-ui,sans-serif',
     fontSize: 15,
   },
+  components: {
+    MuiOutlinedInput: {
+      styleOverrides: {
+        notchedOutline: {
+          border: 'var(--glass-border)',
+        },
+        root: {
+          '&:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'var(--primary)',
+          },
+        },
+      },
+    },
+  },
 });
 
 export default theme;
