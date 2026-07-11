@@ -20,6 +20,9 @@ pub fn create_tray_menu(app_handle: &AppHandle) {
                 toggle_window_visibility(&tray.app_handle());
             }
         })
+        .on_menu_event(|app, event| {
+            handle_system_tray_menu_event(app, &event.id().0);
+        })
         .show_menu_on_left_click(cfg!(target_os = "macos"))
         .build(app_handle)
         .expect("系统托盘构建失败");
