@@ -1,13 +1,15 @@
 import React, { useEffect } from "react";
 import "./AppLight.css";
 import Navbar from "./components/navbar/index.jsx";
-import {useRoutes} from "react-router";
+import {useRoutes, useNavigate} from "react-router";
 import {routes} from "./pages/_router-map.jsx";
 import { DialogProvider } from "./components/dialog/index.jsx";
 import { ToastProvider } from "./components/toast/index.jsx";
 import {invoke} from "@tauri-apps/api/core";
+import {listen} from "@tauri-apps/api/event";
 
 function App() {
+    const navigate = useNavigate();
 
     // 应用主题设置
     const applyTheme = (theme) => {
@@ -69,6 +71,16 @@ function App() {
         e.preventDefault();
         return false;
     };
+
+    // 监听托盘菜单导航事件
+    useEffect(() => {
+        const unlisten = listen("navigate", (event) => {
+            navigate(event.payload);
+        });
+        return () => {
+            unlisten.then(fn => fn());
+        };
+    }, [navigate]);
 
     // 组件挂载时添加事件监听器
     useEffect(() => {

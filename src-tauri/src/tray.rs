@@ -1,11 +1,12 @@
-use tauri::{menu::{Menu, MenuItem}, tray::TrayIconBuilder, AppHandle, Manager};
+use tauri::{menu::{Menu, MenuItem}, tray::TrayIconBuilder, AppHandle, Emitter, Manager};
 
 /// 创建系统托盘
 pub fn create_tray_menu(app_handle: &AppHandle) {
     let show_item = MenuItem::with_id(app_handle, "show", "显示窗口", true, None::<&str>).expect("创建菜单项失败");
+    let settings_item = MenuItem::with_id(app_handle, "settings", "设置", true, None::<&str>).expect("创建菜单项失败");
     let quit_item = MenuItem::with_id(app_handle, "quit", "退出", true, None::<&str>).expect("创建菜单项失败");
     
-    let tray_menu = Menu::with_items(app_handle, &[&show_item, &quit_item]).expect("创建托盘菜单失败");
+    let tray_menu = Menu::with_items(app_handle, &[&show_item, &settings_item, &quit_item]).expect("创建托盘菜单失败");
     
     
     // 通过应用配置的图标来设置托盘图标
@@ -44,6 +45,12 @@ fn toggle_window_visibility(app: &AppHandle) {
 pub fn handle_system_tray_menu_event(app: &AppHandle, id: &str) {
     match id {
         "show" => show_window(app),
+        "settings" => {
+            if let Some(window) = app.get_webview_window("main") {
+                show_and_focus_window(&window);
+                let _ = app.emit("navigate", "/settings");
+            }
+        }
         "quit" => {
             app.exit(0); // 安全退出应用
         }
