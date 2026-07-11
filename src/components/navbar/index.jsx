@@ -93,7 +93,7 @@ function Navbar() {
         {topItems.map((item, index) => (
           <ListItemButton
             key={index}
-            selected={location.pathname === item.path}
+            selected={location.pathname === item.path || (item.path === "/home" && location.pathname === "/")}
             onClick={() => navigate(item.path)}
             sx={itemSx}
           >
