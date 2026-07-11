@@ -10,6 +10,7 @@ import {listen} from "@tauri-apps/api/event";
 
 function App() {
     const navigate = useNavigate();
+    window.__tauriNavigate = navigate;
 
     // 应用主题设置
     const applyTheme = (theme) => {

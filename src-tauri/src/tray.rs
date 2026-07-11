@@ -40,17 +40,20 @@ fn toggle_window_visibility(app: &AppHandle) {
             show_and_focus_window(&window);
         }
     } else {
-        recreate_and_show_window(app);
+        recreate_and_show_window(app, None);
     }
 }
 
 /// 处理系统托盘菜单点击事件
 pub fn handle_system_tray_menu_event(app: &AppHandle, id: &str) {
     match id {
-        "show" => show_window(app),
+        "show" => { show_window(app, None); }
         "settings" => {
-            show_window(app);
-            let _ = app.emit("navigate", "/settings");
+            if app.get_webview_window("main").is_some() {
+                let _ = app.emit("navigate", "/settings");
+            } else {
+                show_window(app, Some("/settings".to_string()));
+            }
         }
         "quit" => {
             crate::QUITTING.store(true, Ordering::Relaxed);
@@ -60,12 +63,12 @@ pub fn handle_system_tray_menu_event(app: &AppHandle, id: &str) {
     }
 }
 
-/// 显示主窗口（窗口存在则恢复，不存在则重建）
-pub(crate) fn show_window(app: &AppHandle) {
+/// 显示主窗口，initial_route 在窗口重建后导航用
+pub(crate) fn show_window(app: &AppHandle, initial_route: Option<String>) {
     if let Some(window) = app.get_webview_window("main") {
         show_and_focus_window(&window);
     } else {
-        recreate_and_show_window(app);
+        recreate_and_show_window(app, initial_route);
     }
 }
 
@@ -78,8 +81,8 @@ fn show_and_focus_window(window: &WebviewWindow) {
 }
 
 /// 重建并显示主窗口（窗口关闭后重新打开时使用）
-fn recreate_and_show_window(app: &AppHandle) {
-    let window = crate::create_and_position_window(app);
+fn recreate_and_show_window(app: &AppHandle, initial_route: Option<String>) {
+    let window = crate::create_and_position_window(app, initial_route);
     let _ = window.set_focus();
 }
 

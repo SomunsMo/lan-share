@@ -141,7 +141,10 @@ pub(crate) fn center_on_primary(window: &tauri::WebviewWindow) -> (i32, i32, u32
 }
 
 /// 创建主窗口并根据保存的状态或默认值定位
-pub(crate) fn create_and_position_window(app: &tauri::AppHandle) -> tauri::WebviewWindow {
+pub(crate) fn create_and_position_window(
+    app: &tauri::AppHandle,
+    initial_route: Option<String>,
+) -> tauri::WebviewWindow {
     let window = tauri::WebviewWindowBuilder::new(
         app,
         "main",
@@ -153,6 +156,25 @@ pub(crate) fn create_and_position_window(app: &tauri::AppHandle) -> tauri::Webvi
     .visible(false)
     .build()
     .expect("创建主窗口失败");
+
+    if let Some(route) = &initial_route {
+        let route = route.clone();
+        let _ = window.eval(&format!(
+            r#"
+            (function(){{
+                var check = function(){{
+                    if(window.__tauriNavigate) {{
+                        window.__tauriNavigate('{}');
+                    }} else {{
+                        setTimeout(check, 5);
+                    }}
+                }};
+                check();
+            }})();
+            "#,
+            route
+        ));
+    }
 
     if let Some(saved) = load_window_state() {
         let (x, y, w, h) = clamp_and_center(&window, &saved);
@@ -265,7 +287,7 @@ use cmd::_cmd_handler::get_cmd_handler;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            crate::tray::show_window(app);
+            crate::tray::show_window(app, None);
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -340,7 +362,7 @@ pub fn run() {
             }
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen { .. } = _event {
-                tray::show_window(_app_handle);
+                tray::show_window(_app_handle, None);
             }
         });
 }
