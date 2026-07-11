@@ -12,3 +12,4 @@ lan-share-http-macros = { path = "crates/http-macros" }
 strip = true
 lto = true
 codegen-units = 1
+opt-level = "z"
