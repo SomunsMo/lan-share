@@ -49,9 +49,8 @@
     "sectionNetwork": "网络配置",
     "sectionSystem": "系统偏好",
     "sectionAppearance": "外观",
-    "sectionPermissions": "Web 权限",
     "sectionRecords": "记录设置",
-    "sectionStorage": "存储",
+    "sectionFileSharing": "文件共享",
     "option": {
       "port": "Http Server端口",
       "portDesc": "对其他设备提供网页和能力的服务端口",
@@ -82,7 +81,13 @@
       "clearTextRecords": "清空文本记录",
       "clearTextRecordsDesc": "删除所有文本共享记录（包括对应的复制记录）",
       "clearFileRecords": "清空文件记录",
-      "clearFileRecordsDesc": "删除所有文件传输记录"
+      "clearFileRecordsDesc": "删除所有文件传输记录",
+      "excludeSystemFiles": "排除系统元数据文件",
+      "excludeSystemFilesDesc": "在网页端文件列表中，隐藏系统自动生成的元数据文件（如 .DS_Store、desktop.ini、Thumbs.db 等）",
+      "excludePatterns": "自定义排除规则",
+      "excludePatternsDesc": "在网页端文件列表中，按精确文件名或正则表达式隐藏指定文件（每行一条规则）",
+      "excludePatternPlaceholder": "例如: desktop.ini, \\.bak$, ^private_",
+      "noExcludePatterns": "暂无排除规则"
     },
     "themeOption": {
       "system": "跟随系统",
@@ -100,7 +105,9 @@
       "portSaved": "端口设置已保存，重启应用后生效",
       "portFailed": "保存端口设置失败: {{error}}",
       "saveFailed": "保存{{name}}设置失败: {{error}}",
-      "selectFailed": "选择文件夹失败: {{error}}"
+      "selectFailed": "选择文件夹失败: {{error}}",
+      "patternDuplicate": "规则已存在",
+      "patternInvalid": "正则表达式无效"
     },
     "dialog": {
       "changePort": {

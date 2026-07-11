@@ -12,6 +12,7 @@ import Switch from '@mui/material/Switch';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
+import Divider from '@mui/material/Divider';
 
 function Settings() {
     const { t, i18n } = useTranslation();
@@ -24,6 +25,9 @@ function Settings() {
     const [recordDownloadEnabled, setRecordDownloadEnabled] = useState(false);
     const [autostartEnabled, setAutostartEnabled] = useState(false);
     const [autostartMinimized, setAutostartMinimized] = useState(false);
+    const [excludeSystemFiles, setExcludeSystemFiles] = useState(true);
+    const [excludePatterns, setExcludePatterns] = useState([]);
+    const [patternInput, setPatternInput] = useState('');
     const [httpPort, setHttpPort] = useState(3000);
     const [themeSetting, setThemeSetting] = useState("system");
     const [huePrimary, setHuePrimary] = useState(() => {
@@ -184,6 +188,27 @@ function Settings() {
         };
 
         fetchAutostartMinimizedSetting();
+
+        const fetchExcludeSystemFiles = async () => {
+            try {
+                const enabled = await invoke('get_exclude_system_files');
+                setExcludeSystemFiles(enabled);
+            } catch (error) {
+                console.error('获取排除系统文件设置失败:', error);
+                setExcludeSystemFiles(true);
+            }
+        };
+        const fetchExcludePatterns = async () => {
+            try {
+                const patterns = await invoke('get_exclude_patterns');
+                setExcludePatterns(patterns);
+            } catch (error) {
+                console.error('获取排除规则列表失败:', error);
+                setExcludePatterns([]);
+            }
+        };
+        fetchExcludeSystemFiles();
+        fetchExcludePatterns();
 
         const fetchThemeSetting = async () => {
             try {
@@ -479,6 +504,52 @@ function Settings() {
         }
     };
 
+    const handleExcludeSystemChange = async (event) => {
+        const checked = event.target.checked;
+        setExcludeSystemFiles(checked);
+        try {
+            await invoke('set_exclude_system_files', {enabled: checked});
+        } catch (error) {
+            setExcludeSystemFiles(!checked);
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.excludeSystemFiles'), error: error.message}), type: 'error'});
+        }
+    };
+
+    const handleAddPattern = async () => {
+        const trimmed = patternInput.trim();
+        if (!trimmed) return;
+        if (excludePatterns.includes(trimmed)) {
+            showToast({message: t('settings.toast.patternDuplicate'), type: 'info'});
+            return;
+        }
+        try {
+            new RegExp(trimmed);
+        } catch {
+            showToast({message: t('settings.toast.patternInvalid'), type: 'error'});
+            return;
+        }
+        const newPatterns = [...excludePatterns, trimmed];
+        setExcludePatterns(newPatterns);
+        setPatternInput('');
+        try {
+            await invoke('set_exclude_patterns', {patterns: newPatterns});
+        } catch (error) {
+            setExcludePatterns(excludePatterns);
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.excludePatterns'), error: error.message}), type: 'error'});
+        }
+    };
+
+    const handleRemovePattern = async (patternToRemove) => {
+        const newPatterns = excludePatterns.filter(p => p !== patternToRemove);
+        setExcludePatterns(newPatterns);
+        try {
+            await invoke('set_exclude_patterns', {patterns: newPatterns});
+        } catch (error) {
+            setExcludePatterns(excludePatterns);
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.excludePatterns'), error: error.message}), type: 'error'});
+        }
+    };
+
     const optionMap = [
         {
             name: t('settings.sectionNetwork'),
@@ -557,32 +628,6 @@ function Settings() {
             ]
         },
         {
-            name: t('settings.sectionPermissions'),
-            icon: 'shield',
-            options: [
-                {
-                    name: t('settings.option.webUpload'),
-                    desc: t('settings.option.webUploadDesc'),
-                    content: (<Switch checked={uploadEnabled} onChange={handleUploadChange} />),
-                },
-                {
-                    name: t('settings.option.uploadOverwrite'),
-                    desc: t('settings.option.uploadOverwriteDesc'),
-                    content: (<Switch checked={uploadOverwriteEnabled} onChange={handleUploadOverwriteChange} />),
-                },
-                {
-                    name: t('settings.option.webRename'),
-                    desc: t('settings.option.webRenameDesc'),
-                    content: (<Switch checked={renameEnabled} onChange={handleRenameChange} />),
-                },
-                {
-                    name: t('settings.option.webDelete'),
-                    desc: t('settings.option.webDeleteDesc'),
-                    content: (<Switch checked={deleteEnabled} onChange={handleDeleteChange} />),
-                },
-            ]
-        },
-        {
             name: t('settings.sectionRecords'),
             icon: 'clock',
             options: [
@@ -609,7 +654,7 @@ function Settings() {
             ]
         },
         {
-            name: t('settings.sectionStorage'),
+            name: t('settings.sectionFileSharing'),
             icon: 'folder',
             options: [
                 {
@@ -617,8 +662,63 @@ function Settings() {
                     desc: t('settings.option.shareRootDesc'),
                     content: (
                         <div className="directory-row">
-                            <TextField size="small" value={selectedDirectory} slotProps={{ input: { readOnly: true } }} onClick={selectDirectory} sx={{ cursor: 'pointer', flex: 1, '& input': { fontSize: '0.875rem', cursor: 'pointer' } }} />
+                            <TextField value={selectedDirectory} slotProps={{ input: { readOnly: true } }} sx={{ flex: 1, minWidth: 260, '& input': { fontSize: '0.875rem' } }} />
                             <Button variant="contained" size="small" onClick={selectDirectory} sx={{ '&:hover': { backgroundColor: 'var(--primary-hover)' } }}>{t('settings.labels.browse')}</Button>
+                        </div>
+                    ),
+                },
+                {divider: true},
+                {
+                    name: t('settings.option.webUpload'),
+                    desc: t('settings.option.webUploadDesc'),
+                    content: (<Switch checked={uploadEnabled} onChange={handleUploadChange} />),
+                },
+                {
+                    name: t('settings.option.uploadOverwrite'),
+                    desc: t('settings.option.uploadOverwriteDesc'),
+                    content: (<Switch checked={uploadOverwriteEnabled} onChange={handleUploadOverwriteChange} />),
+                },
+                {
+                    name: t('settings.option.webRename'),
+                    desc: t('settings.option.webRenameDesc'),
+                    content: (<Switch checked={renameEnabled} onChange={handleRenameChange} />),
+                },
+                {
+                    name: t('settings.option.webDelete'),
+                    desc: t('settings.option.webDeleteDesc'),
+                    content: (<Switch checked={deleteEnabled} onChange={handleDeleteChange} />),
+                },
+                {
+                    name: t('settings.option.excludeSystemFiles'),
+                    desc: t('settings.option.excludeSystemFilesDesc'),
+                    content: (<Switch checked={excludeSystemFiles} onChange={handleExcludeSystemChange} />),
+                },
+                {
+                    name: t('settings.option.excludePatterns'),
+                    desc: t('settings.option.excludePatternsDesc'),
+                    content: (
+                        <div className="exclude-patterns">
+                            <div className="pattern-input-row">
+                                <TextField
+                                    value={patternInput}
+                                    onChange={(e) => setPatternInput(e.target.value)}
+                                    placeholder={t('settings.option.excludePatternPlaceholder')}
+                                    sx={{ flex: 1, minWidth: 260, '& input': { fontSize: '0.875rem' } }}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddPattern(); }}
+                                />
+                                <Button variant="contained" size="small" onClick={handleAddPattern} sx={{ '&:hover': { backgroundColor: 'var(--primary-hover)' } }}>+</Button>
+                            </div>
+                            <div className="pattern-chips">
+                                {excludePatterns.length === 0 && (
+                                    <Typography variant="caption" sx={{ color: 'var(--on-surface-variant)' }}>{t('settings.option.noExcludePatterns')}</Typography>
+                                )}
+                                {excludePatterns.map((p, i) => (
+                                    <div className="pattern-chip" key={i}>
+                                        <span className="pattern-chip-text">{p}</span>
+                                        <button className="pattern-chip-remove" onClick={() => handleRemovePattern(p)}>×</button>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     ),
                 },
@@ -630,7 +730,6 @@ function Settings() {
         'settings': <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
         'power': <svg viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>,
         'palette': <svg viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="10.5" r="1.5"/><circle cx="6.5" cy="13.5" r="1.5"/><path d="M12 2a10 10 0 0 0-6.88 17.26A9.7 9.7 0 0 0 10 21a2 2 0 0 0 2-2 2 2 0 0 1 2-2h4a2 2 0 0 0 2-2 10 10 0 0 0-8-13z"/></svg>,
-        'shield': <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
         'folder': <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>,
         'clock': <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
     };
@@ -650,13 +749,17 @@ function Settings() {
                     </div>
                     <div className="section-body">
                         {section.options.map((opt, oi) => (
-                            <div className="option-row" key={oi}>
-                                <div className="option-label">
-                                    <Typography variant="subtitle2" fontSize="0.875rem" fontWeight={600} sx={{ color: 'var(--on-surface)' }}>{opt.name}</Typography>
-                                    {opt.desc && <Typography variant="caption" fontSize="0.875rem" sx={{ color: 'var(--on-surface-variant)' }}>{opt.desc}</Typography>}
+                            opt.divider ? (
+                                <Divider key={oi} sx={{ my: 0.5 }} />
+                            ) : (
+                                <div className="option-row" key={oi}>
+                                    <div className="option-label">
+                                        <Typography variant="subtitle2" fontSize="0.875rem" fontWeight={600} sx={{ color: 'var(--on-surface)' }}>{opt.name}</Typography>
+                                        {opt.desc && <Typography variant="caption" fontSize="0.875rem" sx={{ color: 'var(--on-surface-variant)' }}>{opt.desc}</Typography>}
+                                    </div>
+                                    {opt.content}
                                 </div>
-                                {opt.content}
-                            </div>
+                            )
                         ))}
                     </div>
                 </div>

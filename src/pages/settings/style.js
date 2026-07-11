@@ -63,7 +63,8 @@ const SettingsStyle = styled.div`
 
     .directory-row {
         display: flex;
-        gap: 0;
+        gap: 8px;
+        align-items: center;
     }
 
     .hue-picker {
@@ -107,6 +108,49 @@ const SettingsStyle = styled.div`
         font-weight: 600;
         color: var(--on-surface-variant);
         font-variant-numeric: tabular-nums;
+    }
+
+    .exclude-patterns {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .pattern-input-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .pattern-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .pattern-chip {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: var(--surface-container-high);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-family: 'Consolas', 'Monaco', monospace;
+    }
+
+    .pattern-chip-remove {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--on-surface-variant);
+        font-size: 1rem;
+        line-height: 1;
+        padding: 0 2px;
+    }
+
+    .pattern-chip-remove:hover {
+        color: var(--error);
     }
 `;
 

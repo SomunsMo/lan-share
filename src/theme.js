@@ -29,6 +29,21 @@ const theme = createTheme({
     fontSize: 15,
   },
   components: {
+    MuiTextField: {
+      defaultProps: {
+        size: 'small',
+      },
+    },
+    MuiInput: {
+      styleOverrides: {
+        input: {
+          padding: '4px',
+          '&.MuiInput-inputSizeSmall': {
+            padding: '4px',
+          },
+        },
+      },
+    },
     MuiOutlinedInput: {
       styleOverrides: {
         notchedOutline: {

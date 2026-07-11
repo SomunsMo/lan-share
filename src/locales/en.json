@@ -49,9 +49,8 @@
     "sectionNetwork": "Network Configuration",
     "sectionSystem": "System Preferences",
     "sectionAppearance": "Appearance",
-    "sectionPermissions": "Web Permissions",
     "sectionRecords": "Recording Settings",
-    "sectionStorage": "Storage",
+    "sectionFileSharing": "File Sharing",
     "option": {
       "port": "HTTP Server Port",
       "portDesc": "Service port for providing web UI and file sharing to other devices",
@@ -82,7 +81,13 @@
       "clearTextRecords": "Clear Text Records",
       "clearTextRecordsDesc": "Delete all text sharing records (including associated copy records)",
       "clearFileRecords": "Clear File Records",
-      "clearFileRecordsDesc": "Delete all file transfer records"
+      "clearFileRecordsDesc": "Delete all file transfer records",
+      "excludeSystemFiles": "Exclude System Files",
+      "excludeSystemFilesDesc": "Hide system metadata files from the web file list (e.g., .DS_Store, desktop.ini, Thumbs.db)",
+      "excludePatterns": "Custom Exclusion Rules",
+      "excludePatternsDesc": "Exclude files from the web list by exact filename or regex pattern (one per line)",
+      "excludePatternPlaceholder": "e.g. desktop.ini, \\.bak$, ^private_",
+      "noExcludePatterns": "No exclusion rules"
     },
     "themeOption": {
       "system": "Follow System",
@@ -100,7 +105,9 @@
       "portSaved": "Port setting saved, restart to apply",
       "portFailed": "Failed to save port: {{error}}",
       "saveFailed": "Failed to save {{name}} setting: {{error}}",
-      "selectFailed": "Failed to select folder: {{error}}"
+      "selectFailed": "Failed to select folder: {{error}}",
+      "patternDuplicate": "Rule already exists",
+      "patternInvalid": "Invalid regex pattern"
     },
     "dialog": {
       "changePort": {
