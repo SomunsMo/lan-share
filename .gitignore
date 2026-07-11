@@ -25,6 +25,7 @@ dist-ssr
 *.sw?
 *.iml
 src-tauri/target/
+src/assets/fonts/
 target
 /.claude/
 

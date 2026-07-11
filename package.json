@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node --use-system-ca scripts/download-fonts.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri"
@@ -13,7 +14,6 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@fontpkg/alibaba-pu-hui-ti-3-0": "^3.1.2",
     "@mui/material": "^9.2.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-autostart": "^2.5.1",
