@@ -57,10 +57,10 @@ struct WindowState {
     height: u32,
 }
 
-const WINDOW_DEFAULT_W: u32 = 980;
-const WINDOW_DEFAULT_H: u32 = 650;
-const WINDOW_MIN_W: u32 = 800;
-const WINDOW_MIN_H: u32 = 500;
+pub(crate) const WINDOW_DEFAULT_W: u32 = 980;
+pub(crate) const WINDOW_DEFAULT_H: u32 = 650;
+pub(crate) const WINDOW_MIN_W: u32 = 800;
+pub(crate) const WINDOW_MIN_H: u32 = 500;
 
 fn save_window_state(window: &tauri::Window) {
     if let (Ok(pos), Ok(size)) = (window.outer_position(), window.inner_size()) {
@@ -78,14 +78,14 @@ fn save_window_state(window: &tauri::Window) {
     }
 }
 
-fn load_window_state() -> Option<WindowState> {
+pub(crate) fn load_window_state() -> Option<WindowState> {
     crate::config::config::WINDOW_STATE_JSON
         .get()
         .and_then(|opt| opt.as_ref())
         .and_then(|json| serde_json::from_str(json).ok())
 }
 
-fn get_monitor_containing(window: &tauri::WebviewWindow, x: i32, y: i32) -> Option<tauri::Monitor> {
+pub(crate) fn get_monitor_containing(window: &tauri::WebviewWindow, x: i32, y: i32) -> Option<tauri::Monitor> {
     let monitors = window.available_monitors().ok()?;
     monitors.into_iter().find(|m| {
         let mpos = m.position();
@@ -123,7 +123,7 @@ fn clamp_and_center(window: &tauri::WebviewWindow, saved: &WindowState) -> (i32,
     (x, y, width, height)
 }
 
-fn center_on_primary(window: &tauri::WebviewWindow) -> (i32, i32, u32, u32) {
+pub(crate) fn center_on_primary(window: &tauri::WebviewWindow) -> (i32, i32, u32, u32) {
     if let Ok(Some(monitor)) = window.primary_monitor() {
         let msize = monitor.size();
         let width = WINDOW_DEFAULT_W.min(msize.width);
@@ -134,6 +134,34 @@ fn center_on_primary(window: &tauri::WebviewWindow) -> (i32, i32, u32, u32) {
     } else {
         (0, 0, WINDOW_DEFAULT_W, WINDOW_DEFAULT_H)
     }
+}
+
+/// 创建主窗口并根据保存的状态或默认值定位
+pub(crate) fn create_and_position_window(app: &tauri::AppHandle) -> tauri::WebviewWindow {
+    let window = tauri::WebviewWindowBuilder::new(
+        app,
+        "main",
+        tauri::WebviewUrl::App("index.html".into()),
+    )
+    .title("LAN Share")
+    .inner_size(WINDOW_DEFAULT_W as f64, WINDOW_DEFAULT_H as f64)
+    .min_inner_size(WINDOW_MIN_W as f64, WINDOW_MIN_H as f64)
+    .visible(false)
+    .build()
+    .expect("创建主窗口失败");
+
+    if let Some(saved) = load_window_state() {
+        let (x, y, w, h) = clamp_and_center(&window, &saved);
+        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+        let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+    } else {
+        let (x, y, w, h) = center_on_primary(&window);
+        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+        let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+    }
+    let _ = window.show();
+
+    window
 }
 
 /// 使用 listeners crate 检测端口是否被占用
@@ -233,16 +261,7 @@ use cmd::_cmd_handler::get_cmd_handler;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            // 当尝试启动第二个实例时，显示现有的主窗口
-            if let Some(window) = app.get_webview_window("main") {
-                // 尝试显示并聚焦窗口，忽略可能的错误
-                let _ = window.show().map_err(|e| {
-                    log::warn!("Failed to show window: {}", e);
-                });
-                let _ = window.set_focus().map_err(|e| {
-                    log::warn!("Failed to focus window: {}", e);
-                });
-            }
+            crate::tray::show_window(app);
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -252,10 +271,8 @@ pub fn run() {
         ))
         .invoke_handler(get_cmd_handler())
         .setup(|app| {
-            // 检测是否以最小化模式启动
             let is_silent = std::env::args().any(|a| a == "--silent");
             if let Some(window) = app.get_webview_window("main") {
-                // 恢复窗口状态
                 if let Some(saved) = load_window_state() {
                     let (x, y, w, h) = clamp_and_center(&window, &saved);
                     let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
@@ -268,14 +285,13 @@ pub fn run() {
                 if !is_silent {
                     let _ = window.show();
                 } else {
+                    // --silent: 窗口保持隐藏，首次托盘打开时自然显示/重建
                     macos::set_dock_icon(false);
                 }
             }
 
-            // 构建系统托盘
             tray::create_tray_menu(&app.handle());
 
-            // 初始化共享根目录
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = crate::config::config::init_sharing_root_from_config().await {
                     error!("初始化共享根目录失败: {}", e);
@@ -283,7 +299,6 @@ pub fn run() {
                 crate::config::config::reload_exclude_filter().await;
             });
 
-            // ===== 使用 listeners crate 检测端口占用 =====
             let port = *crate::config::config::get_configured_http_port();
             let _ = crate::config::config::RUNNING_HTTP_PORT.set(port);
 
@@ -305,18 +320,18 @@ pub fn run() {
             tray::handle_system_tray_menu_event(app, &event.id().0);
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                // 保存窗口位置和尺寸
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
                 save_window_state(window);
-                // 拦截关闭请求，将窗口隐藏到托盘而不是关闭
-                api.prevent_close();
-                window.hide().unwrap();
                 macos::set_dock_icon(false);
+                // 不调用 prevent_close，让窗口真正销毁，由 ExitRequested 阻止进程退出
             }
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app_handle, _event| {
+            if let tauri::RunEvent::ExitRequested { api, .. } = _event {
+                api.prevent_exit();
+            }
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen { .. } = _event {
                 tray::show_window(_app_handle);

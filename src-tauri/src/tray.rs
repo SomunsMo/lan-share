@@ -1,4 +1,4 @@
-use tauri::{menu::{Menu, MenuItem}, tray::TrayIconBuilder, AppHandle, Emitter, Manager};
+use tauri::{menu::{Menu, MenuItem}, tray::TrayIconBuilder, AppHandle, Emitter, Manager, WebviewWindow};
 
 /// 创建系统托盘
 pub fn create_tray_menu(app_handle: &AppHandle) {
@@ -8,8 +8,6 @@ pub fn create_tray_menu(app_handle: &AppHandle) {
     
     let tray_menu = Menu::with_items(app_handle, &[&show_item, &settings_item, &quit_item]).expect("创建托盘菜单失败");
     
-    
-    // 通过应用配置的图标来设置托盘图标
     let icon = app_handle.default_window_icon().cloned().expect("获取应用图标失败");
     
     TrayIconBuilder::with_id("main-tray")
@@ -22,22 +20,23 @@ pub fn create_tray_menu(app_handle: &AppHandle) {
                 toggle_window_visibility(&tray.app_handle());
             }
         })
-        .show_menu_on_left_click(cfg!(target_os = "macos"))  // macOS下左键显示菜单，其他平台保持原逻辑
+        .show_menu_on_left_click(cfg!(target_os = "macos"))
         .build(app_handle)
         .expect("系统托盘构建失败");
 }
-/// 切换窗口显示/隐藏状态
+
+/// 切换窗口显示/隐藏（双击托盘图标）
 fn toggle_window_visibility(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        match window.is_visible().unwrap_or(false) {
-            true => {
-                let _ = window.hide();
-                crate::macos::set_dock_icon(false);
-            }
-            false => {
-                show_and_focus_window(&window);
-            }
+        let is_shown = window.is_visible().unwrap_or(false)
+            && !window.is_minimized().unwrap_or(false);
+        if is_shown {
+            let _ = window.minimize();
+        } else {
+            show_and_focus_window(&window);
         }
+    } else {
+        recreate_and_show_window(app);
     }
 }
 
@@ -46,30 +45,36 @@ pub fn handle_system_tray_menu_event(app: &AppHandle, id: &str) {
     match id {
         "show" => show_window(app),
         "settings" => {
-            if let Some(window) = app.get_webview_window("main") {
-                show_and_focus_window(&window);
-                let _ = app.emit("navigate", "/settings");
-            }
+            show_window(app);
+            let _ = app.emit("navigate", "/settings");
         }
         "quit" => {
-            app.exit(0); // 安全退出应用
+            app.exit(0);
         }
         _ => {}
     }
 }
 
-/// 显示主窗口
+/// 显示主窗口（窗口存在则恢复，不存在则重建）
 pub(crate) fn show_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         show_and_focus_window(&window);
+    } else {
+        recreate_and_show_window(app);
     }
 }
 
-/// 辅助函数：显示窗口并聚焦
-fn show_and_focus_window(window: &tauri::WebviewWindow) {
-    let _ = window.show();
+/// 恢复/显示窗口并聚焦
+fn show_and_focus_window(window: &WebviewWindow) {
+    let _ = window.unminimize().or_else(|_| window.show());
     let _ = window.set_focus();
     #[cfg(target_os = "macos")]
     crate::macos::set_dock_icon(true);
+}
+
+/// 重建并显示主窗口（窗口关闭后重新打开时使用）
+fn recreate_and_show_window(app: &AppHandle) {
+    let window = crate::create_and_position_window(app);
+    let _ = window.set_focus();
 }
 
