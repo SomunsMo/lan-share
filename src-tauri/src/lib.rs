@@ -47,7 +47,11 @@ pub mod embedded {
 
 use log::error;
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
+
+/// 用户主动退出标志，ExitRequested 时区分是窗口关闭还是主动退出
+pub(crate) static QUITTING: AtomicBool = AtomicBool::new(false);
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct WindowState {
@@ -330,7 +334,9 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|_app_handle, _event| {
             if let tauri::RunEvent::ExitRequested { api, .. } = _event {
-                api.prevent_exit();
+                if !QUITTING.load(Ordering::Relaxed) {
+                    api.prevent_exit();
+                }
             }
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen { .. } = _event {

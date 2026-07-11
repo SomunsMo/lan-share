@@ -1,3 +1,4 @@
+use std::sync::atomic::Ordering;
 use tauri::{menu::{Menu, MenuItem}, tray::TrayIconBuilder, AppHandle, Emitter, Manager, WebviewWindow};
 
 /// 创建系统托盘
@@ -52,6 +53,7 @@ pub fn handle_system_tray_menu_event(app: &AppHandle, id: &str) {
             let _ = app.emit("navigate", "/settings");
         }
         "quit" => {
+            crate::QUITTING.store(true, Ordering::Relaxed);
             app.exit(0);
         }
         _ => {}
