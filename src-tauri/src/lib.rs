@@ -59,8 +59,8 @@ struct WindowState {
 
 pub(crate) const WINDOW_DEFAULT_W: u32 = 980;
 pub(crate) const WINDOW_DEFAULT_H: u32 = 650;
-pub(crate) const WINDOW_MIN_W: u32 = 800;
-pub(crate) const WINDOW_MIN_H: u32 = 500;
+pub(crate) const WINDOW_MIN_W: u32 = 980;
+pub(crate) const WINDOW_MIN_H: u32 = 650;
 
 fn save_window_state(window: &tauri::Window) {
     if let (Ok(pos), Ok(size)) = (window.outer_position(), window.inner_size()) {
