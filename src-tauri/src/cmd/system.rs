@@ -870,6 +870,62 @@ pub async fn check_update() -> UpdateCheckResult {
     }
 }
 
+/// 获取排除系统元数据文件开关状态（默认开启）
+#[tauri::command]
+pub async fn get_exclude_system_files() -> Result<bool, String> {
+    match config_dao::get_config_value("exclude_system_files").await {
+        Ok(Some(value)) => Ok(value.parse::<bool>().unwrap_or(true)),
+        Ok(None) => Ok(true),
+        Err(e) => {
+            log::warn!("获取排除系统文件设置失败: {}", e);
+            Ok(true)
+        }
+    }
+}
+
+/// 设置排除系统元数据文件开关
+#[tauri::command]
+pub async fn set_exclude_system_files(enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+    config_dao::set_config("exclude_system_files", value)
+        .await
+        .map_err(|e| {
+            log::error!("保存排除系统文件设置失败: {}", e);
+            format!("保存配置失败: {}", e)
+        })?;
+    crate::config::config::reload_exclude_filter().await;
+    log::info!("排除系统文件设置已更新为: {}", enabled);
+    Ok(())
+}
+
+/// 获取自定义排除规则列表（JSON 字符串数组）
+#[tauri::command]
+pub async fn get_exclude_patterns() -> Result<Vec<String>, String> {
+    match config_dao::get_config_value("exclude_patterns").await {
+        Ok(Some(value)) => Ok(serde_json::from_str(&value).unwrap_or_default()),
+        Ok(None) => Ok(Vec::new()),
+        Err(e) => {
+            log::warn!("获取排除规则列表失败: {}", e);
+            Ok(Vec::new())
+        }
+    }
+}
+
+/// 设置自定义排除规则列表
+#[tauri::command]
+pub async fn set_exclude_patterns(patterns: Vec<String>) -> Result<(), String> {
+    let json = serde_json::to_string(&patterns).unwrap_or_else(|_| "[]".to_string());
+    config_dao::set_config("exclude_patterns", &json)
+        .await
+        .map_err(|e| {
+            log::error!("保存排除规则列表失败: {}", e);
+            format!("保存配置失败: {}", e)
+        })?;
+    crate::config::config::reload_exclude_filter().await;
+    log::info!("排除规则列表已更新");
+    Ok(())
+}
+
 /// 比较两个版本号。latest > current 返回 true
 fn compare_versions(latest: &str, current: &str) -> bool {
     let parse = |v: &str| -> Vec<u32> {

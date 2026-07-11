@@ -47,6 +47,10 @@ pub fn get_cmd_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
         system::set_theme_color,
         system::get_app_version,
         system::get_repo_url,
-        system::check_update
+        system::check_update,
+        system::get_exclude_system_files,
+        system::set_exclude_system_files,
+        system::get_exclude_patterns,
+        system::set_exclude_patterns
     ]
 }

@@ -280,6 +280,7 @@ pub fn run() {
                 if let Err(e) = crate::config::config::init_sharing_root_from_config().await {
                     error!("初始化共享根目录失败: {}", e);
                 }
+                crate::config::config::reload_exclude_filter().await;
             });
 
             // ===== 使用 listeners crate 检测端口占用 =====

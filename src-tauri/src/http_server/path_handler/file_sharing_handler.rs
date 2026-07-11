@@ -107,16 +107,21 @@ pub async fn get_file_list(
             }
         };
         let path = entry.path();
+        let file_name = entry.file_name().to_string_lossy().to_string();
         let metadata = match tokio::fs::symlink_metadata(&path).await {
             Ok(meta) => meta,
             Err(_) => continue,
         };
 
+        // 检查排除规则
+        let filter = crate::config::config::get_exclude_filter().await;
+        if filter.compiled_patterns.iter().any(|re| re.is_match(&file_name)) {
+            continue;
+        }
+        drop(filter);
+
         let mut file_info = HashMap::new();
-        file_info.insert(
-            "name".to_string(),
-            FileInfo::String(entry.file_name().to_string_lossy().to_string()),
-        );
+        file_info.insert("name".to_string(), FileInfo::String(file_name));
 
         file_info.insert("is_dir".to_string(), FileInfo::Bool(metadata.is_dir()));
 

@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 use log::error;
+use regex::Regex;
 use tokio::sync::RwLock;
 
 /// 开源仓库地址（编译时定死，用于关于页链接和版本更新检查）
@@ -117,4 +118,83 @@ pub async fn init_sharing_root_from_config() -> Result<(), String> {
             set_sharing_root_new(default_path).await.map_err(|_| "无法设置默认共享根目录".to_string())
         }
     }
+}
+
+/// 排除规则缓存
+pub struct ExcludeFilter {
+    pub exclude_system_files: bool,
+    pub compiled_patterns: Vec<Regex>,
+}
+
+static EXCLUDE_FILTER: OnceLock<RwLock<ExcludeFilter>> = OnceLock::new();
+
+pub async fn get_exclude_filter() -> tokio::sync::RwLockReadGuard<'static, ExcludeFilter> {
+    EXCLUDE_FILTER
+        .get_or_init(|| {
+            RwLock::new(ExcludeFilter {
+                exclude_system_files: true,
+                compiled_patterns: Vec::new(),
+            })
+        })
+        .read()
+        .await
+}
+
+/// 从 DB 重新加载排除规则并编译正则
+pub async fn reload_exclude_filter() {
+    use crate::db::dao::config_dao;
+
+    let exclude_sys = config_dao::get_config_value("exclude_system_files")
+        .await
+        .ok()
+        .flatten()
+        .and_then(|v| v.parse::<bool>().ok())
+        .unwrap_or(true);
+
+    let mut compiled: Vec<Regex> = Vec::new();
+
+    if exclude_sys {
+        const SYSTEM_PATTERNS: &[&str] = &[
+            r"^\.DS_Store$",
+            r"^\._.*$",
+            r"^\.localized$",
+            r"^desktop\.ini$",
+            r"^Thumbs\.db$",
+            r"^\.Trash.*$",
+            r"^\.Trashes$",
+            r"^\.directory$",
+            r"^\.hidden$",
+            r"^\$RECYCLE\.BIN$",
+            r"^~\$.*",
+            r"\.tmp$",
+            r"\.temp$",
+        ];
+        for p in SYSTEM_PATTERNS {
+            if let Ok(re) = Regex::new(p) {
+                compiled.push(re);
+            }
+        }
+    }
+
+    if let Ok(Some(json)) = config_dao::get_config_value("exclude_patterns").await {
+        if let Ok(patterns) = serde_json::from_str::<Vec<String>>(&json) {
+            for p in &patterns {
+                if let Ok(re) = Regex::new(p) {
+                    compiled.push(re);
+                }
+            }
+        }
+    }
+
+    let mut guard = EXCLUDE_FILTER
+        .get_or_init(|| {
+            RwLock::new(ExcludeFilter {
+                exclude_system_files: true,
+                compiled_patterns: Vec::new(),
+            })
+        })
+        .write()
+        .await;
+    guard.exclude_system_files = exclude_sys;
+    guard.compiled_patterns = compiled;
 }
