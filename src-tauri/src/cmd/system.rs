@@ -16,6 +16,25 @@ pub struct ServerStatus {
     pub reason: String,
 }
 
+#[derive(Serialize)]
+pub struct AllSettings {
+    pub sharing_directory: String,
+    pub upload_enabled: bool,
+    pub rename_enabled: bool,
+    pub delete_enabled: bool,
+    pub upload_overwrite_enabled: bool,
+    pub record_copy_enabled: bool,
+    pub record_download_enabled: bool,
+    pub autostart: bool,
+    pub autostart_minimized: bool,
+    pub http_port: u16,
+    pub theme_setting: String,
+    pub theme_color: String,
+    pub language: String,
+    pub exclude_system_files: bool,
+    pub exclude_patterns: Vec<String>,
+}
+
 /// 获取本机内网IP
 #[tauri::command]
 pub fn get_local_ip() -> String {
@@ -924,6 +943,107 @@ pub async fn set_exclude_patterns(patterns: Vec<String>) -> Result<(), String> {
     crate::config::config::reload_exclude_filter().await;
     log::info!("排除规则列表已更新");
     Ok(())
+}
+
+// ===== 批量获取所有设置 =====
+
+async fn get_bool_config(key: &str, default: bool) -> bool {
+    match config_dao::get_config_value(key).await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(default),
+        Ok(None) => default,
+        Err(e) => {
+            log::warn!("获取{}失败: {}", key, e);
+            default
+        }
+    }
+}
+
+async fn get_string_config(key: &str, default: &str) -> String {
+    match config_dao::get_config_value(key).await {
+        Ok(Some(value)) => value,
+        Ok(None) => default.to_string(),
+        Err(e) => {
+            log::warn!("获取{}失败: {}", key, e);
+            default.to_string()
+        }
+    }
+}
+
+async fn get_u16_config(key: &str, default: u16) -> u16 {
+    match config_dao::get_config_value(key).await {
+        Ok(Some(value)) => value.parse::<u16>().unwrap_or(default),
+        Ok(None) => default,
+        Err(e) => {
+            log::warn!("获取{}失败: {}", key, e);
+            default
+        }
+    }
+}
+
+async fn get_json_array_config(key: &str) -> Vec<String> {
+    match config_dao::get_config_value(key).await {
+        Ok(Some(value)) => serde_json::from_str(&value).unwrap_or_default(),
+        Ok(None) => Vec::new(),
+        Err(e) => {
+            log::warn!("获取{}失败: {}", key, e);
+            Vec::new()
+        }
+    }
+}
+
+async fn get_sharing_directory_inner() -> String {
+    match config_dao::get_config_value("file_sharing_root_dir").await {
+        Ok(Some(path)) => path,
+        Ok(None) => {
+            let sharing_root = crate::config::config::get_sharing_root().await;
+            crate::utils::path::normalize_path(&(*sharing_root))
+        }
+        Err(e) => {
+            log::warn!("获取共享根目录配置失败: {}", e);
+            let sharing_root = crate::config::config::get_sharing_root().await;
+            crate::utils::path::normalize_path(&(*sharing_root))
+        }
+    }
+}
+
+/// 一次性获取所有设置（减少 IPC 调用次数）
+#[tauri::command]
+pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
+    use tauri_plugin_autostart::ManagerExt;
+
+    let sharing_directory = get_sharing_directory_inner().await;
+    let upload_enabled = get_bool_config("upload_enabled", false).await;
+    let rename_enabled = get_bool_config("rename_enabled", false).await;
+    let delete_enabled = get_bool_config("delete_enabled", false).await;
+    let upload_overwrite_enabled = get_bool_config("upload_overwrite_enabled", false).await;
+    let record_copy_enabled = get_bool_config("record_copy_enabled", false).await;
+    let record_download_enabled = get_bool_config("record_download_enabled", false).await;
+    let autostart = app.autolaunch().is_enabled().unwrap_or(false);
+    let autostart_minimized = get_bool_config("autostart_minimized", false).await;
+    let http_port = get_u16_config("http_port", 3000).await;
+    let theme_setting = get_string_config("theme_setting", "system").await;
+    let theme_color = get_string_config("theme_color", "{\"h\":210,\"s\":100,\"l\":40}").await;
+    let language = get_string_config("language", "").await;
+    let exclude_system_files = get_bool_config("exclude_system_files", true).await;
+    let exclude_patterns = get_json_array_config("exclude_patterns").await;
+
+    AllSettings {
+        sharing_directory,
+        upload_enabled,
+        rename_enabled,
+        delete_enabled,
+        upload_overwrite_enabled,
+        record_copy_enabled,
+        record_download_enabled,
+        autostart,
+        autostart_minimized,
+        http_port,
+        theme_setting,
+        theme_color,
+        language,
+        exclude_system_files,
+        exclude_patterns,
+    }
 }
 
 /// 比较两个版本号。latest > current 返回 true

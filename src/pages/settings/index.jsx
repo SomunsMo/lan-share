@@ -85,165 +85,30 @@ function Settings() {
     const {showDialog} = useDialog();
 
     useEffect(() => {
-        const fetchCurrentDirectory = async () => {
+        const fetchAllSettings = async () => {
             try {
-                const currentDir = await invoke('get_sharing_directory');
-                setSelectedDirectory(currentDir);
-            } catch (error) {
-                console.error('获取当前共享目录失败:', error);
-            }
-        };
+                const s = await invoke('get_all_settings');
+                setSelectedDirectory(s.sharing_directory);
+                setUploadEnabled(s.upload_enabled);
+                setRenameEnabled(s.rename_enabled);
+                setDeleteEnabled(s.delete_enabled);
+                setUploadOverwriteEnabled(s.upload_overwrite_enabled);
+                setRecordCopyEnabled(s.record_copy_enabled);
+                setRecordDownloadEnabled(s.record_download_enabled);
+                setAutostartEnabled(s.autostart);
+                setAutostartMinimized(s.autostart_minimized);
+                setExcludeSystemFiles(s.exclude_system_files);
+                setExcludePatterns(s.exclude_patterns);
+                setThemeSetting(s.theme_setting);
+                setHttpPort(s.http_port);
 
-        const fetchUploadSetting = async () => {
-            try {
-                const enabled = await invoke('get_upload_enabled');
-                setUploadEnabled(enabled);
-            } catch (error) {
-                console.error('获取上传设置失败:', error);
-                setUploadEnabled(false);
-            }
-        };
-
-        const fetchRenameSetting = async () => {
-            try {
-                const enabled = await invoke('get_rename_enabled');
-                setRenameEnabled(enabled);
-            } catch (error) {
-                console.error('获取重命名设置失败:', error);
-                setRenameEnabled(false);
-            }
-        };
-
-        const fetchDeleteSetting = async () => {
-            try {
-                const enabled = await invoke('get_delete_enabled');
-                setDeleteEnabled(enabled);
-            } catch (error) {
-                console.error('获取删除设置失败:', error);
-                setDeleteEnabled(false);
-            }
-        };
-
-        fetchCurrentDirectory();
-        fetchUploadSetting();
-        fetchRenameSetting();
-        fetchDeleteSetting();
-
-        const fetchUploadOverwriteSetting = async () => {
-            try {
-                const enabled = await invoke('get_upload_overwrite_enabled');
-                setUploadOverwriteEnabled(enabled);
-            } catch (error) {
-                console.error('获取上传覆盖设置失败:', error);
-                setUploadOverwriteEnabled(false);
-            }
-        };
-
-        fetchUploadOverwriteSetting();
-
-        const fetchRecordCopySetting = async () => {
-            try {
-                const enabled = await invoke('get_record_copy_enabled');
-                setRecordCopyEnabled(enabled);
-            } catch (error) {
-                console.error('获取复制记录设置失败:', error);
-                setRecordCopyEnabled(false);
-            }
-        };
-
-        fetchRecordCopySetting();
-
-        const fetchRecordDownloadSetting = async () => {
-            try {
-                const enabled = await invoke('get_record_download_enabled');
-                setRecordDownloadEnabled(enabled);
-            } catch (error) {
-                console.error('获取下载记录设置失败:', error);
-                setRecordDownloadEnabled(false);
-            }
-        };
-
-        fetchRecordDownloadSetting();
-
-        const fetchAutostartSetting = async () => {
-            try {
-                const enabled = await invoke('get_autostart');
-                setAutostartEnabled(enabled);
-            } catch (error) {
-                console.error('获取开机自启设置失败:', error);
-                setAutostartEnabled(false);
-            }
-        };
-
-        fetchAutostartSetting();
-
-        const fetchAutostartMinimizedSetting = async () => {
-            try {
-                const enabled = await invoke('get_autostart_minimized');
-                setAutostartMinimized(enabled);
-            } catch (error) {
-                console.error('获取开机最小化启动设置失败:', error);
-                setAutostartMinimized(false);
-            }
-        };
-
-        fetchAutostartMinimizedSetting();
-
-        const fetchExcludeSystemFiles = async () => {
-            try {
-                const enabled = await invoke('get_exclude_system_files');
-                setExcludeSystemFiles(enabled);
-            } catch (error) {
-                console.error('获取排除系统文件设置失败:', error);
-                setExcludeSystemFiles(true);
-            }
-        };
-        const fetchExcludePatterns = async () => {
-            try {
-                const patterns = await invoke('get_exclude_patterns');
-                setExcludePatterns(patterns);
-            } catch (error) {
-                console.error('获取排除规则列表失败:', error);
-                setExcludePatterns([]);
-            }
-        };
-        fetchExcludeSystemFiles();
-        fetchExcludePatterns();
-
-        const fetchThemeSetting = async () => {
-            try {
-                const theme = await invoke('get_theme_setting');
-                setThemeSetting(theme);
-            } catch (error) {
-                console.error('获取主题设置失败:', error);
-                setThemeSetting("system");
-            }
-        };
-
-        fetchThemeSetting();
-
-        const fetchHttpPort = async () => {
-            try {
-                const port = await invoke('get_http_port');
-                setHttpPort(port);
-            } catch (error) {
-                console.error('获取HTTP端口设置失败:', error);
-                setHttpPort(3000);
-            }
-        };
-
-        fetchHttpPort();
-
-        const fetchThemeColor = async () => {
-            try {
-                const json = await invoke('get_theme_color');
-                const { h, s, l } = JSON.parse(json);
+                const { h, s: sat, l } = JSON.parse(s.theme_color);
                 setHuePrimary(h);
-                setSatPrimary(s);
+                setSatPrimary(sat);
                 setLigPrimary(l);
-                setPrimaryColorHex(hslToHex(h, s, l));
+                setPrimaryColorHex(hslToHex(h, sat, l));
                 document.documentElement.style.setProperty('--hue-primary', h);
-                document.documentElement.style.setProperty('--sat-primary', `${s}%`);
+                document.documentElement.style.setProperty('--sat-primary', `${sat}%`);
                 document.documentElement.style.setProperty('--lig-primary', `${l}%`);
                 const muiRoots = document.querySelectorAll('[data-mui-color-scheme]');
                 (muiRoots.length ? [...muiRoots] : [document.documentElement]).forEach(el => {
@@ -255,11 +120,10 @@ function Settings() {
                     el.style.setProperty('--mui-palette-background-paper', 'var(--surface-container-lowest)');
                 });
             } catch (error) {
-                console.error('加载主题色设置失败:', error);
+                console.error('获取设置失败:', error);
             }
         };
-
-        fetchThemeColor();
+        fetchAllSettings();
     }, []);
 
     const handleThemeChange = async (event) => {
