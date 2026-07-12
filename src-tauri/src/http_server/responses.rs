@@ -13,16 +13,32 @@ pub fn success(data: String) -> Result<Response<GenericResponseBody>, std::conve
     Ok(response)
 }
 
+use serde::Serialize;
+
+#[derive(Serialize)]
+struct JsonResponse<'a, T: Serialize> {
+    code: u16,
+    msg: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    data: Option<T>,
+}
+
+#[derive(Serialize)]
+struct JsonError<'a> {
+    code: u16,
+    msg: &'a str,
+}
+
 // 响应"成功"JSON
 pub fn success_json<T: serde::Serialize>(
     data: T,
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
-    let res_json = serde_json::json!({
-        "code": 200,
-        "msg": "success",
-        "data": data
+    let res_json = serde_json::to_string(&JsonResponse {
+        code: 200,
+        msg: "success",
+        data: Some(data),
     })
-    .to_string();
+    .expect("JSON serialization failed");
 
     let mut response = Response::new(GenericResponseBody::String(res_json));
     response.headers_mut().insert(
@@ -37,11 +53,11 @@ pub fn error(
     status: StatusCode,
     msg: &str,
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
-    let res_json = serde_json::json!( {
-        "code": status.as_u16(),
-        "msg": msg
+    let res_json = serde_json::to_string(&JsonError {
+        code: status.as_u16(),
+        msg,
     })
-    .to_string();
+    .expect("JSON serialization failed");
 
     let body = GenericResponseBody::String(res_json);
 
@@ -55,7 +71,7 @@ pub fn error(
 }
 
 pub fn redirect(url: &str) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
-    let mut response = Response::new(GenericResponseBody::String("".to_string()));
+    let mut response = Response::new(GenericResponseBody::String(String::new()));
     *response.status_mut() = StatusCode::FOUND;
     response
         .headers_mut()

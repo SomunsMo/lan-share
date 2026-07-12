@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import HomeStyle from "./style.js";
 import {invoke} from "@tauri-apps/api/core";
 import {QRCodeSVG} from "qrcode.react";
@@ -94,8 +94,8 @@ function Home() {
         showToast({message: t('common.toast.copied'), type: 'success'});
     }
 
-    const ipAddr = webUrl ? webUrl.split('/')[2].split(':')[0] : '';
-    const portNum = webUrl ? webUrl.split('/')[2].split(':')[1] : '';
+    const ipAddr = useMemo(() => webUrl ? webUrl.split('/')[2].split(':')[0] : '', [webUrl]);
+    const portNum = useMemo(() => webUrl ? webUrl.split('/')[2].split(':')[1] : '', [webUrl]);
 
     return (
         <HomeStyle>

@@ -45,19 +45,17 @@ async fn init() {
     // ====================【↓DB初始化后才能执行的代码】====================
 
     // 检查共享根目录是否已配置（用于首次运行检测）
-    let fs_rd_configured = config_dao::get_config_value("file_sharing_root_dir")
+    let fs_rd = config_dao::get_config_value("file_sharing_root_dir")
         .await
         .ok()
-        .flatten()
-        .is_some();
-    set_sharing_root_configured(fs_rd_configured);
+        .flatten();
+    set_sharing_root_configured(fs_rd.is_some());
 
     // 文件共享根目录
-    let fs_rd = config_dao::get_config("file_sharing_root_dir")
-        .await
-        .map(|cfg| PathBuf::from(cfg.cfg_value)) // 直接转换
-        .unwrap_or_else(|e| {
-            log::error!("cannot get config：{}", e);
+    let fs_rd = fs_rd
+        .map(PathBuf::from) // 直接转换
+        .unwrap_or_else(|| {
+            log::error!("cannot get config：file_sharing_root_dir");
             PathBuf::from("./uploads") // 默认 PathBuf
         });
     

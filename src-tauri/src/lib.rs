@@ -159,7 +159,6 @@ pub(crate) fn create_and_position_window(
             .expect("创建主窗口失败");
 
     if let Some(route) = &initial_route {
-        let route = route.clone();
         let _ = window.eval(&format!(
             r#"
             (function(){{
@@ -268,9 +267,7 @@ mod param_extractor {
             .collect()
             .await
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
-        let body_str = String::from_utf8(body_bytes.to_bytes().to_vec())
-            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
-        let parsed: T = serde_json::from_str(&body_str)
+        let parsed: T = serde_json::from_slice(body_bytes.to_bytes().as_ref())
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
         Ok(parsed)
     }

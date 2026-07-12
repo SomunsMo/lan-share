@@ -26,6 +26,24 @@ pub async fn get_config_value(key: &str) -> Result<Option<String>, Error> {
     }
 }
 
+/// 批量获取配置值（一次查询，减少 DB 往返）
+pub async fn get_config_values(keys: &[&str]) -> std::collections::HashMap<String, String> {
+    if keys.is_empty() {
+        return std::collections::HashMap::new();
+    }
+    let placeholders: Vec<String> = keys.iter().map(|_| "?".to_string()).collect();
+    let sql = format!(
+        "SELECT cfg_key, cfg_value FROM config WHERE cfg_key IN ({})",
+        placeholders.join(",")
+    );
+    let mut query = sqlx::query_as::<_, Config>(&sql);
+    for key in keys {
+        query = query.bind(key);
+    }
+    let rows = query.fetch_all(get_pool()).await.unwrap_or_default();
+    rows.into_iter().map(|c| (c.cfg_key, c.cfg_value)).collect()
+}
+
 /// 设置配置（使用 UPSERT，依赖 cfg_key 上的 UNIQUE 约束）
 pub async fn set_config(key: &str, value: &str) -> Result<(), Error> {
     let now = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();

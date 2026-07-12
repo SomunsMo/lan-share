@@ -744,7 +744,7 @@ pub async fn get_theme_color() -> Result<String, String> {
 /// 设置主题色
 #[tauri::command]
 pub async fn set_theme_color(h: u16, s: u16, l: u16) -> Result<(), String> {
-    let value = format!("{{\"h\":{},\"s\":{},\"l\":{}}}", h, s, l);
+    let value = serde_json::json!({"h": h, "s": s, "l": l}).to_string();
     if let Err(e) = config_dao::set_config("theme_color", &value).await {
         log::error!("保存主题色设置到数据库失败: {}", e);
         return Err(format!("保存配置失败: {}", e));
@@ -945,104 +945,55 @@ pub async fn set_exclude_patterns(patterns: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 
-// ===== 批量获取所有设置 =====
-
-async fn get_bool_config(key: &str, default: bool) -> bool {
-    match config_dao::get_config_value(key).await {
-        Ok(Some(value)) => value.parse::<bool>().unwrap_or(default),
-        Ok(None) => default,
-        Err(e) => {
-            log::warn!("获取{}失败: {}", key, e);
-            default
-        }
-    }
-}
-
-async fn get_string_config(key: &str, default: &str) -> String {
-    match config_dao::get_config_value(key).await {
-        Ok(Some(value)) => value,
-        Ok(None) => default.to_string(),
-        Err(e) => {
-            log::warn!("获取{}失败: {}", key, e);
-            default.to_string()
-        }
-    }
-}
-
-async fn get_u16_config(key: &str, default: u16) -> u16 {
-    match config_dao::get_config_value(key).await {
-        Ok(Some(value)) => value.parse::<u16>().unwrap_or(default),
-        Ok(None) => default,
-        Err(e) => {
-            log::warn!("获取{}失败: {}", key, e);
-            default
-        }
-    }
-}
-
-async fn get_json_array_config(key: &str) -> Vec<String> {
-    match config_dao::get_config_value(key).await {
-        Ok(Some(value)) => serde_json::from_str(&value).unwrap_or_default(),
-        Ok(None) => Vec::new(),
-        Err(e) => {
-            log::warn!("获取{}失败: {}", key, e);
-            Vec::new()
-        }
-    }
-}
-
-async fn get_sharing_directory_inner() -> String {
-    match config_dao::get_config_value("file_sharing_root_dir").await {
-        Ok(Some(path)) => path,
-        Ok(None) => {
-            let sharing_root = crate::config::config::get_sharing_root().await;
-            crate::utils::path::normalize_path(&(*sharing_root))
-        }
-        Err(e) => {
-            log::warn!("获取共享根目录配置失败: {}", e);
-            let sharing_root = crate::config::config::get_sharing_root().await;
-            crate::utils::path::normalize_path(&(*sharing_root))
-        }
-    }
-}
-
 /// 一次性获取所有设置（减少 IPC 调用次数）
 #[tauri::command]
 pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
     use tauri_plugin_autostart::ManagerExt;
 
-    let sharing_directory = get_sharing_directory_inner().await;
-    let upload_enabled = get_bool_config("upload_enabled", false).await;
-    let rename_enabled = get_bool_config("rename_enabled", false).await;
-    let delete_enabled = get_bool_config("delete_enabled", false).await;
-    let upload_overwrite_enabled = get_bool_config("upload_overwrite_enabled", false).await;
-    let record_copy_enabled = get_bool_config("record_copy_enabled", false).await;
-    let record_download_enabled = get_bool_config("record_download_enabled", false).await;
+    let keys = &[
+        "file_sharing_root_dir",
+        "upload_enabled",
+        "rename_enabled",
+        "delete_enabled",
+        "upload_overwrite_enabled",
+        "record_copy_enabled",
+        "record_download_enabled",
+        "autostart_minimized",
+        "http_port",
+        "theme_setting",
+        "theme_color",
+        "language",
+        "exclude_system_files",
+        "exclude_patterns",
+    ];
+    let configs = config_dao::get_config_values(keys).await;
+
+    let sharing_directory = match configs.get("file_sharing_root_dir") {
+        Some(path) => path.clone(),
+        None => {
+            let sharing_root = crate::config::config::get_sharing_root().await;
+            crate::utils::path::normalize_path(&(*sharing_root))
+        }
+    };
+
     let autostart = app.autolaunch().is_enabled().unwrap_or(false);
-    let autostart_minimized = get_bool_config("autostart_minimized", false).await;
-    let http_port = get_u16_config("http_port", 3000).await;
-    let theme_setting = get_string_config("theme_setting", "system").await;
-    let theme_color = get_string_config("theme_color", "{\"h\":210,\"s\":100,\"l\":40}").await;
-    let language = get_string_config("language", "").await;
-    let exclude_system_files = get_bool_config("exclude_system_files", true).await;
-    let exclude_patterns = get_json_array_config("exclude_patterns").await;
 
     AllSettings {
         sharing_directory,
-        upload_enabled,
-        rename_enabled,
-        delete_enabled,
-        upload_overwrite_enabled,
-        record_copy_enabled,
-        record_download_enabled,
+        upload_enabled: configs.get("upload_enabled").map(|v| v == "true").unwrap_or(false),
+        rename_enabled: configs.get("rename_enabled").map(|v| v == "true").unwrap_or(false),
+        delete_enabled: configs.get("delete_enabled").map(|v| v == "true").unwrap_or(false),
+        upload_overwrite_enabled: configs.get("upload_overwrite_enabled").map(|v| v == "true").unwrap_or(false),
+        record_copy_enabled: configs.get("record_copy_enabled").map(|v| v == "true").unwrap_or(false),
+        record_download_enabled: configs.get("record_download_enabled").map(|v| v == "true").unwrap_or(false),
         autostart,
-        autostart_minimized,
-        http_port,
-        theme_setting,
-        theme_color,
-        language,
-        exclude_system_files,
-        exclude_patterns,
+        autostart_minimized: configs.get("autostart_minimized").map(|v| v == "true").unwrap_or(false),
+        http_port: configs.get("http_port").and_then(|v| v.parse::<u16>().ok()).unwrap_or(3000),
+        theme_setting: configs.get("theme_setting").cloned().unwrap_or_else(|| "system".to_string()),
+        theme_color: configs.get("theme_color").cloned().unwrap_or_else(|| "{\"h\":210,\"s\":100,\"l\":40}".to_string()),
+        language: configs.get("language").cloned().unwrap_or_default(),
+        exclude_system_files: configs.get("exclude_system_files").map(|v| v == "true").unwrap_or(true),
+        exclude_patterns: configs.get("exclude_patterns").and_then(|v| serde_json::from_str(v).ok()).unwrap_or_default(),
     }
 }
 
