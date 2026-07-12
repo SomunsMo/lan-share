@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import FileSharingStyle, {FileCard} from "./FileSharingStyle.js";
 import ProgressBar from "../ProgressBar/ProgressBar.jsx";
-import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, preUploadCheckAPI} from "@/service/API.js";
+import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, preUploadCheckAPI, recordDownloadAPI} from "@/service/API.js";
 import {formatFileSize, getFileSuffix, copyToClipboard} from "@/util/file.js";
 import {useToast} from "@/component/Toast/index.jsx";
 import {useDialog} from "@/component/Dialog/index.jsx";
@@ -404,6 +404,9 @@ function FileSharing() {
         const currentDir = getCurrentDir();
 
         try {
+            // 记录下载
+            recordDownloadAPI(v.name, currentDir).catch(() => {});
+
             // 构造下载URL，直接跳转到下载地址
             const downloadUrl = `/download/file?dir=${currentDir ? currentDir : ''}&file_name=${encodeURIComponent(v.name)}`;
 
@@ -706,6 +709,7 @@ function FileSharing() {
                                 const currentDir = getCurrentDir();
                                 let index = 0;
                                 selectedFiles.forEach(fileName => {
+                                    recordDownloadAPI(fileName, currentDir).catch(() => {});
                                     setTimeout(() => {
                                         const link = document.createElement('a');
                                         link.href = `/download/file?dir=${currentDir || ''}&file_name=${encodeURIComponent(fileName)}`;

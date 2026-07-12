@@ -64,6 +64,24 @@ export const deleteFileAPI = (dir, fileName) => {
     });
 }
 
+// 记录文本复制
+export const recordCopyAPI = (contentId) => {
+    return request({
+        method: "POST",
+        url: "/record/copy",
+        data: { content_id: contentId }
+    });
+}
+
+// 记录文件下载
+export const recordDownloadAPI = (fileName, dir) => {
+    return request({
+        method: "POST",
+        url: "/record/download",
+        data: { file_name: fileName, dir: dir || "" }
+    });
+}
+
 // 上传前检测：检查文件是否存在、上传功能、覆盖权限、磁盘剩余空间
 export const preUploadCheckAPI = (dir, fileName) => {
     const params = new URLSearchParams();
