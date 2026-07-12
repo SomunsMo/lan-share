@@ -108,7 +108,7 @@ function DialogItem({ dialog, index, closeDialog }) {
             {dialog.title && <DialogTitle>{dialog.title}</DialogTitle>}
             <DialogContent>
                 {typeof dialog.content === 'string' ? (
-                    <DialogContentText>{dialog.content}</DialogContentText>
+                    <DialogContentText sx={{ whiteSpace: 'pre-line' }}>{dialog.content}</DialogContentText>
                 ) : (
                     dialog.content
                 )}

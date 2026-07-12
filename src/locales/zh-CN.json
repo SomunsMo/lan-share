@@ -176,6 +176,7 @@
     "searchPlaceholder": "搜索文本内容或文件路径...",
     "noMoreRecords": "没有更多记录了",
     "noSearchResults": "没有找到匹配的记录",
+    "deleteConfirmFile": "确定要删除该记录吗？此操作不可撤销。",
     "contextMenu": {
       "viewDetail": "查看详情",
       "openFileLocation": "打开文件位置",
@@ -210,7 +211,7 @@
   "textSharing": {
     "pageTitle": "共享文本",
     "pageDesc": "共享文本后，局域网内其他设备可通过浏览器查看或复制",
-    "deleteCascadeWarning": "删除该记录会导致相关的复制记录也会被删除，确定继续？",
+    "deleteCascadeWarning": "删除该记录会导致相关的复制记录也会被删除",
     "clearButton": "清空",
     "recentTitle": "最近共享",
     "copyButton": "复制",

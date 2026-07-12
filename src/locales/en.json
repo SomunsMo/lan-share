@@ -176,6 +176,7 @@
     "searchPlaceholder": "Search by text content or file path...",
     "noMoreRecords": "No more records",
     "noSearchResults": "No matching records found",
+    "deleteConfirmFile": "Are you sure you want to delete this record? This action cannot be undone.",
     "contextMenu": {
       "viewDetail": "View Detail",
       "openFileLocation": "Open File Location",
@@ -210,7 +211,7 @@
   "textSharing": {
     "pageTitle": "Share Text Locally",
     "pageDesc": "Shared text can be viewed or copied by other devices on the LAN via browser",
-    "deleteCascadeWarning": "Deleting this record will also delete related copy records. Continue?",
+    "deleteCascadeWarning": "Deleting this record will also delete related copy records",
     "clearButton": "Clear",
     "recentTitle": "Recent Text Shares",
     "copyButton": "Copy",

@@ -76,6 +76,15 @@ function History() {
     };
 
     const deleteHistoryItem = useCallback(async (itemId) => {
+        const confirmed = await showDialog({
+            title: t('history.clearDialog.title'),
+            content: t('history.deleteConfirmFile'),
+            buttons: [
+                {label: 'common.button.cancel', value: false},
+                {label: 'common.button.delete', value: true, primary: true, danger: true},
+            ],
+        });
+        if (!confirmed) return;
         try {
             await invoke('delete_file_sharing_record', {id: itemId});
             setHistory(prev => prev.filter(item => item.id !== itemId));
@@ -83,12 +92,12 @@ function History() {
         } catch (error) {
             console.error('删除记录失败:', error);
         }
-    }, []);
+    }, [showDialog, t]);
 
     const deleteTextItem = useCallback(async (itemId) => {
         const confirmed = await showDialog({
             title: t('history.clearDialog.title'),
-            content: t('textSharing.deleteCascadeWarning'),
+            content: `${t('textSharing.deleteCascadeWarning')}\n${t('history.deleteConfirmFile')}`,
             buttons: [
                 {label: 'common.button.cancel', value: false},
                 {label: 'common.button.delete', value: true, primary: true, danger: true},
