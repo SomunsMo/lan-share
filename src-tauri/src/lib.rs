@@ -89,7 +89,11 @@ pub(crate) fn load_window_state() -> Option<WindowState> {
         .and_then(|json| serde_json::from_str(json).ok())
 }
 
-pub(crate) fn get_monitor_containing(window: &tauri::WebviewWindow, x: i32, y: i32) -> Option<tauri::Monitor> {
+pub(crate) fn get_monitor_containing(
+    window: &tauri::WebviewWindow,
+    x: i32,
+    y: i32,
+) -> Option<tauri::Monitor> {
     let monitors = window.available_monitors().ok()?;
     monitors.into_iter().find(|m| {
         let mpos = m.position();
@@ -145,17 +149,14 @@ pub(crate) fn create_and_position_window(
     app: &tauri::AppHandle,
     initial_route: Option<String>,
 ) -> tauri::WebviewWindow {
-    let window = tauri::WebviewWindowBuilder::new(
-        app,
-        "main",
-        tauri::WebviewUrl::App("index.html".into()),
-    )
-    .title("LAN Share")
-    .inner_size(WINDOW_DEFAULT_W as f64, WINDOW_DEFAULT_H as f64)
-    .min_inner_size(WINDOW_MIN_W as f64, WINDOW_MIN_H as f64)
-    .visible(false)
-    .build()
-    .expect("创建主窗口失败");
+    let window =
+        tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
+            .title("LAN Share")
+            .inner_size(WINDOW_DEFAULT_W as f64, WINDOW_DEFAULT_H as f64)
+            .min_inner_size(WINDOW_MIN_W as f64, WINDOW_MIN_H as f64)
+            .visible(false)
+            .build()
+            .expect("创建主窗口失败");
 
     if let Some(route) = &initial_route {
         let route = route.clone();
@@ -359,10 +360,11 @@ pub fn run() {
                 if !QUITTING.load(Ordering::Relaxed) {
                     api.prevent_exit();
                 }
-            }
-            #[cfg(target_os = "macos")]
-            if let tauri::RunEvent::Reopen { .. } = _event {
-                tray::show_window(_app_handle, None);
+
+                #[cfg(target_os = "macos")]
+                {
+                    tray::show_window(_app_handle, None);
+                }
             }
         });
 }
