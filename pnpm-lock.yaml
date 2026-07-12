@@ -44,9 +44,6 @@ importers:
       react-dom:
         specifier: ^19.1.0
         version: 19.2.3(react@19.2.3)
-      react-dropzone:
-        specifier: ^14.3.8
-        version: 14.3.8(react@19.2.3)
       react-i18next:
         specifier: ^17.0.8
         version: 17.0.8(i18next@26.3.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -548,10 +545,6 @@ packages:
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
 
-  attr-accept@2.2.5:
-    resolution: {integrity: sha512-0bDNnY/u6pPwHDMoF0FieU354oBi0a8rD9FcsLwzcGWbc8KS8KPIi7y+s13OlVY+gMWc/9xEMUgNE6Qm8ZllYQ==}
-    engines: {node: '>=4'}
-
   babel-plugin-macros@3.1.0:
     resolution: {integrity: sha512-Cg7TFGpIr01vOQNODXOOaGz2NpCU5gl8x1qJFbb6hbZxR7XrcE2vtbAsTAbJ7/xwJtUuJEw8K8Zr/AE0LHlesg==}
     engines: {node: '>=10', npm: '>=6'}
@@ -641,10 +634,6 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
-
-  file-selector@2.1.2:
-    resolution: {integrity: sha512-QgXo+mXTe8ljeqUFaX3QVHc5osSItJ/Km+xpocx0aSqWGMSCf6qYs/VnzZgS864Pjn5iceMRFigeAV7AfTlaig==}
-    engines: {node: '>= 12'}
 
   find-root@1.1.0:
     resolution: {integrity: sha512-NKfW6bec6GfKc0SGx1e07QZY9PE99u0Bft/0rzSD5k3sO/vwkVUpDUKVm5Gpp5Ue3YfShPFTX2070tDs5kB9Ng==}
@@ -847,12 +836,6 @@ packages:
     resolution: {integrity: sha512-yELu4WmLPw5Mr/lmeEpox5rw3RETacE++JgHqQzd2dg+YbJuat3jH4ingc+WPZhxaoFzdv9y33G+F7Nl5O0GBg==}
     peerDependencies:
       react: ^19.2.3
-
-  react-dropzone@14.3.8:
-    resolution: {integrity: sha512-sBgODnq+lcA4P296DY4wacOZz3JFpD99fp+hb//iBO2HHnyeZU3FwWyXJ6salNpqQdsZrgMrotuko/BdJMV8Ug==}
-    engines: {node: '>= 10.13'}
-    peerDependencies:
-      react: '>= 16.8 || 18.0.0'
 
   react-i18next@17.0.8:
     resolution: {integrity: sha512-0ooKbGLU8JXhe1zwpQUWIeXSgLPOfwJmgheWRIUpcoA0CpyabpGhayjdG+/eA5esC1AQ8h2jWpXjJfzQzeDOCw==}
@@ -1503,8 +1486,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  attr-accept@2.2.5: {}
-
   babel-plugin-macros@3.1.0:
     dependencies:
       '@babel/runtime': 7.29.7
@@ -1575,10 +1556,6 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.3):
     optionalDependencies:
       picomatch: 4.0.3
-
-  file-selector@2.1.2:
-    dependencies:
-      tslib: 2.8.1
 
   find-root@1.1.0: {}
 
@@ -1731,13 +1708,6 @@ snapshots:
       react: 19.2.3
       scheduler: 0.27.0
 
-  react-dropzone@14.3.8(react@19.2.3):
-    dependencies:
-      attr-accept: 2.2.5
-      file-selector: 2.1.2
-      prop-types: 15.8.1
-      react: 19.2.3
-
   react-i18next@17.0.8(i18next@26.3.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
       '@babel/runtime': 7.29.7
@@ -1827,7 +1797,8 @@ snapshots:
 
   toggle-selection@1.0.6: {}
 
-  tslib@2.8.1: {}
+  tslib@2.8.1:
+    optional: true
 
   update-browserslist-db@1.2.2(browserslist@4.28.1):
     dependencies:

@@ -78,24 +78,6 @@ pub async fn list_by_type(action_type: i64) -> Result<Vec<TransferRecord>, Error
     .await
 }
 
-/// 查询记录总数
-pub async fn count() -> Result<i64, Error> {
-    let result: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transfer_record")
-        .fetch_one(get_pool())
-        .await?;
-    Ok(result.0)
-}
-
-/// 查询所有记录
-pub async fn list_all() -> Result<Vec<TransferRecord>, Error> {
-    sqlx::query_as(
-        "SELECT id, action_type, content, source_id, ip, is_overwrite, created_at
-         FROM transfer_record ORDER BY created_at DESC",
-    )
-    .fetch_all(get_pool())
-    .await
-}
-
 /// 根据 id 获取单条记录
 pub async fn get_by_id(id: i64) -> Result<Option<TransferRecord>, Error> {
     sqlx::query_as(

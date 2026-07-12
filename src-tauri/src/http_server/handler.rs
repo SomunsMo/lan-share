@@ -88,7 +88,7 @@ impl BaseHandler {
 }
 
 // 全局处理器注册表
-pub static HANDLER_REGISTRY: LazyLock<RwLock<HashMap<String, Vec<BaseHandler>>>> =
+pub static HANDLER_REGISTRY: LazyLock<RwLock<HashMap<&'static str, Vec<BaseHandler>>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
 
 // 注册处理器
@@ -97,7 +97,7 @@ pub fn register_handler(handler: BaseHandler) {
 
     let mut registry = HANDLER_REGISTRY.write().unwrap();
     registry
-        .entry(path.to_string())
+        .entry(path)
         .or_insert_with(Vec::new)
         .push(handler);
     log::info!("Registered handler for path: {}", path);
@@ -128,8 +128,3 @@ pub fn get_handler(path: &str, method: &Method) -> Option<BaseHandler> {
     None
 }
 
-// 获取所有注册的路由
-pub fn get_registered_routes() -> Vec<String> {
-    let registry = HANDLER_REGISTRY.read().unwrap();
-    registry.keys().cloned().collect()
-}

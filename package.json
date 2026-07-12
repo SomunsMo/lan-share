@@ -24,7 +24,6 @@
     "qrcode.react": "^4.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-dropzone": "^14.3.8",
     "react-i18next": "^17.0.8",
     "react-router": "^7.10.1"
   },
