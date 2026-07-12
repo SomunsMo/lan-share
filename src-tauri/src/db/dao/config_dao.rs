@@ -4,6 +4,7 @@ use crate::db::entity::Config;
 use crate::db::sqlite::get_pool;
 use chrono::Local;
 use sqlx::Error;
+use sqlx::Row;
 
 /// 获取配置
 pub async fn get_config(key: &str) -> Result<Config, Error> {
@@ -36,12 +37,21 @@ pub async fn get_config_values(keys: &[&str]) -> std::collections::HashMap<Strin
         "SELECT cfg_key, cfg_value FROM config WHERE cfg_key IN ({})",
         placeholders.join(",")
     );
-    let mut query = sqlx::query_as::<_, Config>(&sql);
+    let mut query = sqlx::query(&sql);
     for key in keys {
         query = query.bind(key);
     }
     let rows = query.fetch_all(get_pool()).await.unwrap_or_default();
-    rows.into_iter().map(|c| (c.cfg_key, c.cfg_value)).collect()
+    let map: std::collections::HashMap<String, String> = rows
+        .into_iter()
+        .map(|row| {
+            let k: String = row.get("cfg_key");
+            let v: String = row.get("cfg_value");
+            (k, v)
+        })
+        .collect();
+    log::info!("[get_config_values] keys={:?}, found={}", keys, map.len());
+    map
 }
 
 /// 设置配置（使用 UPSERT，依赖 cfg_key 上的 UNIQUE 约束）

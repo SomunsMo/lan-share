@@ -968,6 +968,14 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
     ];
     let configs = config_dao::get_config_values(keys).await;
 
+    log::info!(
+        "[get_all_settings] raw configs from DB: upload_enabled={:?}, rename_enabled={:?}, delete_enabled={:?}, configs len={}",
+        configs.get("upload_enabled"),
+        configs.get("rename_enabled"),
+        configs.get("delete_enabled"),
+        configs.len(),
+    );
+
     let sharing_directory = match configs.get("file_sharing_root_dir") {
         Some(path) => path.clone(),
         None => {
@@ -978,7 +986,7 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
 
     let autostart = app.autolaunch().is_enabled().unwrap_or(false);
 
-    AllSettings {
+    let result = AllSettings {
         sharing_directory,
         upload_enabled: configs.get("upload_enabled").map(|v| v == "true").unwrap_or(false),
         rename_enabled: configs.get("rename_enabled").map(|v| v == "true").unwrap_or(false),
@@ -994,7 +1002,13 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
         language: configs.get("language").cloned().unwrap_or_default(),
         exclude_system_files: configs.get("exclude_system_files").map(|v| v == "true").unwrap_or(true),
         exclude_patterns: configs.get("exclude_patterns").and_then(|v| serde_json::from_str(v).ok()).unwrap_or_default(),
-    }
+    };
+
+    log::debug!(
+        "[get_all_settings] returning upload_enabled={}",
+        result.upload_enabled,
+    );
+    result
 }
 
 /// 比较两个版本号。latest > current 返回 true
