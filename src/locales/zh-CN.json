@@ -3,7 +3,8 @@
     "loading": "加载中...",
     "button": {
       "cancel": "取消",
-      "confirm": "确定"
+      "confirm": "确定",
+      "delete": "删除"
     },
     "toast": {
       "operationFailed": "操作失败",

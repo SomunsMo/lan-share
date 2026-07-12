@@ -3,7 +3,8 @@
     "loading": "Loading...",
     "button": {
       "cancel": "Cancel",
-      "confirm": "Confirm"
+      "confirm": "Confirm",
+      "delete": "Delete"
     },
     "toast": {
       "operationFailed": "Operation failed",

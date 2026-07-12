@@ -6,6 +6,16 @@ AI 编程助手上下文与约定。
 
 Tauri2 跨平台 (Win/Mac/Linux)，每次修改须兼容所有平台。
 
+## 项目结构
+
+本项目为三个独立模块：
+
+- Rust 后端 (`src-tauri/`): HTTP 服务器、数据库、IPC 命令；`cargo check`
+- 桌面软件前端 (`src/`): Tauri 桌面主界面（MUI）；`npm run build`；i18n: `src/locales/`；Dialog: `src/components/dialog/`
+- Web 前端 (`src-web/`): HTTP 对外提供的浏览器界面；`cd src-web && npm run build`；i18n: `src-web/src/locales/`；Dialog: `src-web/src/component/Dialog/`
+
+> 修改前先确认属于哪个模块。修改 i18n key 前先 `grep key src/ src-web/` 确认所有引用处都已处理，防止误删遗留 key。
+
 ## 语言
 
 - 使用中文回答和注释
