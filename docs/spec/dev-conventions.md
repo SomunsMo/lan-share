@@ -10,7 +10,7 @@
 - **Tauri v2** — `#[tauri::command]` 在 `system.rs` 中定义，`_cmd_handler.rs` 中注册
 - **React 19 + MUI** — 页面在 `src/pages/`，自定义组件在 `src/components/`
 - **@emotion/styled** — 每个页面有一个 `style.js` 文件使用 `styled.div`
-- **i18next + react-i18next** — 翻译文件在 `src/locales/` 和 `src-web/src/locales/`
+- **i18next + react-i18next** — 翻译文件在 `src/locales/`（桌面端）和 `src-web/src/locales/`（Web 端）
 - **SQLx (SQLite)** — 异步数据库操作，`tokio` 运行时
 - **Hyper v1** — 嵌入的 HTTP 服务器，`http_server/` 目录
 
@@ -28,3 +28,11 @@ import {useToast} from "@/components/toast/index.jsx";
 const {showToast} = useToast();
 showToast({message: '内容', type: 'success'}); // 'success' | 'error' | 'info'
 ```
+
+## i18n
+
+- 桌面端翻译: `src/locales/{zh-CN,en}.json`
+- Web 端翻译: `src-web/src/locales/{zh-CN,en}.json`
+- 对话框组件: 桌面端 `src/components/dialog/`，Web 端 `src-web/src/component/Dialog/`
+- key 命名: `模块.组件.含义`
+- 增删 key 前须 grep 所有模块确认无遗留引用
