@@ -20,8 +20,10 @@ pub struct ServerStatus {
 pub struct AllSettings {
     pub sharing_directory: String,
     pub upload_enabled: bool,
-    pub rename_enabled: bool,
-    pub delete_enabled: bool,
+    pub rename_file_enabled: bool,
+    pub rename_folder_enabled: bool,
+    pub delete_file_enabled: bool,
+    pub delete_folder_enabled: bool,
     pub upload_overwrite_enabled: bool,
     pub record_copy_enabled: bool,
     pub record_download_enabled: bool,
@@ -208,63 +210,103 @@ pub async fn set_upload_enabled(enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
-/// 获取重命名设置状态
+/// 获取重命名文件状态
 #[tauri::command]
-pub async fn get_rename_enabled() -> Result<bool, String> {
-    match config_dao::get_config_value("rename_enabled").await {
-        Ok(Some(value)) => {
-            let enabled = value.parse::<bool>().unwrap_or(false);
-            Ok(enabled)
-        }
+pub async fn get_rename_file_enabled() -> Result<bool, String> {
+    match config_dao::get_config_value("rename_file_enabled").await {
+        Ok(Some(value)) => Ok(value.parse::<bool>().unwrap_or(false)),
         Ok(None) => Ok(false),
         Err(e) => {
-            log::warn!("获取重命名设置失败: {}", e);
+            log::warn!("获取重命名文件设置失败: {}", e);
             Ok(false)
         }
     }
 }
 
-/// 设置重命名状态
+/// 设置重命名文件状态
 #[tauri::command]
-pub async fn set_rename_enabled(enabled: bool) -> Result<(), String> {
+pub async fn set_rename_file_enabled(enabled: bool) -> Result<(), String> {
     let value = if enabled { "true" } else { "false" };
-
-    if let Err(e) = config_dao::set_config("rename_enabled", value).await {
-        log::error!("保存重命名设置到数据库失败: {}", e);
+    if let Err(e) = config_dao::set_config("rename_file_enabled", value).await {
+        log::error!("保存重命名文件设置到数据库失败: {}", e);
         return Err(format!("保存配置失败: {}", e));
     }
-
-    log::info!("重命名设置已更新为: {}", enabled);
+    log::info!("重命名文件设置已更新为: {}", enabled);
     Ok(())
 }
 
-/// 获取删除设置状态
+/// 获取重命名文件夹状态
 #[tauri::command]
-pub async fn get_delete_enabled() -> Result<bool, String> {
-    match config_dao::get_config_value("delete_enabled").await {
-        Ok(Some(value)) => {
-            let enabled = value.parse::<bool>().unwrap_or(false);
-            Ok(enabled)
-        }
+pub async fn get_rename_folder_enabled() -> Result<bool, String> {
+    match config_dao::get_config_value("rename_folder_enabled").await {
+        Ok(Some(value)) => Ok(value.parse::<bool>().unwrap_or(false)),
         Ok(None) => Ok(false),
         Err(e) => {
-            log::warn!("获取删除设置失败: {}", e);
+            log::warn!("获取重命名文件夹设置失败: {}", e);
             Ok(false)
         }
     }
 }
 
-/// 设置删除状态
+/// 设置重命名文件夹状态
 #[tauri::command]
-pub async fn set_delete_enabled(enabled: bool) -> Result<(), String> {
+pub async fn set_rename_folder_enabled(enabled: bool) -> Result<(), String> {
     let value = if enabled { "true" } else { "false" };
-
-    if let Err(e) = config_dao::set_config("delete_enabled", value).await {
-        log::error!("保存删除设置到数据库失败: {}", e);
+    if let Err(e) = config_dao::set_config("rename_folder_enabled", value).await {
+        log::error!("保存重命名文件夹设置到数据库失败: {}", e);
         return Err(format!("保存配置失败: {}", e));
     }
+    log::info!("重命名文件夹设置已更新为: {}", enabled);
+    Ok(())
+}
 
-    log::info!("删除设置已更新为: {}", enabled);
+/// 获取删除文件状态
+#[tauri::command]
+pub async fn get_delete_file_enabled() -> Result<bool, String> {
+    match config_dao::get_config_value("delete_file_enabled").await {
+        Ok(Some(value)) => Ok(value.parse::<bool>().unwrap_or(false)),
+        Ok(None) => Ok(false),
+        Err(e) => {
+            log::warn!("获取删除文件设置失败: {}", e);
+            Ok(false)
+        }
+    }
+}
+
+/// 设置删除文件状态
+#[tauri::command]
+pub async fn set_delete_file_enabled(enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+    if let Err(e) = config_dao::set_config("delete_file_enabled", value).await {
+        log::error!("保存删除文件设置到数据库失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+    log::info!("删除文件设置已更新为: {}", enabled);
+    Ok(())
+}
+
+/// 获取删除文件夹状态
+#[tauri::command]
+pub async fn get_delete_folder_enabled() -> Result<bool, String> {
+    match config_dao::get_config_value("delete_folder_enabled").await {
+        Ok(Some(value)) => Ok(value.parse::<bool>().unwrap_or(false)),
+        Ok(None) => Ok(false),
+        Err(e) => {
+            log::warn!("获取删除文件夹设置失败: {}", e);
+            Ok(false)
+        }
+    }
+}
+
+/// 设置删除文件夹状态
+#[tauri::command]
+pub async fn set_delete_folder_enabled(enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+    if let Err(e) = config_dao::set_config("delete_folder_enabled", value).await {
+        log::error!("保存删除文件夹设置到数据库失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+    log::info!("删除文件夹设置已更新为: {}", enabled);
     Ok(())
 }
 
@@ -984,8 +1026,10 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
     let keys = &[
         "file_sharing_root_dir",
         "upload_enabled",
-        "rename_enabled",
-        "delete_enabled",
+        "rename_file_enabled",
+        "rename_folder_enabled",
+        "delete_file_enabled",
+        "delete_folder_enabled",
         "upload_overwrite_enabled",
         "record_copy_enabled",
         "record_download_enabled",
@@ -1001,10 +1045,8 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
     let configs = config_dao::get_config_values(keys).await;
 
     log::info!(
-        "[get_all_settings] raw configs from DB: upload_enabled={:?}, rename_enabled={:?}, delete_enabled={:?}, configs len={}",
+        "[get_all_settings] raw configs from DB: upload_enabled={:?}, configs len={}",
         configs.get("upload_enabled"),
-        configs.get("rename_enabled"),
-        configs.get("delete_enabled"),
         configs.len(),
     );
 
@@ -1021,8 +1063,10 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
     let result = AllSettings {
         sharing_directory,
         upload_enabled: configs.get("upload_enabled").map(|v| v == "true").unwrap_or(false),
-        rename_enabled: configs.get("rename_enabled").map(|v| v == "true").unwrap_or(false),
-        delete_enabled: configs.get("delete_enabled").map(|v| v == "true").unwrap_or(false),
+        rename_file_enabled: configs.get("rename_file_enabled").map(|v| v == "true").unwrap_or(false),
+        rename_folder_enabled: configs.get("rename_folder_enabled").map(|v| v == "true").unwrap_or(false),
+        delete_file_enabled: configs.get("delete_file_enabled").map(|v| v == "true").unwrap_or(false),
+        delete_folder_enabled: configs.get("delete_folder_enabled").map(|v| v == "true").unwrap_or(false),
         upload_overwrite_enabled: configs.get("upload_overwrite_enabled").map(|v| v == "true").unwrap_or(false),
         record_copy_enabled: configs.get("record_copy_enabled").map(|v| v == "true").unwrap_or(false),
         record_download_enabled: configs.get("record_download_enabled").map(|v| v == "true").unwrap_or(false),

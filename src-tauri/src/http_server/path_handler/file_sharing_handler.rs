@@ -580,17 +580,6 @@ pub async fn rename_file(
     _req: Request<Incoming>,
     query_params: QueryParams,
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
-    // 检查重命名功能是否启用
-    let rename_enabled = match config_dao::get_config_value("rename_enabled").await {
-        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
-        Ok(None) => false,
-        Err(_) => false,
-    };
-
-    if !rename_enabled {
-        return error(StatusCode::FORBIDDEN, "文件重命名功能已被禁用");
-    }
-
     // 解析查询参数
     let dir_param = query_params.get("dir").map(|s| s.as_str()).unwrap_or("");
     let old_name = match query_params.get("old_name") {
@@ -628,6 +617,22 @@ pub async fn rename_file(
         );
     }
 
+    // 按文件/文件夹检查重命名权限
+    let is_dir = old_path.is_dir();
+    let perm_key = if is_dir { "rename_folder_enabled" } else { "rename_file_enabled" };
+    let perm_label = if is_dir { "文件夹" } else { "文件" };
+    let rename_allowed = match config_dao::get_config_value(perm_key).await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
+        Ok(None) => false,
+        Err(_) => false,
+    };
+    if !rename_allowed {
+        return error(
+            StatusCode::FORBIDDEN,
+            &format!("{}重命名功能已被禁用", perm_label),
+        );
+    }
+
     // 验证新名称不存在
     if new_path.exists() {
         return error(
@@ -658,17 +663,6 @@ pub async fn delete_file(
     _req: Request<Incoming>,
     query_params: QueryParams,
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
-    // 检查删除功能是否启用
-    let delete_enabled = match config_dao::get_config_value("delete_enabled").await {
-        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
-        Ok(None) => false,
-        Err(_) => false,
-    };
-
-    if !delete_enabled {
-        return error(StatusCode::FORBIDDEN, "文件删除功能已被禁用");
-    }
-
     // 解析查询参数
     let dir_param = query_params.get("dir").map(|s| s.as_str()).unwrap_or("");
     let file_name = match query_params.get("file_name") {
@@ -698,6 +692,21 @@ pub async fn delete_file(
             );
         }
     };
+
+    // 按文件/文件夹检查删除权限
+    let perm_key = if metadata.is_dir() { "delete_folder_enabled" } else { "delete_file_enabled" };
+    let perm_label = if metadata.is_dir() { "文件夹" } else { "文件" };
+    let delete_allowed = match config_dao::get_config_value(perm_key).await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
+        Ok(None) => false,
+        Err(_) => false,
+    };
+    if !delete_allowed {
+        return error(
+            StatusCode::FORBIDDEN,
+            &format!("{}删除功能已被禁用", perm_label),
+        );
+    }
 
     // 检查是否启用回收站
     let use_trash = match config_dao::get_config_value("delete_to_trash").await {
@@ -739,20 +748,31 @@ pub async fn delete_file(
 #[derive(Serialize)]
 struct WebPermissions {
     upload_enabled: bool,
-    rename_enabled: bool,
-    delete_enabled: bool,
+    rename_file_enabled: bool,
+    rename_folder_enabled: bool,
+    delete_file_enabled: bool,
+    delete_folder_enabled: bool,
     upload_overwrite_enabled: bool,
 }
 
 /// 获取权限配置（内部辅助函数）
 async fn fetch_permissions() -> WebPermissions {
-    let keys = &["upload_enabled", "rename_enabled", "delete_enabled", "upload_overwrite_enabled"];
+    let keys = &[
+        "upload_enabled",
+        "rename_file_enabled",
+        "rename_folder_enabled",
+        "delete_file_enabled",
+        "delete_folder_enabled",
+        "upload_overwrite_enabled",
+    ];
     let configs = config_dao::get_config_values(keys).await;
 
     WebPermissions {
         upload_enabled: configs.get("upload_enabled").map(|v| v == "true").unwrap_or(false),
-        rename_enabled: configs.get("rename_enabled").map(|v| v == "true").unwrap_or(false),
-        delete_enabled: configs.get("delete_enabled").map(|v| v == "true").unwrap_or(false),
+        rename_file_enabled: configs.get("rename_file_enabled").map(|v| v == "true").unwrap_or(false),
+        rename_folder_enabled: configs.get("rename_folder_enabled").map(|v| v == "true").unwrap_or(false),
+        delete_file_enabled: configs.get("delete_file_enabled").map(|v| v == "true").unwrap_or(false),
+        delete_folder_enabled: configs.get("delete_folder_enabled").map(|v| v == "true").unwrap_or(false),
         upload_overwrite_enabled: configs.get("upload_overwrite_enabled").map(|v| v == "true").unwrap_or(false),
     }
 }
