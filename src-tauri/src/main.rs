@@ -80,7 +80,7 @@ async fn init() {
 
 // 初始化日志系统
 fn init_logger() {
-    let env = Env::default().default_filter_or("info");
+    let env = Env::default().default_filter_or("debug");
     Builder::from_env(env)
         .format(|buf, record| {
             let timestamp = chrono::Local::now().format("%H:%M:%S%.3f");
