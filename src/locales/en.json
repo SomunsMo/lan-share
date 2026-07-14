@@ -75,6 +75,8 @@
       "webRenameDesc": "Allow renaming files via browser",
       "webDelete": "Web Delete",
       "webDeleteDesc": "Allow deleting files via browser",
+      "deleteToTrash": "Delete to Trash",
+      "deleteToTrashDesc": "Move deleted files to the trash instead of permanent deletion",
       "recordCopy": "Record Text Copy",
       "recordCopyDesc": "Log text copy operations from Web pages",
       "recordDownload": "Record File Download",
@@ -115,6 +117,10 @@
         "title": "Change Port",
         "content": "Enter a new port number (1-65535):",
         "placeholder": "1-65535"
+      },
+      "deleteToTrashWarning": {
+        "title": "Disable Delete to Trash",
+        "content": "After disabling, deleted files will be permanently removed instead of moved to trash. Continue?"
       }
     },
     "labels": {

@@ -699,8 +699,22 @@ pub async fn delete_file(
         }
     };
 
+    // 检查是否启用回收站
+    let use_trash = match config_dao::get_config_value("delete_to_trash").await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(true),
+        Ok(None) => true,
+        Err(_) => true,
+    };
+
     // 执行删除
-    let result = if metadata.is_dir() {
+    let result = if use_trash {
+        let f_path = file_path.clone();
+        match tokio::task::spawn_blocking(move || trash::delete(&f_path)).await {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(e)) => Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())),
+            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())),
+        }
+    } else if metadata.is_dir() {
         fs::remove_dir_all(&file_path).await
     } else {
         fs::remove_file(&file_path).await

@@ -25,6 +25,7 @@ function Settings() {
     const [recordDownloadEnabled, setRecordDownloadEnabled] = useState(false);
     const [autostartEnabled, setAutostartEnabled] = useState(false);
     const [autostartMinimized, setAutostartMinimized] = useState(false);
+    const [deleteToTrash, setDeleteToTrash] = useState(true);
     const [excludeSystemFiles, setExcludeSystemFiles] = useState(true);
     const [excludePatterns, setExcludePatterns] = useState([]);
     const [patternInput, setPatternInput] = useState('');
@@ -97,6 +98,7 @@ function Settings() {
                 setRecordDownloadEnabled(s.record_download_enabled);
                 setAutostartEnabled(s.autostart);
                 setAutostartMinimized(s.autostart_minimized);
+                setDeleteToTrash(s.delete_to_trash);
                 setExcludeSystemFiles(s.exclude_system_files);
                 setExcludePatterns(s.exclude_patterns);
                 setThemeSetting(s.theme_setting);
@@ -274,6 +276,31 @@ function Settings() {
             console.error('保存删除设置失败:', error);
             setDeleteEnabled(!checked);
             showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.webDelete'), error: error.message}), type: 'error'});
+        }
+    };
+
+    const handleDeleteToTrashChange = async (event) => {
+        const checked = event.target.checked;
+
+        if (!checked) {
+            const confirmed = await showDialog({
+                title: t('settings.dialog.deleteToTrashWarning.title'),
+                content: t('settings.dialog.deleteToTrashWarning.content'),
+                buttons: [
+                    { label: 'common.button.cancel', value: false },
+                    { label: 'common.button.confirm', value: true, primary: true, danger: true },
+                ],
+            });
+            if (!confirmed) return;
+        }
+
+        setDeleteToTrash(checked);
+        try {
+            await invoke('set_delete_to_trash', {enabled: checked});
+        } catch (error) {
+            console.error('保存删除到回收站设置失败:', error);
+            setDeleteToTrash(!checked);
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.deleteToTrash'), error: error.message}), type: 'error'});
         }
     };
 
@@ -551,6 +578,11 @@ function Settings() {
                     name: t('settings.option.webDelete'),
                     desc: t('settings.option.webDeleteDesc'),
                     content: (<Switch checked={deleteEnabled} onChange={handleDeleteChange} />),
+                },
+                {
+                    name: t('settings.option.deleteToTrash'),
+                    desc: t('settings.option.deleteToTrashDesc'),
+                    content: (<Switch checked={deleteToTrash} onChange={handleDeleteToTrashChange} />),
                 },
                 {
                     name: t('settings.option.excludeSystemFiles'),

@@ -75,6 +75,8 @@
       "webRenameDesc": "允许通过 Web 重命名文件",
       "webDelete": "网页端删除",
       "webDeleteDesc": "允许通过 Web 删除文件",
+      "deleteToTrash": "删除到回收站",
+      "deleteToTrashDesc": "删除文件时移到回收站而非永久删除",
       "recordCopy": "记录文本复制",
       "recordCopyDesc": "记录 Web 页面的文本复制操作",
       "recordDownload": "记录文件下载",
@@ -115,6 +117,10 @@
         "title": "修改端口",
         "content": "请输入新的端口号（1-65535）：",
         "placeholder": "1-65535"
+      },
+      "deleteToTrashWarning": {
+        "title": "关闭删除到回收站",
+        "content": "关闭后，删除的文件将被永久删除而非移入回收站，是否继续？"
       }
     },
     "labels": {

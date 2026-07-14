@@ -33,6 +33,7 @@ pub struct AllSettings {
     pub language: String,
     pub exclude_system_files: bool,
     pub exclude_patterns: Vec<String>,
+    pub delete_to_trash: bool,
 }
 
 /// 获取本机内网IP
@@ -264,6 +265,36 @@ pub async fn set_delete_enabled(enabled: bool) -> Result<(), String> {
     }
 
     log::info!("删除设置已更新为: {}", enabled);
+    Ok(())
+}
+
+/// 获取删除到回收站设置状态
+#[tauri::command]
+pub async fn get_delete_to_trash() -> Result<bool, String> {
+    match config_dao::get_config_value("delete_to_trash").await {
+        Ok(Some(value)) => {
+            let enabled = value.parse::<bool>().unwrap_or(true);
+            Ok(enabled)
+        }
+        Ok(None) => Ok(true),
+        Err(e) => {
+            log::warn!("获取删除到回收站设置失败: {}", e);
+            Ok(true)
+        }
+    }
+}
+
+/// 设置删除到回收站状态
+#[tauri::command]
+pub async fn set_delete_to_trash(enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+
+    if let Err(e) = config_dao::set_config("delete_to_trash", value).await {
+        log::error!("保存删除到回收站设置到数据库失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+
+    log::info!("删除到回收站设置已更新为: {}", enabled);
     Ok(())
 }
 
@@ -965,6 +996,7 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
         "language",
         "exclude_system_files",
         "exclude_patterns",
+        "delete_to_trash",
     ];
     let configs = config_dao::get_config_values(keys).await;
 
@@ -1002,6 +1034,7 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
         language: configs.get("language").cloned().unwrap_or_default(),
         exclude_system_files: configs.get("exclude_system_files").map(|v| v == "true").unwrap_or(true),
         exclude_patterns: configs.get("exclude_patterns").and_then(|v| serde_json::from_str(v).ok()).unwrap_or_default(),
+        delete_to_trash: configs.get("delete_to_trash").map(|v| v == "true").unwrap_or(true),
     };
 
     log::debug!(
