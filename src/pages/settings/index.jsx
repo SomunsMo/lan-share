@@ -18,8 +18,10 @@ function Settings() {
     const { t, i18n } = useTranslation();
     const [selectedDirectory, setSelectedDirectory] = useState(t('settings.labels.clickToSelect'));
     const [uploadEnabled, setUploadEnabled] = useState(false);
-    const [renameEnabled, setRenameEnabled] = useState(false);
-    const [deleteEnabled, setDeleteEnabled] = useState(false);
+    const [renameFileEnabled, setRenameFileEnabled] = useState(false);
+    const [renameFolderEnabled, setRenameFolderEnabled] = useState(false);
+    const [deleteFileEnabled, setDeleteFileEnabled] = useState(false);
+    const [deleteFolderEnabled, setDeleteFolderEnabled] = useState(false);
     const [uploadOverwriteEnabled, setUploadOverwriteEnabled] = useState(false);
     const [recordCopyEnabled, setRecordCopyEnabled] = useState(false);
     const [recordDownloadEnabled, setRecordDownloadEnabled] = useState(false);
@@ -91,8 +93,10 @@ function Settings() {
                 const s = await invoke('get_all_settings');
                 setSelectedDirectory(s.sharing_directory);
                 setUploadEnabled(s.upload_enabled);
-                setRenameEnabled(s.rename_enabled);
-                setDeleteEnabled(s.delete_enabled);
+                setRenameFileEnabled(s.rename_file_enabled);
+                setRenameFolderEnabled(s.rename_folder_enabled);
+                setDeleteFileEnabled(s.delete_file_enabled);
+                setDeleteFolderEnabled(s.delete_folder_enabled);
                 setUploadOverwriteEnabled(s.upload_overwrite_enabled);
                 setRecordCopyEnabled(s.record_copy_enabled);
                 setRecordDownloadEnabled(s.record_download_enabled);
@@ -253,29 +257,51 @@ function Settings() {
         }
     };
 
-    const handleRenameChange = async (event) => {
+    const handleRenameFileChange = async (event) => {
         const checked = event.target.checked;
-        setRenameEnabled(checked);
-
+        setRenameFileEnabled(checked);
         try {
-            await invoke('set_rename_enabled', {enabled: checked});
+            await invoke('set_rename_file_enabled', {enabled: checked});
         } catch (error) {
-            console.error('保存重命名设置失败:', error);
-            setRenameEnabled(!checked);
-            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.webRename'), error: error.message}), type: 'error'});
+            console.error('保存重命名文件设置失败:', error);
+            setRenameFileEnabled(!checked);
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.webRenameFile'), error: error.message}), type: 'error'});
         }
     };
 
-    const handleDeleteChange = async (event) => {
+    const handleRenameFolderChange = async (event) => {
         const checked = event.target.checked;
-        setDeleteEnabled(checked);
-
+        setRenameFolderEnabled(checked);
         try {
-            await invoke('set_delete_enabled', {enabled: checked});
+            await invoke('set_rename_folder_enabled', {enabled: checked});
         } catch (error) {
-            console.error('保存删除设置失败:', error);
-            setDeleteEnabled(!checked);
-            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.webDelete'), error: error.message}), type: 'error'});
+            console.error('保存重命名文件夹设置失败:', error);
+            setRenameFolderEnabled(!checked);
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.webRenameFolder'), error: error.message}), type: 'error'});
+        }
+    };
+
+    const handleDeleteFileChange = async (event) => {
+        const checked = event.target.checked;
+        setDeleteFileEnabled(checked);
+        try {
+            await invoke('set_delete_file_enabled', {enabled: checked});
+        } catch (error) {
+            console.error('保存删除文件设置失败:', error);
+            setDeleteFileEnabled(!checked);
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.webDeleteFile'), error: error.message}), type: 'error'});
+        }
+    };
+
+    const handleDeleteFolderChange = async (event) => {
+        const checked = event.target.checked;
+        setDeleteFolderEnabled(checked);
+        try {
+            await invoke('set_delete_folder_enabled', {enabled: checked});
+        } catch (error) {
+            console.error('保存删除文件夹设置失败:', error);
+            setDeleteFolderEnabled(!checked);
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.webDeleteFolder'), error: error.message}), type: 'error'});
         }
     };
 
@@ -570,14 +596,24 @@ function Settings() {
                     content: (<Switch checked={uploadOverwriteEnabled} onChange={handleUploadOverwriteChange} />),
                 },
                 {
-                    name: t('settings.option.webRename'),
-                    desc: t('settings.option.webRenameDesc'),
-                    content: (<Switch checked={renameEnabled} onChange={handleRenameChange} />),
+                    name: t('settings.option.webRenameFile'),
+                    desc: t('settings.option.webRenameFileDesc'),
+                    content: (<Switch checked={renameFileEnabled} onChange={handleRenameFileChange} />),
                 },
                 {
-                    name: t('settings.option.webDelete'),
-                    desc: t('settings.option.webDeleteDesc'),
-                    content: (<Switch checked={deleteEnabled} onChange={handleDeleteChange} />),
+                    name: t('settings.option.webRenameFolder'),
+                    desc: t('settings.option.webRenameFolderDesc'),
+                    content: (<Switch checked={renameFolderEnabled} onChange={handleRenameFolderChange} />),
+                },
+                {
+                    name: t('settings.option.webDeleteFile'),
+                    desc: t('settings.option.webDeleteFileDesc'),
+                    content: (<Switch checked={deleteFileEnabled} onChange={handleDeleteFileChange} />),
+                },
+                {
+                    name: t('settings.option.webDeleteFolder'),
+                    desc: t('settings.option.webDeleteFolderDesc'),
+                    content: (<Switch checked={deleteFolderEnabled} onChange={handleDeleteFolderChange} />),
                 },
                 {
                     name: t('settings.option.deleteToTrash'),
