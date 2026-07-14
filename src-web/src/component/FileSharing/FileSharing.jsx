@@ -109,8 +109,10 @@ function FileSharing() {
     // 网页端权限配置
     const [permissions, setPermissions] = useState({
         upload_enabled: false,
-        rename_enabled: false,
-        delete_enabled: false,
+        rename_file_enabled: false,
+        rename_folder_enabled: false,
+        delete_file_enabled: false,
+        delete_folder_enabled: false,
     });
 
     // 加载错误信息（如共享目录未配置）
@@ -671,11 +673,21 @@ function FileSharing() {
                                     <td>{v.is_dir ? '-' : formatFileSize(v.size, 1)}</td>
                                     <td>
                                         <div className={!v.is_dir ? "fileActions" : "dirActions"}>
-                                            <button onClick={() => copyFileLink(v)}>{t('fileSharing.action.copyLink')}</button>
+                                            {v.is_dir && (
+                                                <button onClick={() => itemDoubleClickHandler(v)}>{t('fileSharing.action.open')}</button>
+                                            )}
                                             <button onClick={() => downloadFile(v)}>{t('fileSharing.action.download')}</button>
-                                            {permissions.rename_enabled &&
+                                            {v.is_dir ? (
+                                                <button onClick={async () => {
+                                                    const ok = await copyToClipboard(v.name);
+                                                    showToast({message: ok ? t('fileSharing.toast.fileNameCopied') : t('fileSharing.toast.fileNameCopyFailed'), type: ok ? 'success' : 'error'});
+                                                }}>{t('fileSharing.action.copyFileName')}</button>
+                                            ) : (
+                                                <button onClick={() => copyFileLink(v)}>{t('fileSharing.action.copyLink')}</button>
+                                            )}
+                                            {(v.is_dir ? permissions.rename_folder_enabled : permissions.rename_file_enabled) &&
                                                 <button onClick={() => renameFile(v)}>{t('fileSharing.action.rename')}</button>}
-                                            {permissions.delete_enabled &&
+                                            {(v.is_dir ? permissions.delete_folder_enabled : permissions.delete_file_enabled) &&
                                                 <button onClick={() => deleteFile(v)}>{t('fileSharing.action.delete')}</button>}
                                         </div>
                                     </td>
@@ -750,6 +762,15 @@ function FileSharing() {
                                     {t('fileSharing.action.open')}
                                 </div>
                             )}
+                            <div
+                                className="context-menu-item"
+                                onClick={() => {
+                                    downloadFile(item);
+                                    hideContextMenu();
+                                }}
+                            >
+                                {t('fileSharing.action.download')}
+                            </div>
                             {!item.is_dir && (
                                 <div
                                     className="context-menu-item"
@@ -763,15 +784,6 @@ function FileSharing() {
                             )}
                             <div
                                 className="context-menu-item"
-                                onClick={() => {
-                                    downloadFile(item);
-                                    hideContextMenu();
-                                }}
-                            >
-                                {t('fileSharing.action.download')}
-                            </div>
-                            <div
-                                className="context-menu-item"
                                 onClick={async () => {
                                     const ok = await copyToClipboard(item.name);
                                     showToast({message: ok ? t('fileSharing.toast.fileNameCopied') : t('fileSharing.toast.fileNameCopyFailed'), type: ok ? 'success' : 'error'});
@@ -780,7 +792,7 @@ function FileSharing() {
                             >
                                 {t('fileSharing.action.copyFileName')}
                             </div>
-                            {permissions.rename_enabled && (
+                            {(item.is_dir ? permissions.rename_folder_enabled : permissions.rename_file_enabled) && (
                                 <div
                                     className="context-menu-item"
                                     onClick={() => {
@@ -791,7 +803,7 @@ function FileSharing() {
                                     {t('fileSharing.action.rename')}
                                 </div>
                             )}
-                            {permissions.delete_enabled && (
+                            {(item.is_dir ? permissions.delete_folder_enabled : permissions.delete_file_enabled) && (
                                 <div
                                     className="context-menu-item context-menu-item-danger"
                                     onClick={() => {

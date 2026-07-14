@@ -5,7 +5,8 @@
       "confirm": "Confirm"
     },
     "toast": {
-      "operationFailed": "Operation failed"
+      "operationFailed": "Operation failed",
+      "deleteSuccess": "Deleted successfully"
     }
   },
   "web": {
@@ -39,7 +40,7 @@
       "rename": "Rename",
       "delete": "Delete",
       "open": "Open",
-      "copyFileName": "Copy File Name"
+      "copyFileName": "Copy Name"
     },
     "toast": {
       "linkCopied": "Link copied",
