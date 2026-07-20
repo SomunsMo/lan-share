@@ -25,11 +25,12 @@ Tauri2 跨平台 (Win/Mac/Linux)，每次修改须兼容所有平台。
 3. **i18n key** — 增删改前 `grep key src/ src-web/ src-tauri/` 确认无遗留引用
 4. **改前准备** — 读文件上下文，理解导入和依赖
 5. **构建验证** — `cargo check` / `npm run build` 必须通过，失败须修复
-6. **禁止** — 猜测命令、重复依赖、TODO、跨模块修改、secrets、未同意 commit
+6. **禁止** — 猜测命令、重复依赖、TODO、跨模块修改、secrets、擅自 commit
 
 ## Commit 准则
 
 - 先基础改动后依赖改动，用英文以功能为单位分别 commit
+- 每次commit都需要用户明确指出才能commit
 
 ## 相关文档
 
