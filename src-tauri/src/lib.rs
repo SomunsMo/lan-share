@@ -344,10 +344,20 @@ pub fn run() {
             tray::handle_system_tray_menu_event(app, &event.id().0);
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
+            if let tauri::WindowEvent::CloseRequested { api: _api, .. } = event {
                 save_window_state(window);
-                macos::set_dock_icon(false);
-                // 不调用 prevent_close，让窗口真正销毁，由 ExitRequested 阻止进程退出
+                #[cfg(target_os = "macos")]
+                {
+                    // macOS 上关闭窗口应隐藏而非销毁（标准 macOS 行为）
+                    _api.prevent_close();
+                    let _ = window.hide();
+                    macos::set_dock_icon(false);
+                    return;
+                }
+                #[cfg(not(target_os = "macos"))]
+                {
+                    macos::set_dock_icon(false);
+                }
             }
         })
         .build(tauri::generate_context!())
@@ -356,11 +366,6 @@ pub fn run() {
             if let tauri::RunEvent::ExitRequested { api, .. } = _event {
                 if !QUITTING.load(Ordering::Relaxed) {
                     api.prevent_exit();
-                }
-
-                #[cfg(target_os = "macos")]
-                {
-                    tray::show_window(_app_handle, None);
                 }
             }
         });
