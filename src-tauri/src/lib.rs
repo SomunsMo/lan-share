@@ -347,7 +347,6 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 save_window_state(window);
                 macos::set_dock_icon(false);
-                // 不调用 prevent_close，让窗口真正销毁，由 ExitRequested 阻止进程退出
             }
         })
         .build(tauri::generate_context!())

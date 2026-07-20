@@ -84,5 +84,7 @@ fn show_and_focus_window(window: &WebviewWindow) {
 fn recreate_and_show_window(app: &AppHandle, initial_route: Option<String>) {
     let window = crate::create_and_position_window(app, initial_route);
     let _ = window.set_focus();
+    #[cfg(target_os = "macos")]
+    crate::macos::set_dock_icon(true);
 }
 
