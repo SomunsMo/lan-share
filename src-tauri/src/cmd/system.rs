@@ -47,9 +47,38 @@ pub fn get_local_ip() -> String {
 /// 获取设备名称
 #[tauri::command]
 pub fn get_device_name() -> String {
-    std::env::var("COMPUTERNAME")
-        .or_else(|_| std::env::var("HOSTNAME"))
-        .unwrap_or_else(|_| "Unknown Device".to_string())
+    // Windows
+    if let Ok(name) = std::env::var("COMPUTERNAME") {
+        return name;
+    }
+    // macOS/Linux shell 环境变量（不一定存在）
+    if let Ok(name) = std::env::var("HOSTNAME") {
+        return name;
+    }
+    // POSIX gethostname fallback（macOS/Linux）
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    {
+        if let Some(name) = get_hostname() {
+            return name;
+        }
+    }
+    "Unknown Device".to_string()
+}
+
+/// 使用 POSIX gethostname() 获取主机名
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+fn get_hostname() -> Option<String> {
+    extern "C" {
+        fn gethostname(name: *mut std::os::raw::c_char, len: usize) -> i32;
+    }
+    let mut buf = [0i8; 256];
+    let result = unsafe { gethostname(buf.as_mut_ptr(), buf.len()) };
+    if result == 0 {
+        let c_str = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) };
+        c_str.to_str().ok().map(|s| s.to_string())
+    } else {
+        None
+    }
 }
 
 /// 清空共享文本记录（同时清空关联的复制记录）
