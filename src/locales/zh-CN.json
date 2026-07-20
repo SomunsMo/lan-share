@@ -218,6 +218,11 @@
       "noReleaseNotes": "暂无发布说明"
     }
   },
+  "tray": {
+    "show": "显示窗口",
+    "settings": "设置",
+    "quit": "退出"
+  },
   "textSharing": {
     "pageTitle": "共享文本",
     "pageDesc": "共享文本后，局域网内其他设备可通过浏览器查看或复制",

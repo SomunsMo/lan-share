@@ -218,6 +218,11 @@
       "noReleaseNotes": "No release notes"
     }
   },
+  "tray": {
+    "show": "Show Window",
+    "settings": "Settings",
+    "quit": "Quit"
+  },
   "textSharing": {
     "pageTitle": "Share Text Locally",
     "pageDesc": "Shared text can be viewed or copied by other devices on the LAN via browser",

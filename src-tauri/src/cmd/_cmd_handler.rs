@@ -58,6 +58,7 @@ pub fn get_cmd_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
         system::get_exclude_patterns,
         system::set_exclude_patterns,
         system::get_delete_to_trash,
-        system::set_delete_to_trash
+        system::set_delete_to_trash,
+        system::update_tray_menu
     ]
 }

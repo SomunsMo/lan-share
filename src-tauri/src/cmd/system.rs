@@ -830,6 +830,16 @@ pub async fn set_language(language: String) -> Result<(), String> {
     Ok(())
 }
 
+/// 更新托盘菜单文本（前端语言切换后同步托盘菜单）
+#[tauri::command]
+pub fn update_tray_menu(
+    show: String,
+    settings: String,
+    quit: String,
+) -> Result<(), String> {
+    crate::tray::update_tray_menu_texts(&show, &settings, &quit)
+}
+
 /// 获取主题色设置（JSON: {"h":218,"s":100,"l":39}）
 #[tauri::command]
 pub async fn get_theme_color() -> Result<String, String> {
