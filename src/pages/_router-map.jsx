@@ -4,6 +4,7 @@ import Home from "@/pages/home/index.jsx";
 import Settings from "@/pages/settings/index.jsx";
 import TextSharingManager from "@/pages/text-sharing-manager/index.jsx";
 import History from "@/pages/history/index.jsx";
+import About from "@/pages/about/index.jsx";
 
 
 export const routes = [
@@ -33,6 +34,12 @@ export const routes = [
         element: <Settings/>,
         name: "route.settings",
         icon: "setting",
+        navPosition: "bottom"
+    }, {
+        path: "/about",
+        element: <About/>,
+        name: "route.about",
+        icon: "info",
         navPosition: "bottom"
     }
 ];

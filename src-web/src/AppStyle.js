@@ -1,4 +1,4 @@
-import styled from "styled-components";
+import styled from "@emotion/styled";
 
 const AppStyle = styled.div`
     display: flex;
@@ -17,6 +17,7 @@ const AppStyle = styled.div`
     }
 
     .appTitle {
+        margin-top: 10px;
         font-size: 1.8rem;
         font-weight: 600;
         letter-spacing: -0.01em;
@@ -82,6 +83,7 @@ const AppStyle = styled.div`
         background-image: none;
         text-align: center;
         min-width: 72px;
+        font-size: 0.78rem;
     }
 
     .appSubtitle {
@@ -160,14 +162,31 @@ const AppStyle = styled.div`
 
     .content {
         display: flex;
+        flex-direction: column;
         width: 100%;
         max-width: 1400px;
         padding: 0 20px 20px;
         margin: 0 auto;
+        align-items: center;
+        box-sizing: border-box;
+    }
+
+    .textRow {
+        display: flex;
         flex-wrap: wrap;
         justify-content: center;
+        width: 100%;
         gap: 0;
-        box-sizing: border-box;
+    }
+
+    .fileRow {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+
+        > * {
+            width: 100%;
+        }
     }
 `
 

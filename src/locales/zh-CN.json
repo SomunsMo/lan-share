@@ -1,64 +1,100 @@
 {
   "common": {
+    "loading": "加载中...",
     "button": {
       "cancel": "取消",
       "confirm": "确定",
-      "delete": "删除",
-      "copy": "复制",
-      "download": "下载",
-      "rename": "重命名",
-      "upload": "上传文件"
+      "delete": "删除"
     },
     "toast": {
-      "copySuccess": "已复制",
-      "copyFailed": "复制失败",
-      "deleteSuccess": "删除成功",
-      "operationFailed": "操作失败"
-    },
-    "overwrite": {
-      "yes": "是",
-      "no": "否",
-      "dash": "-"
+      "operationFailed": "操作失败",
+      "copied": "已复制"
     }
   },
   "route": {
     "home": "主页",
-    "textSharing": "文本共享",
-    "history": "历史记录",
-    "settings": "设置"
+    "textSharing": "共享文本",
+    "history": "传输日志",
+    "settings": "设置",
+    "about": "关于"
+  },
+  "navbar": {
+    "tagline": "局域网文件与文本共享"
   },
   "home": {
-    "subtitle": "基于 Http 的局域网文件传输工具",
-    "scanTips": "在其他设备浏览器扫码",
-    "orVisit": "或访问",
+    "scanTips": "扫码连接",
+    "scanTipsDesc": "请确保访问的设备与本设备\n处于同一局域网",
+    "detailsTitle": "设备信息",
+    "deviceName": "设备名称",
+    "localIp": "局域网 IP",
+    "port": "端口号",
+    "status": "状态",
+    "listening": "运行中...",
+    "manualTitle": "手动连接方式",
+    "manualDesc": "若访问设备无法扫码，可用浏览器手动输入下面地址访问",
+    "copyTooltip": "点击复制",
+    "notRunning": "未运行",
+    "serviceUnavailable": "服务不可用",
+    "reasonTitle": "异常原因",
+    "reasonPortOccupied": "端口 {{port}} 被占用",
     "firstRun": {
       "title": "首次运行",
       "content": "您还没有设置文件共享目录，其他设备将无法通过浏览器访问共享文件。\n是否立即设置？",
       "buttonLater": "稍后设置",
       "buttonNow": "立即设置"
     },
-    "portWarning": {
-      "title": "HTTP 服务未启动",
-      "desc": "端口 {{port}} 已被其他程序占用，HTTP 服务器无法启动。",
-      "stepTitle": "可选解决方案：",
-      "step1": "在「设置」中更换 HTTP Server 端口后重启应用",
-      "step2": "退出占用改端口的应用程序"
-    },
     "selectDirTitle": "选择共享根目录"
   },
   "settings": {
-    "sectionBasic": "基础",
-    "sectionSharing": "共享",
+    "pageTitle": "设置",
+    "sectionNetwork": "网络配置",
+    "sectionSystem": "系统偏好",
+    "sectionAppearance": "外观",
+    "sectionRecords": "记录设置",
+    "sectionFileSharing": "文件共享",
     "option": {
       "port": "Http Server端口",
+      "portDesc": "对其他设备提供网页和能力的服务端口",
       "autostart": "开机自启",
+      "autostartDesc": "开机时自动启动应用",
+      "autostartMinimized": "开机最小化启动",
+      "autostartMinimizedDesc": "开机自启后静默运行于系统托盘，不弹出主窗口",
       "theme": "主题",
+      "themeDesc": "选择应用主题",
+      "themeColor": "主题色",
+      "themeColorDesc": "点击色块选择自定义主题色",
       "language": "语言",
+      "languageDesc": "选择界面语言",
       "shareRoot": "共享根目录",
+      "shareRootDesc": "对外提供文件共享服务的根目录",
       "webUpload": "网页端上传",
+      "webUploadDesc": "允许通过 Web 上传文件",
       "uploadOverwrite": "上传可覆盖",
-      "webRename": "网页端重命名",
-      "webDelete": "网页端删除"
+      "uploadOverwriteDesc": "上传时允许覆盖同名文件",
+      "webRenameFile": "网页端重命名文件",
+      "webRenameFileDesc": "允许通过 Web 重命名文件",
+      "webRenameFolder": "网页端重命名文件夹",
+      "webRenameFolderDesc": "允许通过 Web 重命名文件夹",
+      "webDeleteFile": "网页端删除文件",
+      "webDeleteFileDesc": "允许通过 Web 删除文件",
+      "webDeleteFolder": "网页端删除文件夹",
+      "webDeleteFolderDesc": "允许通过 Web 删除文件夹",
+      "deleteToTrash": "删除到回收站",
+      "deleteToTrashDesc": "删除文件时移到回收站而非永久删除",
+      "recordCopy": "记录文本复制",
+      "recordCopyDesc": "记录 Web 页面的文本复制操作",
+      "recordDownload": "记录文件下载",
+      "recordDownloadDesc": "记录 Web 页面的文件下载操作",
+      "clearTextRecords": "清空文本记录",
+      "clearTextRecordsDesc": "删除所有文本共享记录（包括对应的复制记录）",
+      "clearFileRecords": "清空文件记录",
+      "clearFileRecordsDesc": "删除所有文件传输记录",
+      "excludeSystemFiles": "排除系统元数据文件",
+      "excludeSystemFilesDesc": "在网页端文件列表中，隐藏系统自动生成的元数据文件（如 .DS_Store、desktop.ini、Thumbs.db 等）",
+      "excludePatterns": "自定义排除规则",
+      "excludePatternsDesc": "在网页端文件列表中，按精确文件名或正则表达式隐藏指定文件（每行一条规则）",
+      "excludePatternPlaceholder": "例如: desktop.ini, \\.bak$, ^private_",
+      "noExcludePatterns": "暂无排除规则"
     },
     "themeOption": {
       "system": "跟随系统",
@@ -76,31 +112,51 @@
       "portSaved": "端口设置已保存，重启应用后生效",
       "portFailed": "保存端口设置失败: {{error}}",
       "saveFailed": "保存{{name}}设置失败: {{error}}",
-      "selectFailed": "选择文件夹失败: {{error}}"
+      "selectFailed": "选择文件夹失败: {{error}}",
+      "patternDuplicate": "规则已存在",
+      "patternInvalid": "正则表达式无效"
     },
     "dialog": {
       "changePort": {
         "title": "修改端口",
         "content": "请输入新的端口号（1-65535）：",
         "placeholder": "1-65535"
+      },
+      "deleteToTrashWarning": {
+        "title": "关闭删除到回收站",
+        "content": "关闭后，删除的文件将被永久删除而非移入回收站，是否继续？"
       }
     },
     "labels": {
-      "clickToSelect": "点击选择目录",
-      "clickToChange": "点击更改目录",
-      "clickToModify": "点击修改端口"
+      "browse": "浏览",
+      "clickToSelect": "点击选择目录"
     }
   },
   "history": {
+    "pageTitle": "传输日志",
+    "pageDesc": "查看设备间的传输日志",
+    "filterAll": "全部",
+    "filterFiles": "文件",
+    "filterText": "文本",
     "type": {
       "text": "文本",
       "file": "文件"
     },
+    "typeLabel": {
+      "text": "分享文本",
+      "upload": "上传文件",
+      "download": "下载文件"
+    },
+    "detailTitle": "记录详情",
+    "noPreview": "（不支持预览文件）",
+    "noCopyRecords": "暂无复制记录",
+    "copyRecordsTitle": "复制记录",
+    "copyRecordsSeq": "序号",
     "tableHeader": {
       "type": "类型",
       "time": "时间",
       "sourceIp": "来源IP",
-      "overwrite": "覆盖",
+      "overwrite": "是否覆盖",
       "content": "内容"
     },
     "clearDialog": {
@@ -113,23 +169,78 @@
       "textCleared": "文本记录已清空",
       "fileCleared": "文件记录已清空"
     },
-    "clearTextButton": "清空文本记录",
-    "clearFileButton": "清空文件记录",
+    "overwrite": {
+      "yes": "覆盖上传",
+      "no": "未覆盖"
+    },
+    "tag": {
+      "overwriteYes": "覆盖"
+    },
+    "tagTooltip": {
+      "ip": "来源IP",
+      "size": "文件体积",
+      "overwrite": "上传时覆盖了原文件"
+    },
+    "fileFolder": "文件夹",
+    "fileName": "文件名",
+    "searchPlaceholder": "搜索文本内容或文件路径...",
+    "noMoreRecords": "没有更多记录了",
+    "noSearchResults": "没有找到匹配的记录",
+    "deleteConfirmFile": "确定要删除该记录吗？此操作不可撤销。",
     "contextMenu": {
+      "viewDetail": "查看详情",
+      "openFileLocation": "打开文件位置",
       "copyContent": "复制内容",
-      "deleteRecord": "删除记录"
+      "copyPath": "复制路径",
+      "copyIp": "复制 IP",
+      "deleteRecord": "删除记录",
+      "viewCopyRecords": "查看复制记录"
     }
   },
+  "about": {
+    "title": "LAN Share",
+    "openSource": {
+      "title": "开源仓库"
+    },
+    "license": {
+      "title": "许可证",
+      "name": "MIT License"
+    },
+    "checkUpdates": "检查更新",
+    "update": {
+      "title": "发现新版本",
+      "newVersion": "最新版本：{{version}}",
+      "download": "去下载",
+      "later": "稍后再说",
+      "checking": "检查中...",
+      "upToDate": "已是最新版本",
+      "error": "检查更新失败：{{error}}",
+      "noReleaseNotes": "暂无发布说明"
+    }
+  },
+  "tray": {
+    "show": "显示窗口",
+    "settings": "设置",
+    "quit": "退出"
+  },
   "textSharing": {
+    "pageTitle": "共享文本",
+    "pageDesc": "共享文本后，局域网内其他设备可通过浏览器查看或复制",
+    "deleteCascadeWarning": "删除该记录会导致相关的复制记录也会被删除",
+    "clearButton": "清空",
+    "recentTitle": "最近共享",
+    "copyButton": "复制",
+    "viewButton": "查看",
+    "detailTitle": "消息详情",
+    "detailTime": "时间",
+    "detailIp": "来源 IP",
+    "detailContent": "内容",
     "placeholder": "请输入要分享的文本",
     "shareButton": "共享",
-    "tableHeader": {
-      "time": "时间",
-      "sourceIp": "来源IP",
-      "content": "内容"
-    },
     "contextMenu": {
+      "viewDetail": "查看详情",
       "copyContent": "复制内容",
+      "copyIp": "复制 IP",
       "deleteRecord": "删除记录"
     }
   }

@@ -1,16 +1,20 @@
 {
   "name": "lan-share",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "packageManager": "pnpm@11.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node --use-system-ca scripts/download-fonts.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^9.2.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-autostart": "^2.5.1",
     "@tauri-apps/plugin-dialog": "^2",
@@ -20,10 +24,8 @@
     "qrcode.react": "^4.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-dropzone": "^14.3.8",
     "react-i18next": "^17.0.8",
-    "react-router": "^7.10.1",
-    "styled-components": "^6.1.19"
+    "react-router": "^7.10.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

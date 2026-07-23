@@ -1,14 +1,12 @@
 import { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-    DialogOverlay,
-    DialogCard,
-    DialogHeader,
-    DialogBody,
-    DialogInput,
-    DialogFooter,
-    DialogButton,
-} from './style';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
+import DialogContentText from '@mui/material/DialogContentText';
 
 const DialogContext = createContext(null);
 
@@ -37,7 +35,6 @@ export function DialogProvider({ children }) {
                         { label: 'common.button.confirm', value: true, primary: true },
                     ]
                 ),
-                exiting: false,
             }]);
         });
     }, []);
@@ -48,16 +45,7 @@ export function DialogProvider({ children }) {
             resolver(value);
             resolversRef.current.delete(id);
         }
-
-        // Start exit animation
-        setDialogs(prev => prev.map(d =>
-            d.id === id ? { ...d, exiting: true } : d
-        ));
-
-        // Remove after animation
-        setTimeout(() => {
-            setDialogs(prev => prev.filter(d => d.id !== id));
-        }, 200);
+        setDialogs(prev => prev.filter(d => d.id !== id));
     }, []);
 
     return (
@@ -80,9 +68,13 @@ function DialogItem({ dialog, index, closeDialog }) {
     const [inputValue, setInputValue] = useState(dialog.input?.defaultValue || '');
     const inputRef = useRef(null);
 
+    const handleClose = (result) => {
+        closeDialog(dialog.id, result);
+    };
+
     const handleConfirm = () => {
         if (dialog.input && dialog.buttons.some(b => b.value === '__confirm_input__')) {
-            closeDialog(dialog.id, inputValue);
+            handleClose(inputValue);
         }
     };
 
@@ -90,7 +82,7 @@ function DialogItem({ dialog, index, closeDialog }) {
         if (btn.value === '__confirm_input__') {
             handleConfirm();
         } else {
-            closeDialog(dialog.id, btn.value);
+            handleClose(btn.value);
         }
     };
 
@@ -102,37 +94,50 @@ function DialogItem({ dialog, index, closeDialog }) {
     };
 
     return (
-        <DialogOverlay
-            $zIndex={9000 + index}
+        <Dialog
+            open={true}
+            onClose={() => handleClose(false)}
+            transitionDuration={0}
+            slotProps={{
+                backdrop: {
+                    sx: { zIndex: 9000 + index }
+                }
+            }}
+            sx={{ '& .MuiDialog-paper': { zIndex: 9001 + index, minWidth: 500 } }}
         >
-            <DialogCard $exiting={dialog.exiting}>
-                {dialog.title && <DialogHeader>{dialog.title}</DialogHeader>}
-                <DialogBody>
-                    {dialog.content}
-                    {dialog.input && (
-                        <DialogInput
-                            ref={inputRef}
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onKeyDown={handleInputKeyDown}
-                            placeholder={dialog.input.placeholder || ''}
-                        />
-                    )}
-                </DialogBody>
-                <DialogFooter>
-                    {dialog.buttons.map((btn, btnIndex) => (
-                        <DialogButton
-                            key={btnIndex}
-                            $primary={btn.primary}
-                            $danger={btn.danger}
-                            onClick={() => handleButtonClick(btn)}
-                        >
-                            {t(btn.label)}
-                        </DialogButton>
-                    ))}
-                </DialogFooter>
-            </DialogCard>
-        </DialogOverlay>
+            {dialog.title && <DialogTitle>{dialog.title}</DialogTitle>}
+            <DialogContent>
+                {typeof dialog.content === 'string' ? (
+                    <DialogContentText sx={{ whiteSpace: 'pre-line' }}>{dialog.content}</DialogContentText>
+                ) : (
+                    dialog.content
+                )}
+                {dialog.input && (
+                    <TextField
+                        inputRef={inputRef}
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={handleInputKeyDown}
+                        placeholder={dialog.input.placeholder || ''}
+                        fullWidth
+                        variant="standard"
+                        sx={{ mt: 1 }}
+                    />
+                )}
+            </DialogContent>
+            <DialogActions>
+                {dialog.buttons.map((btn, btnIndex) => (
+                    <Button
+                        key={btnIndex}
+                        variant={btn.primary ? 'contained' : 'text'}
+                        color={btn.danger ? 'error' : 'primary'}
+                        onClick={() => handleButtonClick(btn)}
+                    >
+                        {t(btn.label)}
+                    </Button>
+                ))}
+            </DialogActions>
+        </Dialog>
     );
 }
 

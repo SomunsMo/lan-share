@@ -17,16 +17,16 @@ async fn handle_request(
     req: Request<Incoming>,
 ) -> Result<Response<GenericResponseBody>, Infallible> {
     let path = req.uri().path();
-    let method = req.method().clone();
+    let method = req.method();
 
     // 从处理器注册表中查找对应的处理器
-    match handler::get_handler(path, &method) {
+    match handler::get_handler(path, method) {
         Some(handler) => {
-            log::info!("✅ 找到处理器: {}", path);
+            log::debug!("找到处理器: {}", path);
             handler.handle(req).await
         }
         None => {
-            log::error!("❌ 未找到处理器: {}", path);
+            log::error!("未找到处理器: {}", path);
             responses::not_found()
         }
     }
@@ -38,9 +38,8 @@ pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error + S
     let listener = TcpListener::bind(addr).await?;
 
     println!("========================================");
-    println!("✅ Lan Share 服务启动成功");
-    println!("📍 访问地址: http://{}:{}", local_ip()?, port);
-    println!("⏹️ Ctrl+C 停止服务");
+    println!("Lan Share 服务启动成功");
+    println!("访问地址: http://{}:{}", local_ip()?, port);
     println!("========================================");
 
     loop {
@@ -58,7 +57,7 @@ pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error + S
                 .serve_connection(io, service)
                 .await
             {
-                eprintln!("❌ 连接处理错误 ({}): {}", remote_addr, err);
+                eprintln!("连接处理错误 ({}): {}", remote_addr, err);
             }
         });
     }

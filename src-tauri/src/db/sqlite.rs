@@ -54,7 +54,7 @@ async fn init_table() {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS config (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            cfg_key TEXT NOT NULL, -- 配置key
+            cfg_key TEXT NOT NULL UNIQUE, -- 配置key
             cfg_value TEXT NOT NULL, -- 配置值
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP -- 创建时间
         )",
@@ -63,18 +63,76 @@ async fn init_table() {
     .await
     .unwrap();
 
-    // 上传记录表（包含）
+    // 兼容旧数据库：已有表没有 UNIQUE 约束，补建唯一索引
+    sqlx::query("CREATE UNIQUE INDEX IF NOT EXISTS idx_config_cfg_key ON config(cfg_key)")
+        .execute(get_pool())
+        .await
+        .unwrap();
+
+    // 传输记录表（统一存储上传/下载/复制记录）
+    // action_type: 1=文本分享, 2=文件分享, 3=文本复制, 4=文件下载
     sqlx::query(
-        "CREATE TABLE IF NOT EXISTS upload_record (
+        "CREATE TABLE IF NOT EXISTS transfer_record (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            upload_type INTEGER NOT NULL , -- 上传类型（1=文本 | 2=文件）
-            content TEXT, -- 上传的文本（上传类型是文本时使用）
-            ip TEXT NOT NULL, -- 上传者的IP地址
-            is_overwrite INTEGER NOT NULL DEFAULT 0, -- 是否覆盖了已有文件（0=否 | 1=是）
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP -- 创建时间
+            action_type INTEGER NOT NULL,
+            content TEXT,
+            source_id INTEGER,
+            ip TEXT NOT NULL,
+            is_overwrite INTEGER NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )",
     )
     .execute(get_pool())
     .await
     .unwrap();
+
+    // 迁移旧数据（upload_record → transfer_record）
+    migrate_old_data().await;
+}
+
+/// 将旧表 upload_record 的数据迁移到新表 transfer_record
+async fn migrate_old_data() {
+    // 检查旧表是否存在
+    let old_table_exists: (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='upload_record'"
+    )
+    .fetch_one(get_pool())
+    .await
+    .unwrap_or((0,));
+
+    if old_table_exists.0 == 0 {
+        return;
+    }
+
+    // 检查新表是否有数据（避免重复迁移）
+    let new_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM transfer_record")
+        .fetch_one(get_pool())
+        .await
+        .unwrap_or((0,));
+
+    if new_count.0 > 0 {
+        // 新表已有数据，删除旧表即可
+        sqlx::query("DROP TABLE IF EXISTS upload_record")
+            .execute(get_pool())
+            .await
+            .unwrap();
+        return;
+    }
+
+    // 迁移数据：upload_type → action_type, 其余字段对应
+    sqlx::query(
+        "INSERT INTO transfer_record (id, action_type, content, source_id, ip, is_overwrite, created_at)
+         SELECT id, upload_type, content, NULL, ip, is_overwrite, created_at FROM upload_record"
+    )
+    .execute(get_pool())
+    .await
+    .unwrap();
+
+    // 删除旧表
+    sqlx::query("DROP TABLE IF EXISTS upload_record")
+        .execute(get_pool())
+        .await
+        .unwrap();
+
+    log::info!("数据迁移完成: upload_record → transfer_record");
 }

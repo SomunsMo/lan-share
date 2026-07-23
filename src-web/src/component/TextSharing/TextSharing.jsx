@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import Card from "../Card/Card.js";
 import TextSharingStyle from "./TextSharingStyle.js";
-import {getTextSharingAPI, uploadTextAPI} from "../../service/API.js";
+import {getTextSharingAPI, uploadTextAPI, recordCopyAPI} from "../../service/API.js";
 import {useToast} from "@/component/Toast/index.jsx";
 import copy from "copy-to-clipboard";
 import {useTranslation} from "react-i18next";
@@ -12,7 +12,7 @@ function TextSharing() {
     // 将被上传的文本
     const [uploadText, setUploadText] = useState("");
     // 右键菜单状态
-    const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, content: '' });
+    const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, content: '', id: null });
     // 已被上传的文本列表
     const [textHistory, setTextHistory] = useState([
         {
@@ -76,11 +76,11 @@ function TextSharing() {
     }
 
     // 显示右键菜单
-    const showContextMenu = (e, content) => {
+    const showContextMenu = (e, content, id) => {
         e.preventDefault();
         const x = Math.min(e.clientX, window.innerWidth - 120);
         const y = Math.min(e.clientY, window.innerHeight - 40);
-        setContextMenu({ visible: true, x, y, content });
+        setContextMenu({ visible: true, x, y, content, id });
     };
 
     // 隐藏右键菜单
@@ -108,7 +108,10 @@ function TextSharing() {
         };
     }, [contextMenu.visible]);
 
-    const copyText = (text) => {
+    const copyText = (text, id) => {
+        if (id != null) {
+            recordCopyAPI(id).catch(() => {});
+        }
         copy(text);
         showToast({message: t('textSharing.toast.copied'), type: 'success'});
     }
@@ -130,8 +133,8 @@ function TextSharing() {
                     {textHistory.map(v => {
                         return (
                             <li key={v.id} onDoubleClick={() => {
-                                copyText(v.content)
-                            }} onContextMenu={(e) => showContextMenu(e, v.content)}
+                                copyText(v.content, v.id)
+                            }} onContextMenu={(e) => showContextMenu(e, v.content, v.id)}
                                 onMouseEnter={() => {
                                     if (contextMenu.visible) hideContextMenu();
                                 }}>
@@ -148,7 +151,7 @@ function TextSharing() {
                 <div className="context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}
                      onClick={(e) => e.stopPropagation()}>
                     <div className="context-menu-item" onClick={() => {
-                        copyText(contextMenu.content);
+                        copyText(contextMenu.content, contextMenu.id);
                         hideContextMenu();
                     }}>{t('textSharing.contextMenu.copy')}</div>
                 </div>

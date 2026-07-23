@@ -1,25 +1,32 @@
-import styled, { keyframes } from 'styled-components';
+import styled from "@emotion/styled";
+import { keyframes } from "@emotion/react";
 
-const slideInDown = keyframes`
-  from {
-    opacity: 0;
-    transform: translateY(-100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+const toastIn = keyframes`
+  from { opacity: 0; transform: translateX(100%); }
+  to   { opacity: 1; transform: translateX(0); }
 `;
+
+const toastOut = keyframes`
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(100%); }
+`;
+
+const BAR_COLORS = {
+  success: 'var(--success)',
+  error:   'var(--danger)',
+  warning: '#f59e0b',
+  info:    'var(--text-accent)',
+};
 
 export const ToastContainerWrapper = styled.div`
   position: fixed;
   top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 24px;
   z-index: 10000;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
+  gap: 8px;
   pointer-events: none;
   max-width: 90vw;
 `;
@@ -28,62 +35,58 @@ export const ToastItemOuter = styled.div`
   overflow: ${props => props.$collapsing ? 'hidden' : 'visible'};
   transition: height 0.25s ease, margin 0.25s ease;
   height: ${props => props.$collapsing ? '0px' : props.$height ? `${props.$height}px` : 'auto'};
-  margin-bottom: ${props => props.$collapsing ? '0px' : '6px'};
+  margin-bottom: ${props => props.$collapsing ? '0px' : '0'};
   pointer-events: auto;
 `;
-
-const TYPE_COLORS = {
-  success: { bg: 'var(--bg-toast-success, #f0fdf4)', border: 'var(--border-toast-success, #86efac)' },
-  error:   { bg: 'var(--bg-toast-error, #fef2f2)', border: 'var(--border-toast-error, #fca5a5)' },
-  warning: { bg: 'var(--bg-toast-warning, #fefce8)', border: 'var(--border-toast-warning, #fde047)' },
-  info:    { bg: 'var(--bg-toast-info, #eff6ff)', border: 'var(--border-toast-info, #93c5fd)' },
-};
 
 export const ToastItemInner = styled.div`
   display: flex;
   align-items: center;
-  padding: 10px 14px;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  min-width: 260px;
-  max-width: 480px;
   box-shadow: var(--shadow-md);
-  animation: ${slideInDown} 0.25s ease forwards;
-  background: ${p => TYPE_COLORS[p.$type]?.bg || 'var(--bg-card)'};
-  border: 1px solid ${p => TYPE_COLORS[p.$type]?.border || 'var(--border)'};
-  color: var(--text-primary);
-  opacity: ${props => props.$exiting ? 0 : 1};
-  transform: ${props => props.$exiting ? 'translateY(-20px)' : 'translateY(0)'};
-  transition: opacity 0.25s ease, transform 0.25s ease;
-  font-size: 0.82rem;
-  line-height: 1.5;
-  word-break: break-word;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  min-width: 300px;
+  animation: ${props => props.$exiting ? toastOut : toastIn} 0.2s ease forwards;
+`;
+
+export const ToastBar = styled.div`
+  width: 3px;
+  height: 32px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  background: ${props => BAR_COLORS[props.$type] || 'var(--text-accent)'};
 `;
 
 export const ToastMessage = styled.span`
   flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
 `;
 
 export const ToastCloseBtn = styled.button`
   background: none;
   border: none;
   cursor: pointer;
-  margin-left: 12px;
-  width: 22px;
-  height: 22px;
   padding: 0;
-  font-size: 14px;
-  line-height: 1;
-  opacity: 0.5;
-  color: inherit;
-  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.15s, background 0.15s;
-  border-radius: var(--radius);
+  flex-shrink: 0;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  transition: background 0.15s ease;
 
   &&:hover {
-    opacity: 1;
-    background-color: rgba(0, 0, 0, 0.06);
+    background: var(--bg-hover);
   }
 `;

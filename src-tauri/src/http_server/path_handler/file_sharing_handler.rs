@@ -12,7 +12,6 @@ use http_body_util::BodyExt;
 use hyper::body::Incoming;
 use hyper::{header, Request, Response, StatusCode};
 use lan_share_http_macros::{delete, get, post, put};
-use log;
 use multer::Multipart;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -23,20 +22,19 @@ use tokio::fs;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
-#[derive(Serialize, Debug, Clone)]
-// serde指定为untagged是为了去除序列化时value被包到Type中
-#[serde(untagged)]
-enum FileInfo {
-    Bool(bool),     // 用于 is_dir
-    U64(u64),       // 用于 modified（时间戳）、size（文件大小）
-    String(String), // 用于 name
+#[derive(Serialize)]
+struct FileInfoItem {
+    name: String,
+    is_dir: bool,
+    modified: String,
+    size: u64,
 }
 
 /// 响应结构
 #[derive(Serialize)]
 struct FileListResponse {
     // 文件列表
-    files: Vec<HashMap<String, FileInfo>>,
+    files: Vec<FileInfoItem>,
     // 权限配置
     permissions: WebPermissions,
     // 磁盘空间
@@ -85,7 +83,7 @@ pub async fn get_file_list(
         }
     }
 
-    let mut file_list: Vec<HashMap<String, FileInfo>> = Vec::new();
+    let mut file_list: Vec<FileInfoItem> = Vec::new();
 
     let mut entries = match tokio::fs::read_dir(&target_dir).await {
         Ok(entries) => entries,
@@ -107,38 +105,32 @@ pub async fn get_file_list(
             }
         };
         let path = entry.path();
+        let file_name = entry.file_name().to_string_lossy().to_string();
         let metadata = match tokio::fs::symlink_metadata(&path).await {
             Ok(meta) => meta,
             Err(_) => continue,
         };
 
-        let mut file_info = HashMap::new();
-        file_info.insert(
-            "name".to_string(),
-            FileInfo::String(entry.file_name().to_string_lossy().to_string()),
-        );
-
-        file_info.insert("is_dir".to_string(), FileInfo::Bool(metadata.is_dir()));
-
-        // 获取修改时间
-        // metadata.modified() 实际上是访问内存中的元数据，不是磁盘I/O操作
-        // 因此即使在异步函数中也是安全的
-        if let Ok(modified) = metadata.modified() {
-            if let Ok(duration) = modified.duration_since(UNIX_EPOCH) {
-                let timestamp = duration.as_secs();
-                let formatted_time = crate::utils::datetime::format_datetime(timestamp);
-                file_info.insert("modified".to_string(), FileInfo::String(formatted_time));
-            }
+        // 检查排除规则
+        let filter = crate::config::config::get_exclude_filter().await;
+        if filter.compiled_patterns.iter().any(|re| re.is_match(&file_name)) {
+            continue;
         }
+        drop(filter);
 
-        // 如果是文件，添加文件大小
-        if metadata.is_file() {
-            file_info.insert("size".to_string(), FileInfo::U64(metadata.len()));
-        } else {
-            file_info.insert("size".to_string(), FileInfo::U64(0));
-        }
+        let modified = metadata
+            .modified()
+            .ok()
+            .and_then(|m| m.duration_since(UNIX_EPOCH).ok())
+            .map(|d| crate::utils::datetime::format_datetime(d.as_secs()))
+            .unwrap_or_default();
 
-        file_list.push(file_info);
+        file_list.push(FileInfoItem {
+            name: file_name,
+            is_dir: metadata.is_dir(),
+            modified,
+            size: if metadata.is_file() { metadata.len() } else { 0 },
+        });
     }
 
     // 获取权限配置
@@ -188,8 +180,6 @@ pub async fn upload_file(
     // dir：文件上传到哪目录，默认为根目录
     let dir_param = query_params.get("dir").map(|s| s.as_str()).unwrap_or("");
 
-    let headers = _req.headers().clone();
-
     // 从 extensions 中获取客户端地址（必须在 into_body() 之前提取）
     let client_ip = _req
         .extensions()
@@ -197,13 +187,13 @@ pub async fn upload_file(
         .map(|addr| addr.ip().to_string())
         .unwrap_or_else(|| "Unknown IP".to_string());
 
-    // 1. 检查 Content-Type
-    let content_type = match headers.get(header::CONTENT_TYPE) {
-        Some(ct) => match ct.to_str() {
-            Ok(s) => s,
-            Err(_) => return error(StatusCode::BAD_REQUEST, "Invalid Content-Type header"),
-        },
-        None => return error(StatusCode::BAD_REQUEST, "Missing Content-Type header"),
+    // 1. 检查 Content-Type（提取到 String 中以释放 _req 的借用）
+    let content_type = match _req.headers().get(header::CONTENT_TYPE)
+        .and_then(|ct| ct.to_str().ok())
+        .map(|s| s.to_string())
+    {
+        Some(ct) => ct,
+        None => return error(StatusCode::BAD_REQUEST, "Missing or invalid Content-Type header"),
     };
 
     if !content_type.contains("multipart/form-data") {
@@ -217,10 +207,15 @@ pub async fn upload_file(
             if trimmed.is_empty() {
                 return error(StatusCode::BAD_REQUEST, "No boundary found");
             }
-            trimmed
+            trimmed.to_string()
         }
         None => return error(StatusCode::BAD_REQUEST, "No boundary found"),
     };
+
+    // 检查 Content-Length 和磁盘空间（提取到 String 中以释放 _req 的借用）
+    let content_length = _req.headers().get(header::CONTENT_LENGTH)
+        .and_then(|cl| cl.to_str().ok())
+        .map(|s| s.to_string());
 
     // 3. 在消费 body 之前完成所有校验
     let root_dir = get_sharing_root().await;
@@ -257,16 +252,14 @@ pub async fn upload_file(
     }
 
     // 检查 Content-Length 和磁盘空间
-    match headers.get(header::CONTENT_LENGTH) {
-        Some(content_length) => {
-            if let Ok(length_str) = content_length.to_str() {
-                if let Ok(upload_size) = length_str.parse::<u64>() {
-                    if !check_disk_space(upload_size, &target_dir) {
-                        return error(
-                            StatusCode::INSUFFICIENT_STORAGE,
-                            "磁盘剩余空间不足，无法存储上传的文件",
-                        );
-                    }
+    match content_length {
+        Some(ref length_str) => {
+            if let Ok(upload_size) = length_str.parse::<u64>() {
+                if !check_disk_space(upload_size, &target_dir) {
+                    return error(
+                        StatusCode::INSUFFICIENT_STORAGE,
+                        "磁盘剩余空间不足，无法存储上传的文件",
+                    );
                 }
             }
         }
@@ -285,6 +278,12 @@ pub async fn upload_file(
 
     let mut uploaded: Vec<String> = Vec::new();
     let mut overwrite_flags: Vec<bool> = Vec::new();
+
+    // 预查询覆盖配置，避免在循环中重复查 DB
+    let overwrite_enabled = match config_dao::get_config_value("upload_overwrite_enabled").await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
+        _ => false,
+    };
 
     // 5. 核心逻辑：支持任意字段顺序，边解析边上传
     loop {
@@ -316,18 +315,11 @@ pub async fn upload_file(
 
                 // 检查同名文件是否存在，若存在且上传覆盖已禁用则返回错误
                 let file_existed = file_path.exists();
-                if file_existed {
-                    let overwrite_enabled =
-                        match config_dao::get_config_value("upload_overwrite_enabled").await {
-                            Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
-                            _ => false,
-                        };
-                    if !overwrite_enabled {
-                        return error(
-                            StatusCode::CONFLICT,
-                            &format!("文件 '{}' 已存在（上传覆盖已禁用）", safe_filename),
-                        );
-                    }
+                if file_existed && !overwrite_enabled {
+                    return error(
+                        StatusCode::CONFLICT,
+                        &format!("文件 '{}' 已存在（上传覆盖已禁用）", safe_filename),
+                    );
                 }
 
                 // 直接创建文件并写入（边解析边写，无锁竞争）
@@ -404,7 +396,7 @@ pub async fn upload_file(
         let file_absolute_path = target_dir.join(filename);
         let absolute_path_str = crate::utils::path::normalize_path(&file_absolute_path);
         let is_overwrite = *overwrite_flags.get(i).unwrap_or(&false);
-        if let Err(e) = upload_dao::add(2, &absolute_path_str, &client_ip, is_overwrite).await {
+        if let Err(e) = upload_dao::add(2, &absolute_path_str, None, &client_ip, is_overwrite).await {
             log::error!("记录文件上传历史失败: {}", e);
         }
     }
@@ -588,17 +580,6 @@ pub async fn rename_file(
     _req: Request<Incoming>,
     query_params: QueryParams,
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
-    // 检查重命名功能是否启用
-    let rename_enabled = match config_dao::get_config_value("rename_enabled").await {
-        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
-        Ok(None) => false,
-        Err(_) => false,
-    };
-
-    if !rename_enabled {
-        return error(StatusCode::FORBIDDEN, "文件重命名功能已被禁用");
-    }
-
     // 解析查询参数
     let dir_param = query_params.get("dir").map(|s| s.as_str()).unwrap_or("");
     let old_name = match query_params.get("old_name") {
@@ -636,6 +617,22 @@ pub async fn rename_file(
         );
     }
 
+    // 按文件/文件夹检查重命名权限
+    let is_dir = old_path.is_dir();
+    let perm_key = if is_dir { "rename_folder_enabled" } else { "rename_file_enabled" };
+    let perm_label = if is_dir { "文件夹" } else { "文件" };
+    let rename_allowed = match config_dao::get_config_value(perm_key).await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
+        Ok(None) => false,
+        Err(_) => false,
+    };
+    if !rename_allowed {
+        return error(
+            StatusCode::FORBIDDEN,
+            &format!("{}重命名功能已被禁用", perm_label),
+        );
+    }
+
     // 验证新名称不存在
     if new_path.exists() {
         return error(
@@ -666,17 +663,6 @@ pub async fn delete_file(
     _req: Request<Incoming>,
     query_params: QueryParams,
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
-    // 检查删除功能是否启用
-    let delete_enabled = match config_dao::get_config_value("delete_enabled").await {
-        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
-        Ok(None) => false,
-        Err(_) => false,
-    };
-
-    if !delete_enabled {
-        return error(StatusCode::FORBIDDEN, "文件删除功能已被禁用");
-    }
-
     // 解析查询参数
     let dir_param = query_params.get("dir").map(|s| s.as_str()).unwrap_or("");
     let file_name = match query_params.get("file_name") {
@@ -707,8 +693,37 @@ pub async fn delete_file(
         }
     };
 
+    // 按文件/文件夹检查删除权限
+    let perm_key = if metadata.is_dir() { "delete_folder_enabled" } else { "delete_file_enabled" };
+    let perm_label = if metadata.is_dir() { "文件夹" } else { "文件" };
+    let delete_allowed = match config_dao::get_config_value(perm_key).await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
+        Ok(None) => false,
+        Err(_) => false,
+    };
+    if !delete_allowed {
+        return error(
+            StatusCode::FORBIDDEN,
+            &format!("{}删除功能已被禁用", perm_label),
+        );
+    }
+
+    // 检查是否启用回收站
+    let use_trash = match config_dao::get_config_value("delete_to_trash").await {
+        Ok(Some(value)) => value.parse::<bool>().unwrap_or(true),
+        Ok(None) => true,
+        Err(_) => true,
+    };
+
     // 执行删除
-    let result = if metadata.is_dir() {
+    let result = if use_trash {
+        let f_path = file_path.clone();
+        match tokio::task::spawn_blocking(move || trash::delete(&f_path)).await {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(e)) => Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())),
+            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())),
+        }
+    } else if metadata.is_dir() {
         fs::remove_dir_all(&file_path).await
     } else {
         fs::remove_file(&file_path).await
@@ -733,36 +748,32 @@ pub async fn delete_file(
 #[derive(Serialize)]
 struct WebPermissions {
     upload_enabled: bool,
-    rename_enabled: bool,
-    delete_enabled: bool,
+    rename_file_enabled: bool,
+    rename_folder_enabled: bool,
+    delete_file_enabled: bool,
+    delete_folder_enabled: bool,
     upload_overwrite_enabled: bool,
 }
 
 /// 获取权限配置（内部辅助函数）
 async fn fetch_permissions() -> WebPermissions {
-    let upload_enabled = match config_dao::get_config_value("upload_enabled").await {
-        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
-        _ => false,
-    };
-    let rename_enabled = match config_dao::get_config_value("rename_enabled").await {
-        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
-        _ => false,
-    };
-    let delete_enabled = match config_dao::get_config_value("delete_enabled").await {
-        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
-        _ => false,
-    };
-    let upload_overwrite_enabled =
-        match config_dao::get_config_value("upload_overwrite_enabled").await {
-            Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
-            _ => false,
-        };
+    let keys = &[
+        "upload_enabled",
+        "rename_file_enabled",
+        "rename_folder_enabled",
+        "delete_file_enabled",
+        "delete_folder_enabled",
+        "upload_overwrite_enabled",
+    ];
+    let configs = config_dao::get_config_values(keys).await;
 
     WebPermissions {
-        upload_enabled,
-        rename_enabled,
-        delete_enabled,
-        upload_overwrite_enabled,
+        upload_enabled: configs.get("upload_enabled").map(|v| v == "true").unwrap_or(false),
+        rename_file_enabled: configs.get("rename_file_enabled").map(|v| v == "true").unwrap_or(false),
+        rename_folder_enabled: configs.get("rename_folder_enabled").map(|v| v == "true").unwrap_or(false),
+        delete_file_enabled: configs.get("delete_file_enabled").map(|v| v == "true").unwrap_or(false),
+        delete_folder_enabled: configs.get("delete_folder_enabled").map(|v| v == "true").unwrap_or(false),
+        upload_overwrite_enabled: configs.get("upload_overwrite_enabled").map(|v| v == "true").unwrap_or(false),
     }
 }
 
@@ -800,22 +811,14 @@ pub async fn pre_upload_check(
 
     let exists = file_path.exists();
 
-    let overwrite_enabled = match config_dao::get_config_value("upload_overwrite_enabled").await {
-        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
-        _ => false,
-    };
-
-    let upload_enabled = match config_dao::get_config_value("upload_enabled").await {
-        Ok(Some(value)) => value.parse::<bool>().unwrap_or(false),
-        _ => false,
-    };
+    let perm_configs = config_dao::get_config_values(&["upload_overwrite_enabled", "upload_enabled"]).await;
 
     let available_space = fs4::available_space(&target_dir).unwrap_or(0);
 
     success_json(PreUploadCheck {
         exists,
-        upload_enabled,
-        overwrite_enabled,
+        upload_enabled: perm_configs.get("upload_enabled").map(|v| v == "true").unwrap_or(false),
+        overwrite_enabled: perm_configs.get("upload_overwrite_enabled").map(|v| v == "true").unwrap_or(false),
         available_space,
     })
 }

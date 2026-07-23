@@ -22,6 +22,17 @@ const detectLanguage = async (): Promise<string> => {
 };
 
 /**
+ * 同步托盘菜单文本到后端（前端语言初始化/切换后调用）
+ */
+const syncTrayMenu = () => {
+  invoke('update_tray_menu', {
+    show: i18n.t('tray.show'),
+    settings: i18n.t('tray.settings'),
+    quit: i18n.t('tray.quit'),
+  }).catch((e) => console.warn('Failed to update tray menu:', e));
+};
+
+/**
  * Initialize i18next with lazy-loaded translation files.
  * Called before React renders to ensure translations are ready.
  */
@@ -46,6 +57,8 @@ const initI18n = async () => {
     returnObjects: true,
   });
 
+  syncTrayMenu();
+
   return i18n;
 };
 
@@ -54,6 +67,7 @@ const initI18n = async () => {
  */
 export const changeLanguage = async (lng: string) => {
   await i18n.changeLanguage(lng);
+  syncTrayMenu();
   try {
     await invoke('set_language', { language: lng });
   } catch (e) {

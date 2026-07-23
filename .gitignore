@@ -25,5 +25,13 @@ dist-ssr
 *.sw?
 *.iml
 src-tauri/target/
+src/assets/fonts/
 target
 /.claude/
+
+# Skill artifacts (keep local only)
+.superpowers/
+docs/superpowers/
+PROJECT_UNDERSTANDING.md
+style-preview.html
+style-reference.md

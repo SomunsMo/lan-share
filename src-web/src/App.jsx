@@ -116,8 +116,12 @@ function App() {
                     </main>
 
                     <div className="content">
-                        <TextSharing/>
-                        <FileSharing/>
+                        <div className="textRow">
+                            <TextSharing/>
+                        </div>
+                        <div className="fileRow">
+                            <FileSharing/>
+                        </div>
                     </div>
                 </AppStyle>
             </ToastProvider>

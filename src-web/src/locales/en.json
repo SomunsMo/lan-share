@@ -2,18 +2,11 @@
   "common": {
     "button": {
       "cancel": "Cancel",
-      "confirm": "Confirm",
-      "delete": "Delete",
-      "copy": "Copy",
-      "download": "Download",
-      "rename": "Rename",
-      "upload": "Upload"
+      "confirm": "Confirm"
     },
     "toast": {
-      "copySuccess": "Link copied",
-      "copyFailed": "Copy link failed",
-      "deleteSuccess": "Deleted successfully",
-      "operationFailed": "Operation failed"
+      "operationFailed": "Operation failed",
+      "deleteSuccess": "Deleted successfully"
     }
   },
   "web": {
@@ -47,7 +40,7 @@
       "rename": "Rename",
       "delete": "Delete",
       "open": "Open",
-      "copyFileName": "Copy File Name"
+      "copyFileName": "Copy Name"
     },
     "toast": {
       "linkCopied": "Link copied",

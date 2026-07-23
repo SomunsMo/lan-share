@@ -299,7 +299,7 @@ lan-share/
 | `get_file_sharing_history` | 获取文件分享历史 |
 | `delete_file_sharing_record` | 删除指定文件记录 |
 | `clear_sharing_file` | 清空所有文件分享记录 |
-| `get_all_upload_history` | 获取全部上传历史 |
+| `get_transfer_log` | 分页获取传输日志 |
 | `is_sharing_root_configured` | 是否已配置共享目录 |
 
 ### 权限控制

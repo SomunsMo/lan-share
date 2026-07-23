@@ -1,64 +1,100 @@
 {
   "common": {
+    "loading": "Loading...",
     "button": {
       "cancel": "Cancel",
       "confirm": "Confirm",
-      "delete": "Delete",
-      "copy": "Copy",
-      "download": "Download",
-      "rename": "Rename",
-      "upload": "Upload"
+      "delete": "Delete"
     },
     "toast": {
-      "copySuccess": "Copied",
-      "copyFailed": "Copy failed",
-      "deleteSuccess": "Deleted successfully",
-      "operationFailed": "Operation failed"
-    },
-    "overwrite": {
-      "yes": "Yes",
-      "no": "No",
-      "dash": "-"
+      "operationFailed": "Operation failed",
+      "copied": "Copied"
     }
   },
   "route": {
     "home": "Home",
-    "textSharing": "Text Share",
-    "history": "History",
-    "settings": "Settings"
+    "textSharing": "Share Text",
+    "history": "Transfer Log",
+    "settings": "Settings",
+    "about": "About"
+  },
+  "navbar": {
+    "tagline": "LAN file & text sharing"
   },
   "home": {
-    "subtitle": "LAN file sharing tool over HTTP",
-    "scanTips": "Scan with other devices on LAN",
-    "orVisit": "Or visit",
+    "scanTips": "Scan to Connect",
+    "scanTipsDesc": "Ensure other devices are on the same network as this computer",
+    "detailsTitle": "Device Info",
+    "deviceName": "Device Name",
+    "localIp": "Local IP",
+    "port": "Port",
+    "status": "Status",
+    "listening": "Listening...",
+    "manualTitle": "Manual Connection",
+    "manualDesc": "Enter this address in your browser if scanning doesn't work",
+    "copyTooltip": "Click to copy",
+    "notRunning": "Not Running",
+    "serviceUnavailable": "Service Unavailable",
+    "reasonTitle": "Reason",
+    "reasonPortOccupied": "Port {{port}} is occupied",
     "firstRun": {
       "title": "First Run",
       "content": "You haven't set up a file sharing directory yet. Other devices will not be able to access shared files via browser.\nSet it up now?",
       "buttonLater": "Later",
       "buttonNow": "Set Up Now"
     },
-    "portWarning": {
-      "title": "HTTP Service Not Started",
-      "desc": "Port {{port}} is occupied by another program. The HTTP server cannot start.",
-      "stepTitle": "Available solutions:",
-      "step1": "Change the HTTP Server port in Settings and restart the app",
-      "step2": "Close the program occupying the port"
-    },
     "selectDirTitle": "Select Sharing Root Directory"
   },
   "settings": {
-    "sectionBasic": "Basic",
-    "sectionSharing": "Sharing",
+    "pageTitle": "Settings",
+    "sectionNetwork": "Network Configuration",
+    "sectionSystem": "System Preferences",
+    "sectionAppearance": "Appearance",
+    "sectionRecords": "Recording Settings",
+    "sectionFileSharing": "File Sharing",
     "option": {
       "port": "HTTP Server Port",
+      "portDesc": "Service port for providing web UI and file sharing to other devices",
       "autostart": "Auto Start",
+      "autostartDesc": "Launch application on system startup",
+      "autostartMinimized": "Auto Start Minimized",
+      "autostartMinimizedDesc": "Run silently in the system tray on startup without opening the main window",
       "theme": "Theme",
+      "themeDesc": "Select application theme",
+      "themeColor": "Theme Color",
+      "themeColorDesc": "Click the swatch to pick a custom color",
       "language": "Language",
+      "languageDesc": "Select interface language",
       "shareRoot": "Sharing Root",
+      "shareRootDesc": "Root directory for providing file sharing services",
       "webUpload": "Web Upload",
+      "webUploadDesc": "Allow file uploads via browser",
       "uploadOverwrite": "Upload Overwrite",
-      "webRename": "Web Rename",
-      "webDelete": "Web Delete"
+      "uploadOverwriteDesc": "Allow overwriting existing files on upload",
+      "webRenameFile": "Rename File",
+      "webRenameFileDesc": "Allow renaming files via browser",
+      "webRenameFolder": "Rename Folder",
+      "webRenameFolderDesc": "Allow renaming folders via browser",
+      "webDeleteFile": "Delete File",
+      "webDeleteFileDesc": "Allow deleting files via browser",
+      "webDeleteFolder": "Delete Folder",
+      "webDeleteFolderDesc": "Allow deleting folders via browser",
+      "deleteToTrash": "Delete to Trash",
+      "deleteToTrashDesc": "Move deleted files to the trash instead of permanent deletion",
+      "recordCopy": "Record Text Copy",
+      "recordCopyDesc": "Log text copy operations from Web pages",
+      "recordDownload": "Record File Download",
+      "recordDownloadDesc": "Log file download operations from Web pages",
+      "clearTextRecords": "Clear Text Records",
+      "clearTextRecordsDesc": "Delete all text sharing records (including associated copy records)",
+      "clearFileRecords": "Clear File Records",
+      "clearFileRecordsDesc": "Delete all file transfer records",
+      "excludeSystemFiles": "Exclude System Files",
+      "excludeSystemFilesDesc": "Hide system metadata files from the web file list (e.g., .DS_Store, desktop.ini, Thumbs.db)",
+      "excludePatterns": "Custom Exclusion Rules",
+      "excludePatternsDesc": "Exclude files from the web list by exact filename or regex pattern (one per line)",
+      "excludePatternPlaceholder": "e.g. desktop.ini, \\.bak$, ^private_",
+      "noExcludePatterns": "No exclusion rules"
     },
     "themeOption": {
       "system": "Follow System",
@@ -76,31 +112,51 @@
       "portSaved": "Port setting saved, restart to apply",
       "portFailed": "Failed to save port: {{error}}",
       "saveFailed": "Failed to save {{name}} setting: {{error}}",
-      "selectFailed": "Failed to select folder: {{error}}"
+      "selectFailed": "Failed to select folder: {{error}}",
+      "patternDuplicate": "Rule already exists",
+      "patternInvalid": "Invalid regex pattern"
     },
     "dialog": {
       "changePort": {
         "title": "Change Port",
         "content": "Enter a new port number (1-65535):",
         "placeholder": "1-65535"
+      },
+      "deleteToTrashWarning": {
+        "title": "Disable Delete to Trash",
+        "content": "After disabling, deleted files will be permanently removed instead of moved to trash. Continue?"
       }
     },
     "labels": {
-      "clickToSelect": "Click to select directory",
-      "clickToChange": "Click to change directory",
-      "clickToModify": "Click to modify port"
+      "browse": "Browse",
+      "clickToSelect": "Click to select directory"
     }
   },
   "history": {
+    "pageTitle": "Transfer Log",
+    "pageDesc": "View transfer records between devices",
+    "filterAll": "All",
+    "filterFiles": "Files",
+    "filterText": "Text",
     "type": {
       "text": "Text",
       "file": "File"
     },
+    "typeLabel": {
+      "text": "Share text",
+      "upload": "Upload file",
+      "download": "Download file"
+    },
+    "detailTitle": "Record Detail",
+    "noPreview": "(File preview not supported)",
+    "noCopyRecords": "No copy records",
+    "copyRecordsTitle": "Copy Records",
+    "copyRecordsSeq": "#",
     "tableHeader": {
       "type": "Type",
       "time": "Time",
       "sourceIp": "Source IP",
-      "overwrite": "Overwrite",
+      "overwrite": "Overwritten",
       "content": "Content"
     },
     "clearDialog": {
@@ -113,23 +169,78 @@
       "textCleared": "Text records cleared",
       "fileCleared": "File records cleared"
     },
-    "clearTextButton": "Clear Text Records",
-    "clearFileButton": "Clear File Records",
+    "overwrite": {
+      "yes": "Overwritten",
+      "no": "Not overwritten"
+    },
+    "tag": {
+      "overwriteYes": "Overwrite"
+    },
+    "tagTooltip": {
+      "ip": "Source IP",
+      "size": "File size",
+      "overwrite": "Overwritten existing file on upload"
+    },
+    "fileFolder": "Folder",
+    "fileName": "File Name",
+    "searchPlaceholder": "Search by text content or file path...",
+    "noMoreRecords": "No more records",
+    "noSearchResults": "No matching records found",
+    "deleteConfirmFile": "Are you sure you want to delete this record? This action cannot be undone.",
     "contextMenu": {
+      "viewDetail": "View Detail",
+      "openFileLocation": "Open File Location",
       "copyContent": "Copy Content",
-      "deleteRecord": "Delete Record"
+      "copyPath": "Copy Path",
+      "copyIp": "Copy IP",
+      "deleteRecord": "Delete Record",
+      "viewCopyRecords": "View Copy Records"
     }
   },
+  "about": {
+    "title": "LAN Share",
+    "openSource": {
+      "title": "Open Source Repository"
+    },
+    "license": {
+      "title": "License",
+      "name": "MIT License"
+    },
+    "checkUpdates": "Check for Updates",
+    "update": {
+      "title": "New Version Available",
+      "newVersion": "Latest version: {{version}}",
+      "download": "Download",
+      "later": "Later",
+      "checking": "Checking...",
+      "upToDate": "Already up to date",
+      "error": "Update check failed: {{error}}",
+      "noReleaseNotes": "No release notes"
+    }
+  },
+  "tray": {
+    "show": "Show Window",
+    "settings": "Settings",
+    "quit": "Quit"
+  },
   "textSharing": {
+    "pageTitle": "Share Text Locally",
+    "pageDesc": "Shared text can be viewed or copied by other devices on the LAN via browser",
+    "deleteCascadeWarning": "Deleting this record will also delete related copy records",
+    "clearButton": "Clear",
+    "recentTitle": "Recent Text Shares",
+    "copyButton": "Copy",
+    "viewButton": "View",
+    "detailTitle": "Message Detail",
+    "detailTime": "Time",
+    "detailIp": "Source IP",
+    "detailContent": "Content",
     "placeholder": "Enter text to share",
     "shareButton": "Share",
-    "tableHeader": {
-      "time": "Time",
-      "sourceIp": "Source IP",
-      "content": "Content"
-    },
     "contextMenu": {
+      "viewDetail": "View Detail",
       "copyContent": "Copy Content",
+      "copyIp": "Copy IP",
       "deleteRecord": "Delete Record"
     }
   }

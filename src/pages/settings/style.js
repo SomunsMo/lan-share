@@ -1,96 +1,157 @@
-import styled from "styled-components";
+import styled from "@emotion/styled";
 
 const SettingsStyle = styled.div`
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
-    gap: 16px;
-    align-items: start;
-    user-select: none;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 24px;
+    max-width: 720px;
 
-    .block-title {
-        margin: 0 0 12px;
-        font-size: 0.82rem;
-        font-weight: 600;
-        color: var(--text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    .options-table {
-        width: 100%;
-        border-collapse: collapse;
-
-        td {
-            padding: 8px 0;
-            font-size: 0.9rem;
-        }
-
-        td:first-child {
-            color: var(--text-primary);
-        }
-    }
-
-    .table-value {
-        text-align: right;
-        vertical-align: middle;
-    }
-
-    .directory-text {
-        cursor: pointer;
-        color: var(--accent);
-        font-size: 0.84rem;
-        max-width: 280px;
-        display: inline-block;
+    .section-card {
+        background: var(--surface-container-lowest);
+        border: var(--glass-border);
+        border-radius: var(--radius-md);
         overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        box-shadow: var(--shadow-sm);
     }
 
-    .directory-text:hover {
-        color: var(--accent-hover);
+    .section-card:hover {
+        border-color: var(--primary);
     }
 
-    .port-text {
+    .section-header {
+        padding: 15px 24px;
+        background: var(--surface-container-low);
+        border-bottom: var(--glass-border);
+    }
+
+    .section-header-top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .section-header svg {
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: var(--primary);
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .section-body {
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .option-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .option-label {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .directory-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .hue-picker {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 140px;
+    }
+
+    .color-swatch-wrap {
+        position: relative;
+        width: 36px;
+        height: 36px;
         cursor: pointer;
-        color: var(--accent);
+        flex-shrink: 0;
+    }
+
+    .color-swatch {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 2px solid var(--outline-variant);
+        transition: background var(--dur-fast) var(--ease);
+        pointer-events: none;
+    }
+
+    .color-input-hidden {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+        padding: 0;
+        border: none;
+    }
+
+    .hue-label {
+        font-size: 0.8rem;
         font-weight: 600;
-        font-size: 1rem;
+        color: var(--on-surface-variant);
+        font-variant-numeric: tabular-nums;
     }
 
-    .port-text:hover {
-        color: var(--accent-hover);
+    .exclude-patterns {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
     }
 
-    .theme-select {
+    .pattern-input-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .pattern-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .pattern-chip {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: var(--surface-container-high);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-family: 'Consolas', 'Monaco', monospace;
+    }
+
+    .pattern-chip-remove {
+        background: none;
+        border: none;
         cursor: pointer;
-        color: var(--text-primary);
-        background-color: var(--bg-input);
-        border: 1px solid var(--border-input);
-        border-radius: var(--radius);
-        padding: 0.4em 1.8em 0.4em 0.6em;
-        font-size: 0.88rem;
-        font-family: inherit;
-        outline: none;
-        appearance: auto;
-        -webkit-appearance: auto;
-        -moz-appearance: auto;
-        min-width: 120px;
-        text-align: left;
+        color: var(--on-surface-variant);
+        font-size: 1rem;
+        line-height: 1;
+        padding: 0 2px;
     }
 
-    .theme-select:hover {
-        border-color: var(--accent);
+    .pattern-chip-remove:hover {
+        color: var(--error);
     }
-
-    .theme-select:focus {
-        border-color: var(--accent);
-    }
-
-    .option-hint {
-        font-size: 0.78rem;
-        color: var(--text-tertiary);
-        margin: 0;
-    }
-`
+`;
 
 export default SettingsStyle;

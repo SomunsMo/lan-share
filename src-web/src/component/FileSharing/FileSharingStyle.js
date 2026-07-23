@@ -1,4 +1,4 @@
-import styled from "styled-components";
+import styled from "@emotion/styled";
 import Card from "../Card/Card.js";
 
 export const FileCard = styled(Card)`
@@ -165,10 +165,17 @@ const FileSharingStyle = styled.div`
     }
 
     .dirActions {
-        display: none;
+        display: flex;
+        gap: 4px;
+        visibility: hidden;
     }
 
-    .fileActions button {
+    .fileItem:hover .dirActions {
+        visibility: visible;
+    }
+
+    .fileActions button,
+    .dirActions button {
         padding: 3px 10px;
         font-size: 0.75rem;
         background: transparent;
@@ -177,7 +184,8 @@ const FileSharingStyle = styled.div`
         border-radius: var(--radius);
     }
 
-    .fileActions button:hover {
+    .fileActions button:hover,
+    .dirActions button:hover {
         background-color: var(--bg-hover);
         border-color: var(--accent);
     }

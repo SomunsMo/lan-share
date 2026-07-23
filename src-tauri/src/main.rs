@@ -45,19 +45,17 @@ async fn init() {
     // ====================【↓DB初始化后才能执行的代码】====================
 
     // 检查共享根目录是否已配置（用于首次运行检测）
-    let fs_rd_configured = config_dao::get_config_value("file_sharing_root_dir")
+    let fs_rd = config_dao::get_config_value("file_sharing_root_dir")
         .await
         .ok()
-        .flatten()
-        .is_some();
-    set_sharing_root_configured(fs_rd_configured);
+        .flatten();
+    set_sharing_root_configured(fs_rd.is_some());
 
     // 文件共享根目录
-    let fs_rd = config_dao::get_config("file_sharing_root_dir")
-        .await
-        .map(|cfg| PathBuf::from(cfg.cfg_value)) // 直接转换
-        .unwrap_or_else(|e| {
-            log::error!("cannot get config：{}", e);
+    let fs_rd = fs_rd
+        .map(PathBuf::from) // 直接转换
+        .unwrap_or_else(|| {
+            log::error!("cannot get config：file_sharing_root_dir");
             PathBuf::from("./uploads") // 默认 PathBuf
         });
     
@@ -65,6 +63,10 @@ async fn init() {
     if let Err(e) = lan_share_lib::config::config::set_sharing_root_new(fs_rd).await {
         log::error!("设置共享根目录失败: {}", e);
     }
+
+    // 读取窗口状态，存入全局供setup同步使用
+    let ws = config_dao::get_config_value("window_state").await.ok().flatten();
+    let _ = lan_share_lib::config::config::WINDOW_STATE_JSON.set(ws);
 
     // 读取HTTP端口配置，存入全局供setup使用
     let port = config_dao::get_config_value("http_port")
@@ -78,7 +80,7 @@ async fn init() {
 
 // 初始化日志系统
 fn init_logger() {
-    let env = Env::default().default_filter_or("info");
+    let env = Env::default().default_filter_or("debug");
     Builder::from_env(env)
         .format(|buf, record| {
             let timestamp = chrono::Local::now().format("%H:%M:%S%.3f");

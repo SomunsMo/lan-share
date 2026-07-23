@@ -22,6 +22,7 @@ pub mod http_server {
     pub mod responses;
     pub mod path_handler {
         pub mod file_sharing_handler;
+        pub mod record_handler;
         pub mod text_sharing_handler;
         pub mod web_handler;
     }
@@ -36,6 +37,7 @@ pub mod utils {
     pub mod path;
 }
 
+pub mod macos;
 pub mod tray;
 
 /// 由 build.rs 构建 src-web 并嵌入的 HTML
@@ -44,7 +46,149 @@ pub mod embedded {
 }
 
 use log::error;
+use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
+
+/// 用户主动退出标志，ExitRequested 时区分是窗口关闭还是主动退出
+pub(crate) static QUITTING: AtomicBool = AtomicBool::new(false);
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct WindowState {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+}
+
+pub(crate) const WINDOW_DEFAULT_W: u32 = 980;
+pub(crate) const WINDOW_DEFAULT_H: u32 = 650;
+pub(crate) const WINDOW_MIN_W: u32 = 980;
+pub(crate) const WINDOW_MIN_H: u32 = 650;
+
+fn save_window_state(window: &tauri::Window) {
+    if let (Ok(pos), Ok(size)) = (window.outer_position(), window.inner_size()) {
+        let state = WindowState {
+            x: pos.x,
+            y: pos.y,
+            width: size.width,
+            height: size.height,
+        };
+        if let Ok(json) = serde_json::to_string(&state) {
+            tauri::async_runtime::spawn(async move {
+                let _ = crate::db::dao::config_dao::set_config("window_state", &json).await;
+            });
+        }
+    }
+}
+
+pub(crate) fn load_window_state() -> Option<WindowState> {
+    crate::config::config::WINDOW_STATE_JSON
+        .get()
+        .and_then(|opt| opt.as_ref())
+        .and_then(|json| serde_json::from_str(json).ok())
+}
+
+pub(crate) fn get_monitor_containing(
+    window: &tauri::WebviewWindow,
+    x: i32,
+    y: i32,
+) -> Option<tauri::Monitor> {
+    let monitors = window.available_monitors().ok()?;
+    monitors.into_iter().find(|m| {
+        let mpos = m.position();
+        let msize = m.size();
+        x >= mpos.x
+            && x < mpos.x + msize.width as i32
+            && y >= mpos.y
+            && y < mpos.y + msize.height as i32
+    })
+}
+
+fn clamp_and_center(window: &tauri::WebviewWindow, saved: &WindowState) -> (i32, i32, u32, u32) {
+    let monitor = get_monitor_containing(window, saved.x, saved.y)
+        .or_else(|| window.primary_monitor().ok().flatten());
+    let (mpos, msize) = match &monitor {
+        Some(m) => (m.position(), m.size()),
+        None => {
+            return (
+                saved.x,
+                saved.y,
+                saved.width.max(WINDOW_MIN_W),
+                saved.height.max(WINDOW_MIN_H),
+            )
+        }
+    };
+
+    let width = saved.width.min(msize.width).max(WINDOW_MIN_W);
+    let height = saved.height.min(msize.height).max(WINDOW_MIN_H);
+    let x = saved
+        .x
+        .clamp(mpos.x, mpos.x + msize.width as i32 - width as i32);
+    let y = saved
+        .y
+        .clamp(mpos.y, mpos.y + msize.height as i32 - height as i32);
+    (x, y, width, height)
+}
+
+pub(crate) fn center_on_primary(window: &tauri::WebviewWindow) -> (i32, i32, u32, u32) {
+    if let Ok(Some(monitor)) = window.primary_monitor() {
+        let msize = monitor.size();
+        let width = WINDOW_DEFAULT_W.min(msize.width);
+        let height = WINDOW_DEFAULT_H.min(msize.height);
+        let x = (msize.width as i32 - width as i32) / 2;
+        let y = (msize.height as i32 - height as i32) / 2;
+        (x.max(0), y.max(0), width, height)
+    } else {
+        (0, 0, WINDOW_DEFAULT_W, WINDOW_DEFAULT_H)
+    }
+}
+
+/// 创建主窗口并根据保存的状态或默认值定位
+pub(crate) fn create_and_position_window(
+    app: &tauri::AppHandle,
+    initial_route: Option<String>,
+) -> tauri::WebviewWindow {
+    let window =
+        tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
+            .title("LAN Share")
+            .inner_size(WINDOW_DEFAULT_W as f64, WINDOW_DEFAULT_H as f64)
+            .min_inner_size(WINDOW_MIN_W as f64, WINDOW_MIN_H as f64)
+            .visible(false)
+            .build()
+            .expect("创建主窗口失败");
+
+    if let Some(route) = &initial_route {
+        let _ = window.eval(&format!(
+            r#"
+            (function(){{
+                var check = function(){{
+                    if(window.__tauriNavigate) {{
+                        window.__tauriNavigate('{}');
+                    }} else {{
+                        setTimeout(check, 5);
+                    }}
+                }};
+                check();
+            }})();
+            "#,
+            route
+        ));
+    }
+
+    if let Some(saved) = load_window_state() {
+        let (x, y, w, h) = clamp_and_center(&window, &saved);
+        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+        let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+    } else {
+        let (x, y, w, h) = center_on_primary(&window);
+        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+        let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+    }
+    let _ = window.show();
+
+    window
+}
 
 /// 使用 listeners crate 检测端口是否被占用
 fn is_port_occupied(port: u16) -> bool {
@@ -123,9 +267,7 @@ mod param_extractor {
             .collect()
             .await
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
-        let body_str = String::from_utf8(body_bytes.to_bytes().to_vec())
-            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
-        let parsed: T = serde_json::from_str(&body_str)
+        let parsed: T = serde_json::from_slice(body_bytes.to_bytes().as_ref())
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
         Ok(parsed)
     }
@@ -143,16 +285,7 @@ use cmd::_cmd_handler::get_cmd_handler;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            // 当尝试启动第二个实例时，显示现有的主窗口
-            if let Some(window) = app.get_webview_window("main") {
-                // 尝试显示并聚焦窗口，忽略可能的错误
-                let _ = window.show().map_err(|e| {
-                    log::warn!("Failed to show window: {}", e);
-                });
-                let _ = window.set_focus().map_err(|e| {
-                    log::warn!("Failed to focus window: {}", e);
-                });
-            }
+            crate::tray::show_window(app, None);
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -162,17 +295,34 @@ pub fn run() {
         ))
         .invoke_handler(get_cmd_handler())
         .setup(|app| {
-            // 构建系统托盘
+            let is_silent = std::env::args().any(|a| a == "--silent");
+            if let Some(window) = app.get_webview_window("main") {
+                if let Some(saved) = load_window_state() {
+                    let (x, y, w, h) = clamp_and_center(&window, &saved);
+                    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+                    let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+                } else {
+                    let (x, y, w, h) = center_on_primary(&window);
+                    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+                    let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+                }
+                if !is_silent {
+                    let _ = window.show();
+                } else {
+                    // --silent: 窗口保持隐藏，首次托盘打开时自然显示/重建
+                    macos::set_dock_icon(false);
+                }
+            }
+
             tray::create_tray_menu(&app.handle());
 
-            // 初始化共享根目录
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = crate::config::config::init_sharing_root_from_config().await {
                     error!("初始化共享根目录失败: {}", e);
                 }
+                crate::config::config::reload_exclude_filter().await;
             });
 
-            // ===== 使用 listeners crate 检测端口占用 =====
             let port = *crate::config::config::get_configured_http_port();
             let _ = crate::config::config::RUNNING_HTTP_PORT.set(port);
 
@@ -194,18 +344,18 @@ pub fn run() {
             tray::handle_system_tray_menu_event(app, &event.id().0);
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                // 拦截关闭请求，将窗口隐藏到托盘而不是关闭
-                api.prevent_close();
-                window.hide().unwrap();
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                save_window_state(window);
+                macos::set_dock_icon(false);
             }
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app_handle, event| {
-            #[cfg(target_os = "macos")]
-            if let tauri::RunEvent::Reopen { .. } = event {
-                tray::show_window(app_handle);
+        .run(|_app_handle, _event| {
+            if let tauri::RunEvent::ExitRequested { api, .. } = _event {
+                if !QUITTING.load(Ordering::Relaxed) {
+                    api.prevent_exit();
+                }
             }
         });
 }

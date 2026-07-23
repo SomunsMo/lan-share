@@ -1,5 +1,42 @@
 use crate::db::dao::config_dao;
 use crate::db::dao::upload_dao;
+use serde::Serialize;
+use std::error::Error;
+
+#[derive(Serialize)]
+pub struct PaginatedResult {
+    pub records: Vec<crate::db::entity::TransferRecord>,
+    pub has_more: bool,
+}
+
+#[derive(Serialize)]
+pub struct ServerStatus {
+    pub running: bool,
+    pub port: u16,
+    pub reason: String,
+}
+
+#[derive(Serialize)]
+pub struct AllSettings {
+    pub sharing_directory: String,
+    pub upload_enabled: bool,
+    pub rename_file_enabled: bool,
+    pub rename_folder_enabled: bool,
+    pub delete_file_enabled: bool,
+    pub delete_folder_enabled: bool,
+    pub upload_overwrite_enabled: bool,
+    pub record_copy_enabled: bool,
+    pub record_download_enabled: bool,
+    pub autostart: bool,
+    pub autostart_minimized: bool,
+    pub http_port: u16,
+    pub theme_setting: String,
+    pub theme_color: String,
+    pub language: String,
+    pub exclude_system_files: bool,
+    pub exclude_patterns: Vec<String>,
+    pub delete_to_trash: bool,
+}
 
 /// 获取本机内网IP
 #[tauri::command]
@@ -7,17 +44,54 @@ pub fn get_local_ip() -> String {
     local_ip_address::local_ip().unwrap().to_string()
 }
 
-/// 清空共享文本记录
+/// 获取设备名称
+#[tauri::command]
+pub fn get_device_name() -> String {
+    // Windows
+    if let Ok(name) = std::env::var("COMPUTERNAME") {
+        return name;
+    }
+    // macOS/Linux shell 环境变量（不一定存在）
+    if let Ok(name) = std::env::var("HOSTNAME") {
+        return name;
+    }
+    // POSIX gethostname fallback（macOS/Linux）
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    {
+        if let Some(name) = get_hostname() {
+            return name;
+        }
+    }
+    "Unknown Device".to_string()
+}
+
+/// 使用 POSIX gethostname() 获取主机名
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+fn get_hostname() -> Option<String> {
+    extern "C" {
+        fn gethostname(name: *mut std::os::raw::c_char, len: usize) -> i32;
+    }
+    let mut buf = [0i8; 256];
+    let result = unsafe { gethostname(buf.as_mut_ptr(), buf.len()) };
+    if result == 0 {
+        let c_str = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) };
+        c_str.to_str().ok().map(|s| s.split('.').next().unwrap_or(s).to_string())
+    } else {
+        None
+    }
+}
+
+/// 清空共享文本记录（同时清空关联的复制记录）
 #[tauri::command]
 pub async fn clear_sharing_text() -> u64 {
-    let result_count = upload_dao::remove_all(1).await.unwrap_or(0);
-    log::info!("清空共享文本记录{}条", result_count);
+    let result_count = upload_dao::remove_by_types(&[1, 3]).await.unwrap_or(0);
+    log::info!("清空共享文本和复制记录{}条", result_count);
     result_count
 }
 
 /// 获取文本共享历史记录
 #[tauri::command]
-pub async fn get_text_sharing_history() -> Result<Vec<crate::db::entity::UploadRecord>, String> {
+pub async fn get_text_sharing_history() -> Result<Vec<crate::db::entity::TransferRecord>, String> {
     match upload_dao::list_by_type(1).await {
         Ok(records) => Ok(records),
         Err(err) => {
@@ -27,10 +101,10 @@ pub async fn get_text_sharing_history() -> Result<Vec<crate::db::entity::UploadR
     }
 }
 
-/// 删除指定的文本共享记录
+/// 删除指定的文本共享记录（级联删除关联的复制记录）
 #[tauri::command]
 pub async fn delete_text_sharing_record(id: i64) -> Result<u64, String> {
-    match upload_dao::remove(id).await {
+    match upload_dao::remove_text_cascade(id).await {
         Ok(count) => Ok(count),
         Err(err) => {
             log::error!("删除文本共享记录失败: {}", err);
@@ -48,7 +122,7 @@ pub async fn share_text_to_lan(text_data: String) -> Result<(), String> {
     log::info!("来自[{}]的文本：{}", local_ip, text_data);
 
     // 将文本保存到数据库
-    match upload_dao::add(1, &text_data, &local_ip, false).await {
+    match upload_dao::add(1, &text_data, None, &local_ip, false).await {
         Ok(_) => {
             log::info!("文本分享成功");
             Ok(())
@@ -165,63 +239,133 @@ pub async fn set_upload_enabled(enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
-/// 获取重命名设置状态
+/// 获取重命名文件状态
 #[tauri::command]
-pub async fn get_rename_enabled() -> Result<bool, String> {
-    match config_dao::get_config_value("rename_enabled").await {
-        Ok(Some(value)) => {
-            let enabled = value.parse::<bool>().unwrap_or(false);
-            Ok(enabled)
-        }
+pub async fn get_rename_file_enabled() -> Result<bool, String> {
+    match config_dao::get_config_value("rename_file_enabled").await {
+        Ok(Some(value)) => Ok(value.parse::<bool>().unwrap_or(false)),
         Ok(None) => Ok(false),
         Err(e) => {
-            log::warn!("获取重命名设置失败: {}", e);
+            log::warn!("获取重命名文件设置失败: {}", e);
             Ok(false)
         }
     }
 }
 
-/// 设置重命名状态
+/// 设置重命名文件状态
 #[tauri::command]
-pub async fn set_rename_enabled(enabled: bool) -> Result<(), String> {
+pub async fn set_rename_file_enabled(enabled: bool) -> Result<(), String> {
     let value = if enabled { "true" } else { "false" };
-
-    if let Err(e) = config_dao::set_config("rename_enabled", value).await {
-        log::error!("保存重命名设置到数据库失败: {}", e);
+    if let Err(e) = config_dao::set_config("rename_file_enabled", value).await {
+        log::error!("保存重命名文件设置到数据库失败: {}", e);
         return Err(format!("保存配置失败: {}", e));
     }
-
-    log::info!("重命名设置已更新为: {}", enabled);
+    log::info!("重命名文件设置已更新为: {}", enabled);
     Ok(())
 }
 
-/// 获取删除设置状态
+/// 获取重命名文件夹状态
 #[tauri::command]
-pub async fn get_delete_enabled() -> Result<bool, String> {
-    match config_dao::get_config_value("delete_enabled").await {
-        Ok(Some(value)) => {
-            let enabled = value.parse::<bool>().unwrap_or(false);
-            Ok(enabled)
-        }
+pub async fn get_rename_folder_enabled() -> Result<bool, String> {
+    match config_dao::get_config_value("rename_folder_enabled").await {
+        Ok(Some(value)) => Ok(value.parse::<bool>().unwrap_or(false)),
         Ok(None) => Ok(false),
         Err(e) => {
-            log::warn!("获取删除设置失败: {}", e);
+            log::warn!("获取重命名文件夹设置失败: {}", e);
             Ok(false)
         }
     }
 }
 
-/// 设置删除状态
+/// 设置重命名文件夹状态
 #[tauri::command]
-pub async fn set_delete_enabled(enabled: bool) -> Result<(), String> {
+pub async fn set_rename_folder_enabled(enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+    if let Err(e) = config_dao::set_config("rename_folder_enabled", value).await {
+        log::error!("保存重命名文件夹设置到数据库失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+    log::info!("重命名文件夹设置已更新为: {}", enabled);
+    Ok(())
+}
+
+/// 获取删除文件状态
+#[tauri::command]
+pub async fn get_delete_file_enabled() -> Result<bool, String> {
+    match config_dao::get_config_value("delete_file_enabled").await {
+        Ok(Some(value)) => Ok(value.parse::<bool>().unwrap_or(false)),
+        Ok(None) => Ok(false),
+        Err(e) => {
+            log::warn!("获取删除文件设置失败: {}", e);
+            Ok(false)
+        }
+    }
+}
+
+/// 设置删除文件状态
+#[tauri::command]
+pub async fn set_delete_file_enabled(enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+    if let Err(e) = config_dao::set_config("delete_file_enabled", value).await {
+        log::error!("保存删除文件设置到数据库失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+    log::info!("删除文件设置已更新为: {}", enabled);
+    Ok(())
+}
+
+/// 获取删除文件夹状态
+#[tauri::command]
+pub async fn get_delete_folder_enabled() -> Result<bool, String> {
+    match config_dao::get_config_value("delete_folder_enabled").await {
+        Ok(Some(value)) => Ok(value.parse::<bool>().unwrap_or(false)),
+        Ok(None) => Ok(false),
+        Err(e) => {
+            log::warn!("获取删除文件夹设置失败: {}", e);
+            Ok(false)
+        }
+    }
+}
+
+/// 设置删除文件夹状态
+#[tauri::command]
+pub async fn set_delete_folder_enabled(enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+    if let Err(e) = config_dao::set_config("delete_folder_enabled", value).await {
+        log::error!("保存删除文件夹设置到数据库失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+    log::info!("删除文件夹设置已更新为: {}", enabled);
+    Ok(())
+}
+
+/// 获取删除到回收站设置状态
+#[tauri::command]
+pub async fn get_delete_to_trash() -> Result<bool, String> {
+    match config_dao::get_config_value("delete_to_trash").await {
+        Ok(Some(value)) => {
+            let enabled = value.parse::<bool>().unwrap_or(true);
+            Ok(enabled)
+        }
+        Ok(None) => Ok(true),
+        Err(e) => {
+            log::warn!("获取删除到回收站设置失败: {}", e);
+            Ok(true)
+        }
+    }
+}
+
+/// 设置删除到回收站状态
+#[tauri::command]
+pub async fn set_delete_to_trash(enabled: bool) -> Result<(), String> {
     let value = if enabled { "true" } else { "false" };
 
-    if let Err(e) = config_dao::set_config("delete_enabled", value).await {
-        log::error!("保存删除设置到数据库失败: {}", e);
+    if let Err(e) = config_dao::set_config("delete_to_trash", value).await {
+        log::error!("保存删除到回收站设置到数据库失败: {}", e);
         return Err(format!("保存配置失败: {}", e));
     }
 
-    log::info!("删除设置已更新为: {}", enabled);
+    log::info!("删除到回收站设置已更新为: {}", enabled);
     Ok(())
 }
 
@@ -268,11 +412,141 @@ pub async fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), S
     use tauri_plugin_autostart::ManagerExt;
     if enabled {
         app.autolaunch().enable().map_err(|e| e.to_string())?;
+        // 启用后根据最小化设置追加参数
+        let minimized = get_autostart_minimized_inner().await.unwrap_or(false);
+        update_autostart_args(minimized);
     } else {
         app.autolaunch().disable().map_err(|e| e.to_string())?;
     }
     log::info!("开机自启已更新为: {}", enabled);
     Ok(())
+}
+
+/// 获取开机最小化启动状态
+#[tauri::command]
+pub async fn get_autostart_minimized() -> Result<bool, String> {
+    get_autostart_minimized_inner().await.map_err(|e| e.to_string())
+}
+
+async fn get_autostart_minimized_inner() -> Result<bool, sqlx::Error> {
+    match config_dao::get_config_value("autostart_minimized").await {
+        Ok(Some(val)) => Ok(val == "true"),
+        Ok(None) => Ok(false),
+        Err(e) => Err(e),
+    }
+}
+
+/// 设置开机最小化启动状态
+#[tauri::command]
+pub async fn set_autostart_minimized(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+    config_dao::set_config("autostart_minimized", value)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // 如果开机自启已启用，同步更新 autostart 命令行参数
+    use tauri_plugin_autostart::ManagerExt;
+    if app.autolaunch().is_enabled().unwrap_or(false) {
+        update_autostart_args(enabled);
+    }
+
+    log::info!("开机最小化启动已更新为: {}", enabled);
+    Ok(())
+}
+
+/// 更新 autostart 命令行参数
+fn update_autostart_args(minimized: bool) {
+    #[cfg(target_os = "windows")]
+    {
+        let arg = "--silent";
+        let exe = std::env::current_exe().ok();
+        let exe_path = match &exe {
+            Some(p) => p.to_string_lossy().to_string(),
+            None => return,
+        };
+        use winreg::enums::*;
+        use winreg::RegKey;
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        if let Ok(run) = hkcu.open_subkey_with_flags(
+            r"Software\Microsoft\Windows\CurrentVersion\Run",
+            KEY_READ | KEY_SET_VALUE,
+        ) {
+            let key_name = "LAN Share";
+            if minimized {
+                let value = format!("\"{}\" {}", exe_path, arg);
+                let _ = run.set_value(key_name, &value);
+            } else {
+                let value = format!("\"{}\"", exe_path);
+                let _ = run.set_value(key_name, &value);
+            }
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let label = "LAN Share";
+        let exe = std::env::current_exe().ok();
+        let exe_path = match &exe {
+            Some(p) => p.to_string_lossy().to_string(),
+            None => return,
+        };
+        let plist_path = dirs::home_dir()
+            .map(|h| h.join(format!("Library/LaunchAgents/{}.plist", label)));
+        if let Some(path) = plist_path {
+            if path.exists() {
+                let args = if minimized {
+                    format!(
+                        "  <array><string>{}</string><string>--silent</string></array>",
+                        exe_path
+                    )
+                } else {
+                    format!("  <array><string>{}</string></array>", exe_path)
+                };
+                let content = format!(
+                    r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+  <key>Label</key>
+  <string>{}</string>
+  <key>ProgramArguments</key>
+{}
+  <key>RunAtLoad</key>
+  <true/>
+  </dict>
+</plist>
+"#,
+                    label, args
+                );
+                let _ = std::fs::write(&path, content);
+            }
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let arg = "--silent";
+        let desktop_name = "lan-share.desktop";
+        let desktop_path = dirs::data_dir()
+            .map(|d| d.join("autostart").join(desktop_name));
+        if let Some(path) = desktop_path {
+            if path.exists() {
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    let new_content = if minimized {
+                        if content.contains(arg) {
+                            content
+                        } else {
+                            content.replace("Exec=", &format!("Exec={} ", arg))
+                        }
+                    } else {
+                        content.replace(&format!(" {} ", arg), " ")
+                            .replace(&format!("{}", arg), "")
+                    };
+                    let _ = std::fs::write(&path, new_content);
+                }
+            }
+        }
+    }
 }
 
 /// 获取HTTP服务配置端口（可能还未生效，重启后才生效）
@@ -298,14 +572,20 @@ pub fn get_running_port() -> u16 {
 }
 
 /// 获取HTTP服务器运行状态（前端主动查询）
-/// 返回 Ok(端口号) 表示服务器正常运行，Err(端口号) 表示端口被占用
 #[tauri::command]
-pub fn get_server_status() -> Result<u16, u16> {
+pub fn get_server_status() -> ServerStatus {
     let port = *crate::config::config::get_running_http_port();
-    if crate::config::config::OCCUPIED_PORT.get().is_some() {
-        Err(port)
-    } else {
-        Ok(port)
+    match crate::config::config::OCCUPIED_PORT.get() {
+        Some(p) => ServerStatus {
+            running: false,
+            port: *p,
+            reason: "port_occupied".to_string(),
+        },
+        None => ServerStatus {
+            running: true,
+            port,
+            reason: String::new(),
+        },
     }
 }
 
@@ -326,17 +606,17 @@ pub async fn set_http_port(port: u16) -> Result<(), String> {
     Ok(())
 }
 
-/// 清空文件上传记录
+/// 清空文件上传记录（同时清空关联的下载记录）
 #[tauri::command]
 pub async fn clear_sharing_file() -> u64 {
-    let result_count = upload_dao::remove_all(2).await.unwrap_or(0);
-    log::info!("清空文件上传记录{}条", result_count);
+    let result_count = upload_dao::remove_by_types(&[2, 4]).await.unwrap_or(0);
+    log::info!("清空文件和下载记录{}条", result_count);
     result_count
 }
 
 /// 获取文件上传历史记录
 #[tauri::command]
-pub async fn get_file_sharing_history() -> Result<Vec<crate::db::entity::UploadRecord>, String> {
+pub async fn get_file_sharing_history() -> Result<Vec<crate::db::entity::TransferRecord>, String> {
     match upload_dao::list_by_type(2).await {
         Ok(records) => Ok(records),
         Err(err) => {
@@ -346,7 +626,7 @@ pub async fn get_file_sharing_history() -> Result<Vec<crate::db::entity::UploadR
     }
 }
 
-/// 删除指定的文件上传记录
+/// 删除指定的文件上传记录（不关联下载记录）
 #[tauri::command]
 pub async fn delete_file_sharing_record(id: i64) -> Result<u64, String> {
     match upload_dao::remove(id).await {
@@ -358,14 +638,170 @@ pub async fn delete_file_sharing_record(id: i64) -> Result<u64, String> {
     }
 }
 
-/// 获取所有上传历史记录（文本+文件）
+/// 分页查询历史记录（支持游标、搜索、排序、类型过滤）
 #[tauri::command]
-pub async fn get_all_upload_history() -> Result<Vec<crate::db::entity::UploadRecord>, String> {
-    match upload_dao::list_all().await {
+pub async fn get_transfer_log(
+    cursor_id: Option<i64>,
+    limit: Option<i64>,
+    search: Option<String>,
+    sort_order: Option<String>,
+    action_types: Option<Vec<i64>>,
+) -> Result<PaginatedResult, String> {
+    let limit = limit.unwrap_or(20);
+    let sort_order = sort_order.unwrap_or_else(|| "desc".to_string());
+    let action_types_ref = action_types.as_deref();
+
+    match upload_dao::query_paginated(
+        cursor_id,
+        limit,
+        search.as_deref(),
+        &sort_order,
+        action_types_ref,
+    )
+    .await
+    {
+        Ok((records, has_more)) => Ok(PaginatedResult { records, has_more }),
+        Err(err) => {
+            log::error!("分页查询历史记录失败: {}", err);
+            Err(err.to_string())
+        }
+    }
+}
+
+/// 获取指定文本记录的复制记录
+#[tauri::command]
+pub async fn get_copy_records(source_id: i64) -> Result<Vec<crate::db::entity::TransferRecord>, String> {
+    match upload_dao::list_copies_by_source(source_id).await {
         Ok(records) => Ok(records),
         Err(err) => {
-            log::error!("获取所有上传历史记录失败: {}", err);
+            log::error!("获取复制记录失败: {}", err);
             Err(err.to_string())
+        }
+    }
+}
+
+// ===== 记录开关设置 =====
+
+/// 获取复制记录开关
+#[tauri::command]
+pub async fn get_record_copy_enabled() -> Result<bool, String> {
+    match config_dao::get_config_value("record_copy_enabled").await {
+        Ok(Some(value)) => Ok(value.parse::<bool>().unwrap_or(false)),
+        Ok(None) => Ok(false),
+        Err(e) => {
+            log::warn!("获取复制记录设置失败: {}", e);
+            Ok(false)
+        }
+    }
+}
+
+/// 设置复制记录开关
+#[tauri::command]
+pub async fn set_record_copy_enabled(enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+    if let Err(e) = config_dao::set_config("record_copy_enabled", value).await {
+        log::error!("保存复制记录设置失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+    log::info!("复制记录设置已更新为: {}", enabled);
+    Ok(())
+}
+
+/// 获取下载记录开关
+#[tauri::command]
+pub async fn get_record_download_enabled() -> Result<bool, String> {
+    match config_dao::get_config_value("record_download_enabled").await {
+        Ok(Some(value)) => Ok(value.parse::<bool>().unwrap_or(false)),
+        Ok(None) => Ok(false),
+        Err(e) => {
+            log::warn!("获取下载记录设置失败: {}", e);
+            Ok(false)
+        }
+    }
+}
+
+/// 设置下载记录开关
+#[tauri::command]
+pub async fn set_record_download_enabled(enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+    if let Err(e) = config_dao::set_config("record_download_enabled", value).await {
+        log::error!("保存下载记录设置失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+    log::info!("下载记录设置已更新为: {}", enabled);
+    Ok(())
+}
+
+/// 在文件管理器中打开文件位置
+#[tauri::command]
+pub async fn open_file_location(filename: String) -> Result<(), String> {
+    // content 存储的是绝对路径，直接使用即可
+    let full_path = std::path::PathBuf::from(&filename);
+
+    if !full_path.exists() {
+        log::warn!("文件不存在: {}", filename);
+        return Err(format!("文件不存在: {}", filename));
+    }
+
+    let result = if cfg!(target_os = "windows") {
+        // Windows explorer 需要使用反斜杠
+        let win_path = full_path.to_string_lossy().replace('/', "\\");
+        std::process::Command::new("explorer")
+            .arg("/select,")
+            .arg(&win_path)
+            .spawn()
+    } else if cfg!(target_os = "macos") {
+        std::process::Command::new("open")
+            .arg("-R")
+            .arg(&full_path)
+            .spawn()
+    } else {
+        // Linux: open parent directory
+        let parent = full_path.parent().unwrap_or(&full_path);
+        std::process::Command::new("xdg-open")
+            .arg(parent)
+            .spawn()
+    };
+
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("无法打开文件位置: {}", e);
+            Err(format!("无法打开文件位置: {}", e))
+        }
+    }
+}
+
+/// 在文件管理器中打开文件夹
+#[tauri::command]
+pub async fn open_folder(path: String) -> Result<(), String> {
+    let full_path = std::path::PathBuf::from(&path);
+
+    if !full_path.exists() || !full_path.is_dir() {
+        log::warn!("文件夹不存在: {}", path);
+        return Err(format!("文件夹不存在: {}", path));
+    }
+
+    let result = if cfg!(target_os = "windows") {
+        let win_path = full_path.to_string_lossy().replace('/', "\\");
+        std::process::Command::new("explorer")
+            .arg(&win_path)
+            .spawn()
+    } else if cfg!(target_os = "macos") {
+        std::process::Command::new("open")
+            .arg(&full_path)
+            .spawn()
+    } else {
+        std::process::Command::new("xdg-open")
+            .arg(&full_path)
+            .spawn()
+    };
+
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("无法打开文件夹: {}", e);
+            Err(format!("无法打开文件夹: {}", e))
         }
     }
 }
@@ -394,6 +830,41 @@ pub async fn set_language(language: String) -> Result<(), String> {
     Ok(())
 }
 
+/// 更新托盘菜单文本（前端语言切换后同步托盘菜单）
+#[tauri::command]
+pub fn update_tray_menu(
+    show: String,
+    settings: String,
+    quit: String,
+) -> Result<(), String> {
+    crate::tray::update_tray_menu_texts(&show, &settings, &quit)
+}
+
+/// 获取主题色设置（JSON: {"h":218,"s":100,"l":39}）
+#[tauri::command]
+pub async fn get_theme_color() -> Result<String, String> {
+    match config_dao::get_config_value("theme_color").await {
+        Ok(Some(value)) => Ok(value),
+        Ok(None) => Ok("{\"h\":210,\"s\":100,\"l\":40}".to_string()),
+        Err(e) => {
+            log::warn!("获取主题色设置失败: {}", e);
+            Ok("{\"h\":210,\"s\":100,\"l\":40}".to_string())
+        }
+    }
+}
+
+/// 设置主题色
+#[tauri::command]
+pub async fn set_theme_color(h: u16, s: u16, l: u16) -> Result<(), String> {
+    let value = serde_json::json!({"h": h, "s": s, "l": l}).to_string();
+    if let Err(e) = config_dao::set_config("theme_color", &value).await {
+        log::error!("保存主题色设置到数据库失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+    log::info!("主题色已更新为: {}", value);
+    Ok(())
+}
+
 /// 获取主题设置
 #[tauri::command]
 pub async fn get_theme_setting() -> Result<String, String> {
@@ -419,4 +890,259 @@ pub async fn set_theme_setting(theme: String) -> Result<(), String> {
     }
     log::info!("主题设置已更新为: {}", theme);
     Ok(())
+}
+
+// ===== 检查更新 =====
+
+#[derive(Debug, Serialize)]
+pub struct UpdateCheckResult {
+    pub has_update: bool,
+    pub latest_version: String,
+    pub release_notes: String,
+    pub download_url: String,
+    pub error: Option<String>,
+}
+
+/// 获取当前应用版本号（从 Cargo.toml 编译时读取）
+#[tauri::command]
+pub fn get_app_version() -> String {
+    format!("v{}", env!("CARGO_PKG_VERSION"))
+}
+
+/// 获取开源仓库地址
+#[tauri::command]
+pub fn get_repo_url() -> String {
+    crate::config::config::REPO_URL.to_string()
+}
+
+/// 检查 GitHub 上是否有新版本
+#[tauri::command]
+pub async fn check_update() -> UpdateCheckResult {
+    let current = env!("CARGO_PKG_VERSION");
+    let releases_url = format!("{}/releases", crate::config::config::REPO_URL);
+    let client = match reqwest::Client::builder()
+        .user_agent("lan-share")
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            log::error!("创建 HTTP 客户端失败: {}", e);
+            return UpdateCheckResult {
+                has_update: false,
+                latest_version: String::new(),
+                release_notes: String::new(),
+                download_url: releases_url.clone(),
+                error: Some(format!("创建 HTTP 客户端失败: {}", e)),
+            };
+        }
+    };
+
+    let resp = match client
+        .get(crate::config::config::REPO_API.to_string() + "/releases/latest")
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            let detail = if let Some(source) = e.source() {
+                format!("{} (原因: {})", e, source)
+            } else {
+                format!("{}", e)
+            };
+            log::error!("检查更新网络请求失败: {}", detail);
+            return UpdateCheckResult {
+                has_update: false,
+                latest_version: String::new(),
+                release_notes: String::new(),
+                download_url: releases_url.clone(),
+                error: Some(format!("网络请求失败: {}", detail)),
+            };
+        }
+    };
+
+    if !resp.status().is_success() {
+        return UpdateCheckResult {
+            has_update: false,
+            latest_version: String::new(),
+            release_notes: String::new(),
+            download_url: releases_url.clone(),
+            error: Some(format!("GitHub API 返回异常状态码: {}", resp.status())),
+        };
+    }
+
+    let body: Result<serde_json::Value, _> = resp.json().await;
+    let body = match body {
+        Ok(b) => b,
+        Err(e) => {
+            return UpdateCheckResult {
+                has_update: false,
+                latest_version: String::new(),
+                release_notes: String::new(),
+                download_url: releases_url.clone(),
+                error: Some(format!("解析响应数据失败: {}", e)),
+            };
+        }
+    };
+
+    let tag_name = body["tag_name"].as_str().unwrap_or("");
+    let latest_version = tag_name.trim_start_matches('v');
+    let release_notes = body["body"].as_str().unwrap_or("");
+    let html_url = body["html_url"].as_str().unwrap_or(&releases_url);
+
+    let has_update = compare_versions(latest_version, current);
+
+    UpdateCheckResult {
+        has_update,
+        latest_version: format!("v{}", latest_version),
+        release_notes: release_notes.to_string(),
+        download_url: html_url.to_string(),
+        error: None,
+    }
+}
+
+/// 获取排除系统元数据文件开关状态（默认开启）
+#[tauri::command]
+pub async fn get_exclude_system_files() -> Result<bool, String> {
+    match config_dao::get_config_value("exclude_system_files").await {
+        Ok(Some(value)) => Ok(value.parse::<bool>().unwrap_or(true)),
+        Ok(None) => Ok(true),
+        Err(e) => {
+            log::warn!("获取排除系统文件设置失败: {}", e);
+            Ok(true)
+        }
+    }
+}
+
+/// 设置排除系统元数据文件开关
+#[tauri::command]
+pub async fn set_exclude_system_files(enabled: bool) -> Result<(), String> {
+    let value = if enabled { "true" } else { "false" };
+    config_dao::set_config("exclude_system_files", value)
+        .await
+        .map_err(|e| {
+            log::error!("保存排除系统文件设置失败: {}", e);
+            format!("保存配置失败: {}", e)
+        })?;
+    crate::config::config::reload_exclude_filter().await;
+    log::info!("排除系统文件设置已更新为: {}", enabled);
+    Ok(())
+}
+
+/// 获取自定义排除规则列表（JSON 字符串数组）
+#[tauri::command]
+pub async fn get_exclude_patterns() -> Result<Vec<String>, String> {
+    match config_dao::get_config_value("exclude_patterns").await {
+        Ok(Some(value)) => Ok(serde_json::from_str(&value).unwrap_or_default()),
+        Ok(None) => Ok(Vec::new()),
+        Err(e) => {
+            log::warn!("获取排除规则列表失败: {}", e);
+            Ok(Vec::new())
+        }
+    }
+}
+
+/// 设置自定义排除规则列表
+#[tauri::command]
+pub async fn set_exclude_patterns(patterns: Vec<String>) -> Result<(), String> {
+    let json = serde_json::to_string(&patterns).unwrap_or_else(|_| "[]".to_string());
+    config_dao::set_config("exclude_patterns", &json)
+        .await
+        .map_err(|e| {
+            log::error!("保存排除规则列表失败: {}", e);
+            format!("保存配置失败: {}", e)
+        })?;
+    crate::config::config::reload_exclude_filter().await;
+    log::info!("排除规则列表已更新");
+    Ok(())
+}
+
+/// 一次性获取所有设置（减少 IPC 调用次数）
+#[tauri::command]
+pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
+    use tauri_plugin_autostart::ManagerExt;
+
+    let keys = &[
+        "file_sharing_root_dir",
+        "upload_enabled",
+        "rename_file_enabled",
+        "rename_folder_enabled",
+        "delete_file_enabled",
+        "delete_folder_enabled",
+        "upload_overwrite_enabled",
+        "record_copy_enabled",
+        "record_download_enabled",
+        "autostart_minimized",
+        "http_port",
+        "theme_setting",
+        "theme_color",
+        "language",
+        "exclude_system_files",
+        "exclude_patterns",
+        "delete_to_trash",
+    ];
+    let configs = config_dao::get_config_values(keys).await;
+
+    log::info!(
+        "[get_all_settings] raw configs from DB: upload_enabled={:?}, configs len={}",
+        configs.get("upload_enabled"),
+        configs.len(),
+    );
+
+    let sharing_directory = match configs.get("file_sharing_root_dir") {
+        Some(path) => path.clone(),
+        None => {
+            let sharing_root = crate::config::config::get_sharing_root().await;
+            crate::utils::path::normalize_path(&(*sharing_root))
+        }
+    };
+
+    let autostart = app.autolaunch().is_enabled().unwrap_or(false);
+
+    let result = AllSettings {
+        sharing_directory,
+        upload_enabled: configs.get("upload_enabled").map(|v| v == "true").unwrap_or(false),
+        rename_file_enabled: configs.get("rename_file_enabled").map(|v| v == "true").unwrap_or(false),
+        rename_folder_enabled: configs.get("rename_folder_enabled").map(|v| v == "true").unwrap_or(false),
+        delete_file_enabled: configs.get("delete_file_enabled").map(|v| v == "true").unwrap_or(false),
+        delete_folder_enabled: configs.get("delete_folder_enabled").map(|v| v == "true").unwrap_or(false),
+        upload_overwrite_enabled: configs.get("upload_overwrite_enabled").map(|v| v == "true").unwrap_or(false),
+        record_copy_enabled: configs.get("record_copy_enabled").map(|v| v == "true").unwrap_or(false),
+        record_download_enabled: configs.get("record_download_enabled").map(|v| v == "true").unwrap_or(false),
+        autostart,
+        autostart_minimized: configs.get("autostart_minimized").map(|v| v == "true").unwrap_or(false),
+        http_port: configs.get("http_port").and_then(|v| v.parse::<u16>().ok()).unwrap_or(3000),
+        theme_setting: configs.get("theme_setting").cloned().unwrap_or_else(|| "system".to_string()),
+        theme_color: configs.get("theme_color").cloned().unwrap_or_else(|| "{\"h\":210,\"s\":100,\"l\":40}".to_string()),
+        language: configs.get("language").cloned().unwrap_or_default(),
+        exclude_system_files: configs.get("exclude_system_files").map(|v| v == "true").unwrap_or(true),
+        exclude_patterns: configs.get("exclude_patterns").and_then(|v| serde_json::from_str(v).ok()).unwrap_or_default(),
+        delete_to_trash: configs.get("delete_to_trash").map(|v| v == "true").unwrap_or(true),
+    };
+
+    log::debug!(
+        "[get_all_settings] returning upload_enabled={}",
+        result.upload_enabled,
+    );
+    result
+}
+
+/// 比较两个版本号。latest > current 返回 true
+fn compare_versions(latest: &str, current: &str) -> bool {
+    let parse = |v: &str| -> Vec<u32> {
+        v.trim_start_matches('v')
+            .split('.')
+            .filter_map(|s| s.parse::<u32>().ok())
+            .collect()
+    };
+    let latest_parts = parse(latest);
+    let current_parts = parse(current);
+    for (l, c) in latest_parts.iter().zip(current_parts.iter()) {
+        if l > c {
+            return true;
+        } else if l < c {
+            return false;
+        }
+    }
+    latest_parts.len() > current_parts.len()
 }
