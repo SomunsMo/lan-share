@@ -59,13 +59,17 @@ pub fn error(
     })
     .expect("JSON serialization failed");
 
-    let body = GenericResponseBody::String(res_json);
+    let body = GenericResponseBody::String(res_json.clone());
 
     let mut response = Response::new(body);
     *response.status_mut() = status;
     response.headers_mut().insert(
         header::CONTENT_TYPE,
         "application/json; charset=utf-8".parse().unwrap(),
+    );
+    response.headers_mut().insert(
+        header::CONTENT_LENGTH,
+        res_json.len().to_string().parse().unwrap(),
     );
     Ok(response)
 }
@@ -85,11 +89,16 @@ pub fn not_found() -> Result<Response<GenericResponseBody>, std::convert::Infall
     let html_content = fs::read_to_string(&custom_html_path)
         // 无自定义404页面，降级使用默认提示文本
         .unwrap_or_else(|_| "404 Not Found（页面不存在）".to_string());
-    let mut response = Response::new(GenericResponseBody::String(html_content));
+    let body = GenericResponseBody::String(html_content.clone());
+    let mut response = Response::new(body);
     *response.status_mut() = StatusCode::NOT_FOUND;
     response.headers_mut().insert(
         header::CONTENT_TYPE,
         "text/html; charset=utf-8".parse().unwrap(),
+    );
+    response.headers_mut().insert(
+        header::CONTENT_LENGTH,
+        html_content.len().to_string().parse().unwrap(),
     );
     Ok(response)
 }

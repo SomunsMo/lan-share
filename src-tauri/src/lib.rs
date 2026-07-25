@@ -22,6 +22,7 @@ pub mod http_server {
     pub mod responses;
     pub mod path_handler {
         pub mod file_sharing_handler;
+        pub mod image_sharing_handler;
         pub mod record_handler;
         pub mod text_sharing_handler;
         pub mod web_handler;
@@ -320,6 +321,7 @@ pub fn run() {
                 if let Err(e) = crate::config::config::init_sharing_root_from_config().await {
                     error!("初始化共享根目录失败: {}", e);
                 }
+                crate::config::config::init_image_sharing_dir_from_config().await;
                 crate::config::config::reload_exclude_filter().await;
             });
 

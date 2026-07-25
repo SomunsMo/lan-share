@@ -70,7 +70,7 @@ async fn init_table() {
         .unwrap();
 
     // 传输记录表（统一存储上传/下载/复制记录）
-    // action_type: 1=文本分享, 2=文件分享, 3=文本复制, 4=文件下载
+    // action_type: 1=文本分享, 2=文件分享, 3=文本复制, 4=文件下载, 5=图片分享
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS transfer_record (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,12 +79,34 @@ async fn init_table() {
             source_id INTEGER,
             ip TEXT NOT NULL,
             is_overwrite INTEGER NOT NULL DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            share_count INTEGER NOT NULL DEFAULT 1
         )",
     )
     .execute(get_pool())
     .await
     .unwrap();
+
+    // 兼容旧表结构：ALTER TABLE ADD COLUMN 不允许非常量 DEFAULT，分步处理
+    // share_count: 常量 1，可以带 NOT NULL DEFAULT
+    if let Err(e) = sqlx::query("ALTER TABLE transfer_record ADD COLUMN share_count INTEGER NOT NULL DEFAULT 1").execute(get_pool()).await {
+        let msg = e.to_string().to_lowercase();
+        if !msg.contains("duplicate column") {
+            panic!("数据库迁移失败(share_count): {}", e);
+        }
+    }
+    // updated_at: CURRENT_TIMESTAMP 是函数不是常量，先加列再设值
+    if let Err(e) = sqlx::query("ALTER TABLE transfer_record ADD COLUMN updated_at DATETIME").execute(get_pool()).await {
+        let msg = e.to_string().to_lowercase();
+        if !msg.contains("duplicate column") {
+            panic!("数据库迁移失败(updated_at): {}", e);
+        }
+    } else {
+        // 新加的列，给旧记录补充初始值
+        sqlx::query("UPDATE transfer_record SET updated_at = created_at WHERE updated_at IS NULL")
+            .execute(get_pool()).await.unwrap();
+    }
 
     // 迁移旧数据（upload_record → transfer_record）
     migrate_old_data().await;

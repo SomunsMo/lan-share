@@ -19,4 +19,6 @@ pub struct TransferRecord {
     pub(crate) ip: String,
     pub(crate) is_overwrite: i64,
     pub(crate) created_at: String,
+    pub(crate) updated_at: String,
+    pub(crate) share_count: i64,
 }

@@ -52,11 +52,11 @@ pub async fn upload_text(
     success_json(())
 }
 
-/// 获取已被记录的共享文本
-#[get("/upload/text")]
-pub async fn text_history(
+/// 获取上传记录（文本+图片）
+#[get("/upload/records")]
+pub async fn upload_records(
     _req: Request<Incoming>,
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
-    let records = upload_dao::list_by_type(1).await.unwrap();
+    let records = upload_dao::list_by_types(&[1, 5]).await.unwrap();
     success_json(records)
 }
