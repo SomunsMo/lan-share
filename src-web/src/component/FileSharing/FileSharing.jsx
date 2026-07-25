@@ -132,6 +132,9 @@ function FileSharing() {
     // 磁盘空间信息
     const [diskSpace, setDiskSpace] = useState({total_space: 0, available_space: 0});
 
+    // 移动端检测
+    const [isMobile, setIsMobile] = useState(false);
+
     const preprocessSharedFileList = (sfl) => {
         sfl.forEach(v => {
             if (v.is_dir) {
@@ -249,6 +252,15 @@ function FileSharing() {
             {is_dir: false, modified: "2025/01/01 00:00:00", name: "测试.exe", size: 6197565}
         ])
 
+    }, []);
+
+    // 移动端检测
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 767px)');
+        setIsMobile(mq.matches);
+        const handler = (e) => setIsMobile(e.matches);
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
     }, []);
 
     const fileSelectorHandler = async (e) => {
@@ -524,6 +536,35 @@ function FileSharing() {
         setContextMenu({visible: false, x: 0, y: 0, item: null});
     };
 
+    // 显示文件详情
+    const showFileDetails = (item) => {
+        showDialog({
+            title: t('fileSharing.dialog.detailsTitle'),
+            content: (
+                <table className="detailTable">
+                    <tbody>
+                        <tr>
+                            <td className="detailLabel">{t('fileSharing.dialog.detailName')}</td>
+                            <td className="detailValue">{item.name}</td>
+                        </tr>
+                        <tr>
+                            <td className="detailLabel">{t('fileSharing.dialog.detailType')}</td>
+                            <td className="detailValue">{item.is_dir ? t('fileSharing.dialog.detailFolder') : ('.' + item.suffix)}</td>
+                        </tr>
+                        <tr>
+                            <td className="detailLabel">{t('fileSharing.dialog.detailSize')}</td>
+                            <td className="detailValue">{item.is_dir ? '-' : formatFileSize(item.size, 1)}</td>
+                        </tr>
+                        <tr>
+                            <td className="detailLabel">{t('fileSharing.dialog.detailModified')}</td>
+                            <td className="detailValue">{item.modified}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            ),
+        });
+    };
+
     // 长按计时器
     const longPressTimerRef = useRef(null);
 
@@ -580,7 +621,8 @@ function FileSharing() {
         let x = contextMenu.x - 10;
         let y = contextMenu.y;
         const menuWidth = 140;
-        const menuHeight = contextMenu.item?.is_dir ? 192 : 160;
+        const extraItem = isMobile ? 34 : 0;
+        const menuHeight = (contextMenu.item?.is_dir ? 192 : 160) + extraItem;
 
         if (x + menuWidth > window.innerWidth) {
             x = window.innerWidth - menuWidth - 8;
@@ -751,6 +793,17 @@ function FileSharing() {
                             }}
                             onClick={(e) => e.stopPropagation()}
                         >
+                            {isMobile && (
+                                <div
+                                    className="context-menu-item"
+                                    onClick={() => {
+                                        showFileDetails(item);
+                                        hideContextMenu();
+                                    }}
+                                >
+                                    {t('fileSharing.action.details')}
+                                </div>
+                            )}
                             {item.is_dir && (
                                 <div
                                     className="context-menu-item"

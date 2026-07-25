@@ -35,6 +35,7 @@
     "uploadBtn": "上传文件",
     "batchDownload": "批量下载",
     "action": {
+      "details": "查看详情",
       "copyLink": "复制链接",
       "download": "下载",
       "rename": "重命名",
@@ -69,12 +70,29 @@
       "deleteFileContent": "确定要删除文件 \"{{name}}\" 吗？",
       "deleteFolderContent": "确定要删除文件夹 \"{{name}}\" 及其所有内容吗？",
       "buttonOverwrite": "覆盖",
-      "buttonDelete": "删除"
+      "buttonDelete": "删除",
+      "detailsTitle": "文件详情",
+      "detailName": "文件名称",
+      "detailType": "类型",
+      "detailSize": "大小",
+      "detailModified": "修改时间",
+      "detailFolder": "文件夹"
     }
+  },
+  "recordList": {
+    "filter": {
+      "all": "全部",
+      "text": "文本",
+      "image": "图片"
+    },
+    "noRecords": "暂无记录"
+  },
+  "imageSharing": {
+    "hintDesktop": "右键复制图片即可复制到剪切板",
+    "hintMobile": "长按图片后可选择下载图片"
   },
   "textSharing": {
     "sendBtn": "发送文本",
-    "tips": "说明：双击文本复制",
     "contextMenu": {
       "copy": "复制"
     },

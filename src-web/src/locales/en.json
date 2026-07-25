@@ -35,6 +35,7 @@
     "uploadBtn": "Upload Files",
     "batchDownload": "Batch Download",
     "action": {
+      "details": "Details",
       "copyLink": "Copy Link",
       "download": "Download",
       "rename": "Rename",
@@ -69,12 +70,29 @@
       "deleteFileContent": "Are you sure you want to delete file \"{{name}}\"?",
       "deleteFolderContent": "Are you sure you want to delete folder \"{{name}}\" and all its contents?",
       "buttonOverwrite": "Overwrite",
-      "buttonDelete": "Delete"
+      "buttonDelete": "Delete",
+      "detailsTitle": "File Details",
+      "detailName": "Name",
+      "detailType": "Type",
+      "detailSize": "Size",
+      "detailModified": "Modified",
+      "detailFolder": "Folder"
     }
+  },
+  "recordList": {
+    "filter": {
+      "all": "All",
+      "text": "Text",
+      "image": "Image"
+    },
+    "noRecords": "No records"
+  },
+  "imageSharing": {
+    "hintDesktop": "Right-click to copy image",
+    "hintMobile": "Long-press image to download"
   },
   "textSharing": {
     "sendBtn": "Send Text",
-    "tips": "Tip: Double-click text to copy",
     "contextMenu": {
       "copy": "Copy"
     },

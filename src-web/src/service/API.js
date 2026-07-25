@@ -1,10 +1,10 @@
 import request from "./MyAxios.js";
 
-// 获取共享文本列表
-export const getTextSharingAPI = () => {
+// 获取上传记录（文本+图片）
+export const getUploadRecordsAPI = () => {
     return request({
         method: "GET",
-        url: "/upload/text"
+        url: "/upload/records"
     });
 }
 
