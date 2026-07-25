@@ -13,7 +13,7 @@
   },
   "route": {
     "home": "主页",
-    "textSharing": "共享文本",
+    "textSharing": "共享文图",
     "history": "传输日志",
     "settings": "设置",
     "about": "关于"
@@ -67,6 +67,8 @@
       "languageDesc": "选择界面语言",
       "shareRoot": "共享根目录",
       "shareRootDesc": "对外提供文件共享服务的根目录",
+      "imageShareDir": "图片共享暂存目录",
+      "imageShareDirDesc": "图片共享文件的临时存储路径",
       "webUpload": "网页端上传",
       "webUploadDesc": "允许通过 Web 上传文件",
       "uploadOverwrite": "上传可覆盖",
@@ -114,7 +116,10 @@
       "saveFailed": "保存{{name}}设置失败: {{error}}",
       "selectFailed": "选择文件夹失败: {{error}}",
       "patternDuplicate": "规则已存在",
-      "patternInvalid": "正则表达式无效"
+      "patternInvalid": "正则表达式无效",
+      "migrateFailed": "迁移图片文件失败: {{error}}",
+      "dirChanged": "图片暂存目录已更新",
+      "openDirFailed": "打开目录失败: {{error}}"
     },
     "dialog": {
       "changePort": {
@@ -128,8 +133,9 @@
       }
     },
     "labels": {
-      "browse": "浏览",
-      "clickToSelect": "点击选择目录"
+      "browse": "更改",
+      "clickToSelect": "点击选择目录",
+      "openDir": "打开目录"
     }
   },
   "history": {
@@ -138,16 +144,21 @@
     "filterAll": "全部",
     "filterFiles": "文件",
     "filterText": "文本",
+    "filterImages": "共享图",
     "type": {
       "text": "文本",
-      "file": "文件"
+      "file": "文件",
+      "image": "图片"
     },
     "typeLabel": {
       "text": "分享文本",
       "upload": "上传文件",
-      "download": "下载文件"
+      "download": "下载文件",
+      "image": "共享图片"
     },
     "detailTitle": "记录详情",
+    "detailCreatedTime": "创建时间",
+    "detailUpdatedTime": "修改时间",
     "noPreview": "（不支持预览文件）",
     "noCopyRecords": "暂无复制记录",
     "copyRecordsTitle": "复制记录",
@@ -224,7 +235,7 @@
     "quit": "退出"
   },
   "textSharing": {
-    "pageTitle": "共享文本",
+    "pageTitle": "共享文图",
     "pageDesc": "共享文本后，局域网内其他设备可通过浏览器查看或复制",
     "deleteCascadeWarning": "删除该记录会导致相关的复制记录也会被删除",
     "clearButton": "清空",
@@ -235,13 +246,34 @@
     "detailTime": "时间",
     "detailIp": "来源 IP",
     "detailContent": "内容",
-    "placeholder": "请输入要分享的文本",
+    "placeholder": "输入文本或粘贴图片",
     "shareButton": "共享",
     "contextMenu": {
       "viewDetail": "查看详情",
       "copyContent": "复制内容",
       "copyIp": "复制 IP",
       "deleteRecord": "删除记录"
+    }
+  },
+  "imageSharing": {
+    "dirConfigTitle": "更改图片暂存路径",
+    "dirConfigContent": "是否要自定义图片共享暂存路径？\n不设置将使用默认路径。",
+    "dirConfigButton": "选择路径",
+    "selectDirTitle": "选择图片暂存目录",
+    "dirMigrateContent": "新路径：{{path}}",
+    "dirMigrateHint": "仅同意迁移后，配置才会更新并保存",
+    "cancelChange": "取消更改",
+    "confirmMigrate": "同意并迁移",
+    "pasteTitle": "检测到剪贴板图片",
+    "shareButton": "共享",
+    "detailTitle": "图片详情",
+    "detailFileName": "文件名",
+    "detailSha256": "SHA256",
+    "detailSize": "大小",
+    "copyImageButton": "复制图片",
+    "contextMenu": {
+      "copyImage": "复制图片",
+      "viewImage": "查看图片"
     }
   }
 }

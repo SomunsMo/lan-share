@@ -5,11 +5,11 @@ import {QRCodeSVG} from "qrcode.react";
 import {open} from '@tauri-apps/plugin-dialog';
 import {useDialog} from "@/components/dialog/index.jsx";
 import {useTranslation} from "react-i18next";
-import copy from 'copy-to-clipboard';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import {useToast} from "@/components/toast/index.jsx";
+import {copyText} from "../../utils/copyText.js";
 
 function Home() {
     const { t } = useTranslation();
@@ -88,10 +88,14 @@ function Home() {
         invoke("get_device_name").then(name => setDeviceName(name)).catch(() => {});
     }, []);
 
-    const copyUrl = () => {
+    const copyUrl = async () => {
         const addr = webUrl ? webUrl.replace('http://', '') : '';
-        copy(addr);
-        showToast({message: t('common.toast.copied'), type: 'success'});
+        try {
+            await copyText(addr);
+            showToast({message: t('common.toast.copied'), type: 'success'});
+        } catch (err) {
+            console.error('复制失败:', err);
+        }
     }
 
     const ipAddr = useMemo(() => webUrl ? webUrl.split('/')[2].split(':')[0] : '', [webUrl]);
@@ -142,7 +146,7 @@ function Home() {
                             <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.deviceName') || 'Device Name'}</Typography>
                             <Typography
                                 title={t('home.copyTooltip')}
-                                onClick={() => { copy(deviceName); showToast({message: t('common.toast.copied'), type: 'success'}); }}
+                                onClick={async () => { try { await copyText(deviceName); showToast({message: t('common.toast.copied'), type: 'success'}); } catch (err) { console.error('复制失败:', err); } }}
                                 sx={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--on-surface)', cursor: 'pointer', '&:hover': { color: 'var(--primary)' } }}
                             >{deviceName}</Typography>
                         </Box>

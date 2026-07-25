@@ -126,6 +126,7 @@ const TextSharingManagerStyle = styled.div`
         box-shadow: var(--shadow-sm);
         transition: box-shadow var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
         position: relative;
+        cursor: pointer;
     }
 
     .history-card:hover {
@@ -212,6 +213,54 @@ const TextSharingManagerStyle = styled.div`
     }
 
 
+
+    .history-card.image-card .card-image-preview {
+        padding: 8px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 80px;
+        background: var(--surface-container);
+        border-radius: var(--radius);
+        cursor: pointer;
+    }
+
+    .history-card.image-card .card-image-preview img {
+        max-width: 100%;
+        max-height: 200px;
+        object-fit: contain;
+        border-radius: 4px;
+    }
+
+    .paste-dialog-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .paste-dialog-box {
+        background: var(--surface-container-high);
+        border-radius: var(--radius-md);
+        padding: 24px;
+        min-width: 320px;
+        max-width: 500px;
+    }
+
+    .paste-preview {
+        text-align: center;
+        margin: 12px 0;
+    }
+
+    .dialog-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 16px;
+    }
 
     .context-menu {
         position: fixed;
