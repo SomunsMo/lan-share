@@ -20,7 +20,7 @@
 | **文件共享** | 选择共享目录后，局域网内任何设备通过浏览器浏览、下载文件 |
 | **目录上传** | 浏览器端支持选择目录或文件上传到宿主机指定路径 |
 | **文本速传** | 桌面端粘贴文本，浏览器端直接查看/复制，免去 IM 转发的麻烦 |
-| **自定义端口** | 桌面端可自由配置 HTTP 端口，默认 3000，端口被占用时有自动检测提示 |
+| **自定义端口** | 桌面端可自由配置 HTTP 端口，默认 6633，端口被占用时有自动检测提示 |
 | **安全防护** | 路径穿越拦截、文件名危险字符过滤、各类操作（上传/重命名/删除/覆写）均需在桌面端显式开启 |
 | **自定义主题** | 支持亮色/暗色主题切换，桌面端与 Web 端独立设置 |
 | **国际化** | 支持中文和英文，自动检测系统语言，用户可手动选择切换 — 桌面端持久化到 SQLite，Web 端持久化到 localStorage |
@@ -54,7 +54,7 @@ pnpm tauri build
 ### 使用流程
 
 1. 启动桌面端 → 在设置页选择**共享目录**并开启所需权限
-2. 桌面端主页显示局域网访问地址：`http://192.168.x.x:3000`
+2. 桌面端主页显示局域网访问地址：`http://192.168.x.x:6633`
 3. 同一局域网的其他设备打开浏览器访问该地址即可
 
 ## 原理
@@ -280,7 +280,7 @@ lan-share/
 
 ## IPC 命令
 
-桌面端 React UI 通过 Tauri IPC 调用 Rust 后端，25 个命令按功能分类：
+桌面端 React UI 通过 Tauri IPC 调用 Rust 后端，30 个命令按功能分类：
 
 ### 文本共享
 | 命令 | 说明 |
@@ -288,8 +288,16 @@ lan-share/
 | `get_local_ip` | 获取本机内网 IP |
 | `share_text_to_lan` | 分享文本到局域网 |
 | `get_text_sharing_history` | 获取文本分享历史 |
-| `delete_text_sharing_record` | 删除指定文本记录 |
-| `clear_sharing_text` | 清空所有文本分享记录 |
+| `delete_record` | 按 id 和 action_type 删除记录 |
+| `clear_sharing_text` | 清空所有分享记录（返回 `{text_count, image_count}`） |
+
+### 图片共享
+| 命令 | 说明 |
+|------|------|
+| `read_clipboard_image` | 读取剪贴板图片并共享到局域网 |
+| `copy_image_to_clipboard` | 按记录 id 将共享图片复制到本地剪贴板 |
+| `set_image_sharing_dir` | 设置图片共享存储目录 |
+| `migrate_image_sharing_dir` | 将图片从一个目录迁移到另一个目录 |
 
 ### 文件共享
 | 命令 | 说明 |
@@ -323,10 +331,11 @@ lan-share/
 | `get_autostart` / `set_autostart` | 获取/设置开机自启 |
 | `get_theme_setting` / `set_theme_setting` | 获取/设置主题（light / dark） |
 | `get_language` / `set_language` | 获取/设置语言（zh-CN / en） |
+| `get_all_settings` | 获取全部设置（含 image_sharing_dir） |
 
 ## 数据库
 
-SQLite 数据库文件位于 `{config_dir}/Somunsm/LanShare/config.db`，包含两张表：
+SQLite 数据库文件位于 `{config_dir}/Somunsm/LanShare/config.db`，包含三张表：
 
 ### `config` 表
 键值对配置存储。
@@ -346,6 +355,17 @@ SQLite 数据库文件位于 `{config_dir}/Somunsm/LanShare/config.db`，包含�
 | `content` | TEXT | 文本内容或文件路径 |
 | `ip` | TEXT | 来源 IP 地址 |
 | `is_overwrite` | INTEGER | 是否覆写（`0`/`1`） |
+| `created_at` | DATETIME | 创建时间 |
+
+### `transfer_record` 表
+传输日志（图片共享通过 `action_type=5` 查询）。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `action_type` | INTEGER | 类型：`1`=文本, `5`=图片 |
+| `content` | TEXT | 文本内容或图片元数据 JSON |
+| `ip` | TEXT | 来源 IP 地址 |
+| `id` | INTEGER | 主键 |
 | `created_at` | DATETIME | 创建时间 |
 
 ## 许可

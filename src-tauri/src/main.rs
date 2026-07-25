@@ -74,7 +74,7 @@ async fn init() {
         .ok()
         .flatten()
         .and_then(|v| v.parse::<u16>().ok())
-        .unwrap_or(3000);
+        .unwrap_or(6633);
     let _ = lan_share_lib::config::config::CONFIGURED_HTTP_PORT.set(port);
 }
 
