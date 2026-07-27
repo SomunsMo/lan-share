@@ -17,6 +17,7 @@ import Divider from '@mui/material/Divider';
 function Settings() {
     const { t, i18n } = useTranslation();
     const [selectedDirectory, setSelectedDirectory] = useState(t('settings.labels.clickToSelect'));
+    const [imageSharingDir, setImageSharingDir] = useState(t('settings.labels.clickToSelect'));
     const [uploadEnabled, setUploadEnabled] = useState(false);
     const [renameFileEnabled, setRenameFileEnabled] = useState(false);
     const [renameFolderEnabled, setRenameFolderEnabled] = useState(false);
@@ -92,6 +93,7 @@ function Settings() {
             try {
                 const s = await invoke('get_all_settings');
                 setSelectedDirectory(s.sharing_directory);
+                setImageSharingDir(s.image_sharing_dir);
                 setUploadEnabled(s.upload_enabled);
                 setRenameFileEnabled(s.rename_file_enabled);
                 setRenameFolderEnabled(s.rename_folder_enabled);
@@ -241,6 +243,63 @@ function Settings() {
         } catch (error) {
             console.error('选择文件夹时出错:', error);
             showToast({message: t('settings.toast.selectFailed', {error: error.message}), type: 'error'});
+        }
+    };
+
+    const selectImageDir = async () => {
+        try {
+            const selectedPath = await open({
+                directory: true,
+                multiple: false,
+                title: t('imageSharing.selectDirTitle')
+            });
+            if (!selectedPath) return;
+            if (selectedPath === imageSharingDir) return;
+
+            const confirmed = await showDialog({
+                title: t('imageSharing.dirConfigTitle'),
+                content: (
+                    <div>
+                        <p>{t('imageSharing.dirMigrateContent', {path: selectedPath})}</p>
+                        <p style={{ marginTop: 8, fontSize: '0.875rem', color: 'var(--on-surface-variant)' }}>{t('imageSharing.dirMigrateHint')}</p>
+                    </div>
+                ),
+                buttons: [
+                    {label: 'imageSharing.cancelChange', value: false},
+                    {label: 'imageSharing.confirmMigrate', value: true, primary: true},
+                ],
+            });
+            if (!confirmed) return;
+
+            try {
+                await invoke('migrate_image_sharing_dir', {from: imageSharingDir, to: selectedPath});
+            } catch (error) {
+                console.error('迁移图片文件失败:', error);
+                showToast({message: t('settings.toast.migrateFailed', {error: error.message}), type: 'error'});
+                return;
+            }
+
+            try {
+                await invoke('set_image_sharing_dir', {directoryPath: selectedPath});
+                setImageSharingDir(selectedPath);
+                showToast({message: t('settings.toast.dirChanged'), type: 'success'});
+            } catch (backendError) {
+                console.error('保存图片共享目录到后端失败:', backendError);
+                showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.imageShareDir'), error: backendError.message}), type: 'error'});
+            }
+        } catch (error) {
+            console.error('选择文件夹时出错:', error);
+            showToast({message: t('settings.toast.selectFailed', {error: error.message}), type: 'error'});
+        }
+    };
+
+    const openDirectory = async (dirPath) => {
+        if (!dirPath || dirPath === t('settings.labels.clickToSelect')) return;
+        try {
+            await invoke('open_folder', {path: dirPath});
+        } catch (error) {
+            console.error('打开目录失败:', error);
+            showToast({message: t('settings.toast.openDirFailed', {error: error.message}), type: 'error'});
         }
     };
 
@@ -581,6 +640,22 @@ function Settings() {
                         <div className="directory-row">
                             <TextField value={selectedDirectory} slotProps={{ input: { readOnly: true } }} sx={{ flex: 1, minWidth: 260, '& input': { fontSize: '0.875rem' } }} />
                             <Button variant="contained" size="small" onClick={selectDirectory} sx={{ '&:hover': { backgroundColor: 'var(--primary-hover)' } }}>{t('settings.labels.browse')}</Button>
+                            <Button variant="outlined" size="small" onClick={() => openDirectory(selectedDirectory)} sx={{ minWidth: 0, px: 1, '&:hover': { backgroundColor: 'var(--surface-container-highest)' } }} title={t('settings.labels.openDir')}>
+                                <svg viewBox="0 0 24 24" width="16" height="16" style={{fill:'none',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round'}}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                            </Button>
+                        </div>
+                    ),
+                },
+                {
+                    name: t('settings.option.imageShareDir'),
+                    desc: t('settings.option.imageShareDirDesc'),
+                    content: (
+                        <div className="directory-row">
+                            <TextField value={imageSharingDir} slotProps={{ input: { readOnly: true } }} sx={{ flex: 1, minWidth: 260, '& input': { fontSize: '0.875rem' } }} />
+                            <Button variant="contained" size="small" onClick={selectImageDir} sx={{ '&:hover': { backgroundColor: 'var(--primary-hover)' } }}>{t('settings.labels.browse')}</Button>
+                            <Button variant="outlined" size="small" onClick={() => openDirectory(imageSharingDir)} sx={{ minWidth: 0, px: 1, '&:hover': { backgroundColor: 'var(--surface-container-highest)' } }} title={t('settings.labels.openDir')}>
+                                <svg viewBox="0 0 24 24" width="16" height="16" style={{fill:'none',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round'}}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                            </Button>
                         </div>
                     ),
                 },

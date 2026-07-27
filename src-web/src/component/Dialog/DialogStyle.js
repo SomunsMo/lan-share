@@ -36,9 +36,10 @@ export const DialogCard = styled.div`
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  min-width: 320px;
-  max-width: 480px;
-  width: 90vw;
+  width: calc(100vw - 32px);
+  min-width: 280px;
+  max-width: 900px;
+  max-height: 85vh;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -47,6 +48,19 @@ export const DialogCard = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
+
+  @media (min-width: 600px) {
+    width: min(60vw, 600px);
+    min-width: 400px;
+  }
+  @media (min-width: 900px) {
+    width: min(50vw, 700px);
+    min-width: 450px;
+  }
+  @media (min-width: 1200px) {
+    width: min(45vw, 800px);
+    min-width: 500px;
+  }
 
   ${props => props.$exiting && `
     animation: none;
@@ -61,6 +75,7 @@ export const DialogHeader = styled.div`
   font-size: 0.94rem;
   font-weight: 600;
   color: var(--text-primary);
+  flex-shrink: 0;
 `;
 
 export const DialogBody = styled.div`
@@ -69,6 +84,10 @@ export const DialogBody = styled.div`
   line-height: 1.6;
   color: var(--text-secondary);
   word-break: break-word;
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 `;
 
 export const DialogInput = styled.input`
@@ -94,6 +113,7 @@ export const DialogFooter = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  flex-shrink: 0;
 `;
 
 export const DialogButton = styled.button`

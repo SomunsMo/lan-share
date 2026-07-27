@@ -11,7 +11,7 @@ pub async fn add(
     is_overwrite: bool,
 ) -> Result<i64, sqlx::Error> {
     let result = sqlx::query(
-        "INSERT INTO transfer_record (action_type, content, source_id, ip, is_overwrite) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO transfer_record (action_type, content, source_id, ip, is_overwrite, updated_at, share_count) VALUES (?, ?, ?, ?, ?, datetime('now','localtime'), 1)",
     )
     .bind(action_type)
     .bind(content)
@@ -67,11 +67,49 @@ pub async fn remove_by_types(types: &[i64]) -> Result<u64, sqlx::Error> {
     Ok(result.rows_affected())
 }
 
+/// 更新记录的 content
+pub async fn update_content(id: i64, content: &str) -> Result<u64, sqlx::Error> {
+    let result = sqlx::query("UPDATE transfer_record SET content = ? WHERE id = ?")
+        .bind(content)
+        .bind(id)
+        .execute(get_pool())
+        .await?;
+    Ok(result.rows_affected())
+}
+
+/// 按多个 action_type 查询记录
+pub async fn list_by_types(action_types: &[i64]) -> Result<Vec<TransferRecord>, Error> {
+    if action_types.is_empty() {
+        return Ok(Vec::new());
+    }
+    let placeholders: Vec<String> = action_types.iter().map(|_| "?".to_string()).collect();
+    let sql = format!(
+        "SELECT id, action_type, content, source_id, ip, is_overwrite, created_at, updated_at, share_count \
+         FROM transfer_record WHERE action_type IN ({}) ORDER BY updated_at DESC",
+        placeholders.join(",")
+    );
+    let mut query = sqlx::query_as::<_, TransferRecord>(&sql);
+    for t in action_types {
+        query = query.bind(t);
+    }
+    query.fetch_all(get_pool()).await
+}
+
+/// 查询指定类型的 id 和 content 列表
+pub async fn list_contents_by_type(action_type: i64) -> Result<Vec<(i64, String)>, Error> {
+    sqlx::query_as(
+        "SELECT id, content FROM transfer_record WHERE action_type = ? ORDER BY updated_at DESC",
+    )
+    .bind(action_type)
+    .fetch_all(get_pool())
+    .await
+}
+
 /// 根据 action_type 查询记录
 pub async fn list_by_type(action_type: i64) -> Result<Vec<TransferRecord>, Error> {
     sqlx::query_as(
-        "SELECT id, action_type, content, source_id, ip, is_overwrite, created_at
-         FROM transfer_record WHERE action_type = ? ORDER BY created_at DESC",
+        "SELECT id, action_type, content, source_id, ip, is_overwrite, created_at, updated_at, share_count
+         FROM transfer_record WHERE action_type = ? ORDER BY updated_at DESC",
     )
     .bind(action_type)
     .fetch_all(get_pool())
@@ -81,7 +119,7 @@ pub async fn list_by_type(action_type: i64) -> Result<Vec<TransferRecord>, Error
 /// 根据 id 获取单条记录
 pub async fn get_by_id(id: i64) -> Result<Option<TransferRecord>, Error> {
     sqlx::query_as(
-        "SELECT id, action_type, content, source_id, ip, is_overwrite, created_at
+        "SELECT id, action_type, content, source_id, ip, is_overwrite, created_at, updated_at, share_count
          FROM transfer_record WHERE id = ?",
     )
     .bind(id)
@@ -130,8 +168,8 @@ pub async fn query_paginated(
     let order = if sort_order == "asc" { "ASC" } else { "DESC" };
 
     let sql = format!(
-        "SELECT id, action_type, content, source_id, ip, is_overwrite, created_at \
-         FROM transfer_record {} ORDER BY created_at {}, id {} LIMIT ?",
+        "SELECT id, action_type, content, source_id, ip, is_overwrite, created_at, updated_at, share_count \
+         FROM transfer_record {} ORDER BY updated_at {}, id {} LIMIT ?",
         where_clause, order, order
     );
 
@@ -169,10 +207,50 @@ pub async fn query_paginated(
 /// 查询某条文本记录的复制记录
 pub async fn list_copies_by_source(source_id: i64) -> Result<Vec<TransferRecord>, Error> {
     sqlx::query_as(
-        "SELECT id, action_type, content, source_id, ip, is_overwrite, created_at
-         FROM transfer_record WHERE action_type = 3 AND source_id = ? ORDER BY created_at DESC",
+        "SELECT id, action_type, content, source_id, ip, is_overwrite, created_at, updated_at, share_count
+         FROM transfer_record WHERE action_type = 3 AND source_id = ? ORDER BY updated_at DESC",
     )
     .bind(source_id)
     .fetch_all(get_pool())
+    .await
+}
+
+/// 按 sha256 和 size 查找已存在的图片记录（通过 JSON content 字段）
+pub async fn find_image_by_sha256_size(sha256: &str, size: i64) -> Result<Option<TransferRecord>, Error> {
+    sqlx::query_as(
+        "SELECT id, action_type, content, source_id, ip, is_overwrite, created_at, updated_at, share_count
+         FROM transfer_record
+         WHERE action_type = 5
+           AND json_extract(content, '$.sha256') = ?
+           AND json_extract(content, '$.size') = ?
+         LIMIT 1",
+    )
+    .bind(sha256)
+    .bind(size)
+    .fetch_optional(get_pool())
+    .await
+}
+
+/// 刷新记录的 updated_at 并递增 share_count
+pub async fn bump_record(id: i64) -> Result<u64, sqlx::Error> {
+    let result = sqlx::query(
+        "UPDATE transfer_record SET updated_at = datetime('now','localtime'), share_count = share_count + 1 WHERE id = ?",
+    )
+    .bind(id)
+    .execute(get_pool())
+    .await?;
+    Ok(result.rows_affected())
+}
+
+/// 按文本内容查找已存在的文本共享记录（action_type = 1）
+pub async fn find_text_by_content(text_data: &str) -> Result<Option<TransferRecord>, Error> {
+    sqlx::query_as(
+        "SELECT id, action_type, content, source_id, ip, is_overwrite, created_at, updated_at, share_count
+         FROM transfer_record
+         WHERE action_type = 1 AND content = ?
+         LIMIT 1",
+    )
+    .bind(text_data)
+    .fetch_optional(get_pool())
     .await
 }

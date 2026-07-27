@@ -20,7 +20,7 @@
 | **File Sharing** | Select a shared directory; any device on the LAN can browse and download files via browser |
 | **Directory Upload** | Upload directories or files from the browser to the host's specified path |
 | **Quick Text Share** | Paste text on the desktop, view/copy it directly from the browser — no IM forwarding needed |
-| **Custom Port** | Configure the HTTP port freely from the desktop (default 3000); auto-detect and warn if the port is occupied |
+| **Custom Port** | Configure the HTTP port freely from the desktop (default 6633); auto-detect and warn if the port is occupied |
 | **Security** | Path traversal protection, dangerous filename character filtering; all operations (upload/rename/delete/overwrite) must be explicitly enabled from the desktop |
 | **Custom Theme** | Toggle between light/dark themes, independently for desktop and web |
 | **Internationalization** | Supports Chinese and English; automatically detects system language with manual selection override — desktop persists to SQLite, web persists to localStorage |
@@ -281,7 +281,7 @@ lan-share/
 
 ## IPC Commands
 
-The desktop React UI calls the Rust backend via Tauri IPC. 25 commands grouped by function:
+The desktop React UI calls the Rust backend via Tauri IPC. 30 commands grouped by function:
 
 ### Text Sharing
 | Command | Description |
@@ -289,8 +289,16 @@ The desktop React UI calls the Rust backend via Tauri IPC. 25 commands grouped b
 | `get_local_ip` | Get the local LAN IP |
 | `share_text_to_lan` | Share text to the LAN |
 | `get_text_sharing_history` | Get text sharing history |
-| `delete_text_sharing_record` | Delete a specific text record |
-| `clear_sharing_text` | Clear all text sharing records |
+| `delete_record` | Delete a record by id and action_type |
+| `clear_sharing_text` | Clear all sharing records (returns `{text_count, image_count}`) |
+
+### Image Sharing
+| Command | Description |
+|---------|-------------|
+| `read_clipboard_image` | Read image from clipboard and share to LAN |
+| `copy_image_to_clipboard` | Copy shared image to local clipboard by record id |
+| `set_image_sharing_dir` | Set the image sharing storage directory |
+| `migrate_image_sharing_dir` | Migrate images from one directory to another |
 
 ### File Sharing
 | Command | Description |
@@ -324,10 +332,11 @@ The desktop React UI calls the Rust backend via Tauri IPC. 25 commands grouped b
 | `get_autostart` / `set_autostart` | Get/set autostart on login |
 | `get_theme_setting` / `set_theme_setting` | Get/set theme (light / dark) |
 | `get_language` / `set_language` | Get/set language (zh-CN / en) |
+| `get_all_settings` | Get all settings including image_sharing_dir |
 
 ## Database
 
-The SQLite database is located at `{config_dir}/Somunsm/LanShare/config.db` and contains two tables:
+The SQLite database is located at `{config_dir}/Somunsm/LanShare/config.db` and contains three tables:
 
 ### `config` Table
 Key-value configuration storage.
@@ -347,6 +356,17 @@ Text/file sharing records.
 | `content` | TEXT | Text content or file path |
 | `ip` | TEXT | Source IP address |
 | `is_overwrite` | INTEGER | Whether it was an overwrite (`0`/`1`) |
+| `created_at` | DATETIME | Creation timestamp |
+
+### `transfer_record` Table
+Legacy transfer log records (also queried for image sharing via `action_type=5`).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `action_type` | INTEGER | Type: `1`=text, `5`=image |
+| `content` | TEXT | Text content or image metadata JSON |
+| `ip` | TEXT | Source IP address |
+| `id` | INTEGER | Primary key |
 | `created_at` | DATETIME | Creation timestamp |
 
 ## License

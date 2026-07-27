@@ -98,15 +98,16 @@ function DialogItem({ dialog, index, closeDialog }) {
             open={true}
             onClose={() => handleClose(false)}
             transitionDuration={0}
+            maxWidth={false}
             slotProps={{
                 backdrop: {
                     sx: { zIndex: 9000 + index }
                 }
             }}
-            sx={{ '& .MuiDialog-paper': { zIndex: 9001 + index, minWidth: 500 } }}
+            sx={{ '& .MuiDialog-paper': { zIndex: 9001 + index, width: { xs: 'calc(100vw - 32px)', sm: '60vw', md: '50vw', lg: '45vw' }, minWidth: { xs: 0, sm: 500 }, maxWidth: '900px' } }}
         >
             {dialog.title && <DialogTitle>{dialog.title}</DialogTitle>}
-            <DialogContent>
+            <DialogContent sx={{ overflowX: 'hidden', wordBreak: 'break-word' }}>
                 {typeof dialog.content === 'string' ? (
                     <DialogContentText sx={{ whiteSpace: 'pre-line' }}>{dialog.content}</DialogContentText>
                 ) : (
@@ -131,7 +132,10 @@ function DialogItem({ dialog, index, closeDialog }) {
                         key={btnIndex}
                         variant={btn.primary ? 'contained' : 'text'}
                         color={btn.danger ? 'error' : 'primary'}
-                        onClick={() => handleButtonClick(btn)}
+                        onClick={() => {
+                            if (btn.handler) btn.handler();
+                            handleButtonClick(btn);
+                        }}
                     >
                         {t(btn.label)}
                     </Button>

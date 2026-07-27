@@ -12,6 +12,7 @@ use std::sync::{LazyLock, RwLock};
 pub enum GenericResponseBody {
     String(String),
     Bytes(Bytes),
+    FileData(Vec<u8>),
     Empty,
 }
 
@@ -33,8 +34,9 @@ impl Body for GenericResponseBody {
                 let bytes = Bytes::from(s);
                 Poll::Ready(Some(Ok(hyper::body::Frame::data(bytes))))
             }
-            GenericResponseBody::Bytes(b) => Poll::Ready(Some(Ok(hyper::body::Frame::data(b)))),
-            GenericResponseBody::Empty => {
+        GenericResponseBody::Bytes(b) => Poll::Ready(Some(Ok(hyper::body::Frame::data(b)))),
+        GenericResponseBody::FileData(v) => Poll::Ready(Some(Ok(hyper::body::Frame::data(Bytes::from(v))))),
+        GenericResponseBody::Empty => {
                 // 已经发送过了，返回 None 表示流结束
                 Poll::Ready(None)
             }
@@ -75,15 +77,28 @@ impl BaseHandler {
     }
 
     pub fn matches(&self, path: &str, method: &Method) -> bool {
-        if self.path != path {
+        match &self.method {
+            Some(handler_method) if handler_method != method => return false,
+            _ => {}
+        }
+
+        let pattern_segments: Vec<&str> = self.path.split('/').filter(|s| !s.is_empty()).collect();
+        let path_segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+
+        if pattern_segments.len() != path_segments.len() {
             return false;
         }
 
-        // 如果指定了方法，必须匹配；如果未指定方法（request宏），匹配所有方法
-        match &self.method {
-            Some(handler_method) => handler_method == method,
-            None => true, // request宏匹配所有方法
+        for (p, a) in pattern_segments.iter().zip(path_segments.iter()) {
+            if p.starts_with('{') && p.ends_with('}') {
+                continue;
+            }
+            if p != a {
+                return false;
+            }
         }
+
+        true
     }
 }
 
@@ -105,26 +120,24 @@ pub fn register_handler(handler: BaseHandler) {
 
 // 获取处理器
 pub fn get_handler(path: &str, method: &Method) -> Option<BaseHandler> {
-    // 对接口路径进行处理（如:id的资源标识符，路径的无效符号移除等）
     let path: &str = &*path_normalizer(path);
 
     let registry = HANDLER_REGISTRY.read().unwrap();
 
-    // 先找对应路径的处理器列表（列表中的请求方法不相同）
-    let method_vec = registry.get(path)?;
-    // 再在请求方法列表中找对应方法的处理器
-    if let Some(handler) = method_vec.iter().find(|h| h.matches(path, method)) {
-        return Some(handler.clone());
-    }
-    /*
-    如果没找到对应方法的处理器，则找request方法的处理器。
-    request方法的method类型就是None
-    */
-    if let Some(handler) = method_vec.iter().find(|h| h.method.is_none()) {
-        return Some(handler.clone());
+    // 先尝试精确匹配
+    if let Some(method_vec) = registry.get(path) {
+        if let Some(handler) = method_vec.iter().find(|h| h.matches(path, method)) {
+            return Some(handler.clone());
+        }
     }
 
-    // 如果都没找到，说明确实没有该路径的处理器
+    // 再尝试模式匹配（支持路径参数如 {id}）
+    for method_vec in registry.values() {
+        if let Some(handler) = method_vec.iter().find(|h| h.matches(path, method)) {
+            return Some(handler.clone());
+        }
+    }
+
     None
 }
 

@@ -1,7 +1,7 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useMemo} from 'react';
 import Card from "../Card/Card.js";
 import TextSharingStyle from "./TextSharingStyle.js";
-import {getTextSharingAPI, uploadTextAPI, recordCopyAPI} from "../../service/API.js";
+import {getUploadRecordsAPI, uploadTextAPI, recordCopyAPI} from "../../service/API.js";
 import {useToast} from "@/component/Toast/index.jsx";
 import copy from "copy-to-clipboard";
 import {useTranslation} from "react-i18next";
@@ -9,97 +9,76 @@ import {useTranslation} from "react-i18next";
 function TextSharing() {
     const { t } = useTranslation();
     const {showToast} = useToast();
-    // 将被上传的文本
+    const isTouch = useMemo(() => 'ontouchstart' in window || navigator.maxTouchPoints > 0, []);
     const [uploadText, setUploadText] = useState("");
-    // 右键菜单状态
-    const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, content: '', id: null });
-    // 已被上传的文本列表
-    const [textHistory, setTextHistory] = useState([
-        {
-            id: 1,
-            content: "测试文本",
-            created_at: "2025-10-30 21:00:00",
-            ip: "192.168.31.1"
-        },
-        {
-            id: 2,
-            content: "测试文本2",
-            created_at: "2025-10-30 22:00:00",
-            ip: "192.168.31.2"
-        }
-    ]);
+    const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, content: '', id: null, actionType: null });
+    const [records, setRecords] = useState([]);
+    const [filterType, setFilterType] = useState('all');
 
+    const filteredRecords = useMemo(() => {
+        if (filterType === 'all') return records;
+        const type = filterType === 'text' ? 1 : 5;
+        return records.filter(r => r.action_type === type);
+    }, [records, filterType]);
 
     useEffect(() => {
-        flushHistoryList();
+        flushRecords();
     }, []);
 
-    // 调用接口，获取历史文本
-    const flushHistoryList = () => {
-        getTextSharingAPI().then(res => {
+    const flushRecords = () => {
+        getUploadRecordsAPI().then(res => {
             if (res.code !== 200) {
-                console.error("获取历史文本异常")
+                console.error("获取记录列表异常")
                 showToast({message: t('textSharing.toast.loadFailed', {error: res.msg || '未知错误'}), type: 'error'});
                 return;
             }
-            setTextHistory(res.data);
+            setRecords(res.data);
         }).catch(error => {
-            console.error("获取历史文本异常", error);
+            console.error("获取记录列表异常", error);
             showToast({message: t('textSharing.toast.loadFailed', {error: error.message || '未知错误'}), type: 'error'});
         })
     }
 
-    // 发送文本输入框内容被改变时
     const uploadTextOnChange = (e) => {
         setUploadText(e.target.value);
     }
 
-    // 发送文本到服务器
     const sendText = () => {
         uploadTextAPI(uploadText)
             .then(res => {
-
                 if (res.code !== 200) {
                     console.error("发送文本到服务器失败")
                     showToast({message: t('textSharing.toast.sendFailed', {error: res.msg || '未知错误'}), type: 'error'});
                     return;
                 }
-
-                // 清空文本输入框
                 setUploadText("");
-                // 刷新历史列表
-                flushHistoryList();
+                flushRecords();
             }).catch(error => {
                 console.error("发送文本到服务器失败", error);
                 showToast({message: t('textSharing.toast.sendFailed', {error: error.message || '未知错误'}), type: 'error'});
             });
     }
 
-    // 显示右键菜单
-    const showContextMenu = (e, content, id) => {
+    const showContextMenu = (e, content, id, actionType) => {
         e.preventDefault();
         const x = Math.min(e.clientX, window.innerWidth - 120);
         const y = Math.min(e.clientY, window.innerHeight - 40);
-        setContextMenu({ visible: true, x, y, content, id });
+        setContextMenu({ visible: true, x, y, content, id, actionType });
     };
 
-    // 隐藏右键菜单
     const hideContextMenu = () => {
-        setContextMenu({ visible: false, x: 0, y: 0, content: '' });
+        setContextMenu({ visible: false, x: 0, y: 0, content: '', actionType: null });
     };
 
-    // 点击其他区域或滚动时关闭菜单
     useEffect(() => {
         const handleClick = (e) => {
             if (!contextMenu.visible) return;
             if (e.target.closest('.context-menu')) return;
             hideContextMenu();
         };
-
         const handleScroll = () => {
             if (contextMenu.visible) hideContextMenu();
         };
-
         document.addEventListener('click', handleClick);
         window.addEventListener('scroll', handleScroll, true);
         return () => {
@@ -116,35 +95,54 @@ function TextSharing() {
         showToast({message: t('textSharing.toast.copied'), type: 'success'});
     }
 
-
     return (
         <TextSharingStyle>
             <Card>
-                {/*文本上传区域*/}
                 <textarea id="textInput" value={uploadText} onChange={uploadTextOnChange}></textarea>
                 <div className="sendBtnWrapper">
                     <button onClick={sendText}>{t('textSharing.sendBtn')}</button>
                 </div>
             </Card>
 
-            {/*历史内容展示区*/}
             <Card>
-                <ul className="textHistory">
-                    {textHistory.map(v => {
-                        return (
-                            <li key={v.id} onDoubleClick={() => {
-                                copyText(v.content, v.id)
-                            }} onContextMenu={(e) => showContextMenu(e, v.content, v.id)}
-                                onMouseEnter={() => {
-                                    if (contextMenu.visible) hideContextMenu();
-                                }}>
-                                <p>{v.content}</p>
-                                <p className="metaInfo">{v.created_at.replace(/-/g, '/')} | {v.ip}</p>
-                            </li>
-                        )
-                    })}
-                </ul>
-                <p className="cardTips">{t('textSharing.tips')}</p>
+                <div className="recordFilter">
+                    <button className={filterType === 'all' ? 'active' : ''} onClick={() => setFilterType('all')}>{t('recordList.filter.all')}</button>
+                    <button className={filterType === 'text' ? 'active' : ''} onClick={() => setFilterType('text')}>{t('recordList.filter.text')}</button>
+                    <button className={filterType === 'image' ? 'active' : ''} onClick={() => setFilterType('image')}>{t('recordList.filter.image')}</button>
+                </div>
+
+                {filteredRecords.length > 0 ? (
+                    <ul className="recordList">
+                        {filteredRecords.map(v => {
+                            if (v.action_type === 1) {
+                                return (
+                                    <li key={v.id} className="recordItem text"
+                                        onDoubleClick={() => copyText(v.content, v.id)}
+                                        onContextMenu={(e) => showContextMenu(e, v.content, v.id, 1)}
+                                        onMouseEnter={() => { if (contextMenu.visible) hideContextMenu(); }}>
+                                        <p className="recordContent">{v.content}</p>
+                                        <p className="metaInfo">{v.created_at.replace(/-/g, '/')} | {v.ip}</p>
+                                    </li>
+                                );
+                            }
+                            let meta = {};
+                            try { meta = JSON.parse(v.content); } catch(e) {}
+                            return (
+                                <li key={v.id} className="recordItem image">
+                                    <img src={`/shared-image/${v.id}`}
+                                        alt={meta.original_name || ''}
+                                        className="recordThumb" />
+                                    <div className="recordBody">
+                                        <p className="recordHint">{isTouch ? t('imageSharing.hintMobile') : t('imageSharing.hintDesktop')}</p>
+                                        <p className="metaInfo">{v.created_at?.replace(/-/g, '/')} | {v.ip}</p>
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                ) : (
+                    <p className="cardTips">{t('recordList.noRecords')}</p>
+                )}
             </Card>
 
             {contextMenu.visible && (

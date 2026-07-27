@@ -65,6 +65,10 @@ tauri-plugin-autostart = "2"
 dirs = "6"
 regex = "1"
 trash = "5"
+arboard = "3"
+image = "0.25"
+sha2 = "0.10"
+
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"

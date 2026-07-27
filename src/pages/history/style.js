@@ -212,6 +212,11 @@ const HistoryStyle = styled.div`
         color: var(--primary);
     }
 
+    .type-icon.image {
+        background: var(--surface-container);
+        color: var(--primary);
+    }
+
     .type-icon svg {
         width: 18px;
         height: 18px;

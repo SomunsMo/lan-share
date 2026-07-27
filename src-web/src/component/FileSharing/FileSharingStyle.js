@@ -231,6 +231,60 @@ const FileSharingStyle = styled.div`
     .context-menu-item-danger:hover {
         background-color: var(--bg-danger-hover);
     }
+
+    .detailTable {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .detailTable tr + tr td {
+        padding-top: 8px;
+    }
+
+    .detailLabel {
+        width: 1px;
+        white-space: nowrap;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        padding: 2px 16px 2px 0;
+        vertical-align: top;
+    }
+
+    .detailValue {
+        font-size: 0.88rem;
+        color: var(--text-primary);
+        word-break: break-all;
+        padding: 2px 0;
+        vertical-align: top;
+    }
+
+    @media (max-width: 767px) {
+        .fileTable {
+            min-width: 0;
+        }
+
+        .fileList {
+            overflow-x: hidden;
+        }
+
+        .fileTable td:nth-child(2) {
+            white-space: nowrap;
+        }
+
+        .fileTable td:nth-child(2) .fileName {
+            max-width: calc(100vw - 100px);
+        }
+
+        .fileTable th:nth-child(3),
+        .fileTable th:nth-child(4),
+        .fileTable th:nth-child(5),
+        .fileTable td:nth-child(3),
+        .fileTable td:nth-child(4),
+        .fileTable td:nth-child(5) {
+            display: none;
+        }
+    }
 `;
 
 export default FileSharingStyle;

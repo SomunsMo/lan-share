@@ -1,11 +1,13 @@
-import React, {useState, useEffect, useRef, useCallback, useLayoutEffect} from 'react';
+import React, {useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo} from 'react';
 import HistoryStyle from "./style.js";
-import copy from 'copy-to-clipboard';
 import {invoke} from '@tauri-apps/api/core';
 import {useToast} from "../../components/toast/index.jsx";
 import {useDialog} from "../../components/dialog/index.jsx";
 import {useTranslation} from "react-i18next";
 import {calcMenuPosition} from "../../utils/menu.js";
+import {formatFileSize} from "../../utils/formatFileSize.js";
+import {copySharedImage} from "../../utils/copyImage.js";
+import {copyText} from "../../utils/copyText.js";
 import CopyButton from "../../components/copyButton/index.jsx";
 import Typography from '@mui/material/Typography';
 import Table from '@mui/material/Table';
@@ -36,12 +38,31 @@ function History() {
     const contextMenuRef = useRef(null);
     const mousePosRef = useRef({ x: 0, y: 0 });
     const cursorIdRef = useRef(null);
+    const [webUrl, setWebUrl] = useState("");
+    const ipAddr = useMemo(() => webUrl ? webUrl.split('/')[2].split(':')[0] : '', [webUrl]);
+    const portNum = useMemo(() => webUrl ? webUrl.split('/')[2].split(':')[1] : '', [webUrl]);
+
+    useEffect(() => {
+        const fetchServerInfo = async () => {
+            try {
+                const [ip, port] = await Promise.all([
+                    invoke('get_local_ip'),
+                    invoke('get_running_port'),
+                ]);
+                setWebUrl(`http://${ip}:${port}/web`);
+            } catch (error) {
+                console.error('获取服务器信息失败:', error);
+            }
+        };
+        fetchServerInfo();
+    }, []);
+
     const {showToast} = useToast();
     const {showDialog} = useDialog();
 
-    const copyToClipboard = useCallback((text) => {
+    const copyToClipboard = useCallback(async (text) => {
         try {
-            copy(text);
+            await copyText(text);
             showToast({message: t('common.toast.copied'), type: 'success'});
         } catch (err) {
             console.error('复制失败:', err);
@@ -94,6 +115,36 @@ function History() {
         }
     }, [showDialog, t]);
 
+    const deleteImageItem = useCallback(async (itemId) => {
+        const confirmed = await showDialog({
+            title: t('history.clearDialog.title'),
+            content: t('history.deleteConfirmFile'),
+            buttons: [
+                {label: 'common.button.cancel', value: false},
+                {label: 'common.button.delete', value: true, primary: true, danger: true},
+            ],
+        });
+        if (!confirmed) return;
+        try {
+            await invoke('delete_record', {id: itemId, actionType: 5});
+            setHistory(prev => prev.filter(item => item.id !== itemId));
+            setContextMenu({visible: false, x: 0, y: 0, item: null});
+        } catch (error) {
+            console.error('删除图片记录失败:', error);
+        }
+    }, [showDialog, t]);
+
+    const copyImageToClipboard = useCallback(async (item) => {
+        try {
+            const content = typeof item.content === 'string' ? JSON.parse(item.content) : item.content;
+            await copySharedImage(content.path);
+            showToast({message: t('common.toast.copied'), type: 'success'});
+        } catch (error) {
+            console.error('复制图片到剪贴板失败:', error);
+            showToast({message: t('common.toast.operationFailed'), type: 'error'});
+        }
+    }, [showToast, t]);
+
     const deleteTextItem = useCallback(async (itemId) => {
         const confirmed = await showDialog({
             title: t('history.clearDialog.title'),
@@ -105,7 +156,7 @@ function History() {
         });
         if (!confirmed) return;
         try {
-            await invoke('delete_text_sharing_record', {id: itemId});
+            await invoke('delete_record', {id: itemId, actionType: 1});
             setHistory(prev => prev.filter(item => item.id !== itemId));
             setContextMenu({visible: false, x: 0, y: 0, item: null});
         } catch (error) {
@@ -155,6 +206,7 @@ function History() {
     }, [showDialog, showToast, t]);
 
     const viewDetail = (item) => {
+        const imgMeta = item.type === 5 ? getImageMeta(item.content) : null;
         showDialog({
             title: t('history.detailTitle'),
             content: (
@@ -162,8 +214,10 @@ function History() {
                     <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 24px' }}>
                         <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.tableHeader.type')}</span>
                         <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{getTypeLabel(item.type)}</span>
-                        <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.tableHeader.time')}</span>
-                        <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.time}</span>
+                        <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.detailCreatedTime')}</span>
+                        <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.createdAt}</span>
+                        <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.detailUpdatedTime')}</span>
+                        <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.updatedAt}</span>
                         <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.tableHeader.sourceIp')}</span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.ip}</span>
@@ -189,12 +243,31 @@ function History() {
                                 </span>
                             </>
                         )}
+                        {item.type === 5 && imgMeta && (
+                            <>
+                                <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('imageSharing.detailSha256')}</span>
+                                <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text', fontFamily: 'monospace', wordBreak: 'break-all' }}>{imgMeta.sha256}</span>
+                                <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('imageSharing.detailSize')}</span>
+                                <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{formatFileSize(imgMeta.size)}</span>
+                            </>
+                        )}
                     </div>
                     <hr style={{ border: 'none', borderTop: '1px solid var(--outline-variant)', margin: '12px 0' }} />
-                    <div style={{ maxHeight: '40vh', overflowY: 'auto', fontSize: '14px', lineHeight: 1.6, color: 'var(--on-surface)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', userSelect: 'text' }}>{item.type === 2 ? t('history.noPreview') : item.content}</div>
+                    {item.type === 5 && imgMeta ? (
+                        <div style={{ textAlign: 'center' }}>
+                            <img
+                                src={'http://' + ipAddr + ':' + portNum + '/shared-image/' + item.id}
+                                alt={imgMeta.original_name}
+                                style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain', borderRadius: '4px' }}
+                            />
+                        </div>
+                    ) : (
+                        <div style={{ maxHeight: '40vh', overflowY: 'auto', fontSize: '14px', lineHeight: 1.6, color: 'var(--on-surface)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', userSelect: 'text' }}>{item.type === 2 ? t('history.noPreview') : item.content}</div>
+                    )}
                 </div>
             ),
             buttons: [
+                { label: 'textSharing.copyButton', value: null, handler: () => { item.type === 5 ? copyImageToClipboard(item) : copyToClipboard(item.content); } },
                 { label: 'common.button.confirm', value: true, primary: true },
             ],
         });
@@ -228,7 +301,9 @@ function History() {
     const formatRecord = (record) => ({
         id: record.id,
         type: record.action_type,
-        time: record.created_at.replace(/-/g, '/'),
+        time: record.updated_at.replace(/-/g, '/'),
+        createdAt: record.created_at.replace(/-/g, '/'),
+        updatedAt: record.updated_at.replace(/-/g, '/'),
         ip: record.ip,
         content: record.content,
         isOverwrite: record.is_overwrite === 1
@@ -237,7 +312,8 @@ function History() {
     const getActionTypes = (filter) => {
         if (filter === 'files') return [2, 4];
         if (filter === 'text') return [1];
-        return [1, 2, 4];
+        if (filter === 'images') return [5];
+        return [1, 2, 4, 5];
     };
 
     // 搜索防抖
@@ -317,6 +393,7 @@ function History() {
 
     const getTypeLabel = (type) => {
         if (type === 1) return t('history.type.text');
+        if (type === 5) return t('history.type.image') || 'Image';
         return t('history.type.file');
     };
 
@@ -325,6 +402,7 @@ function History() {
             case 1: return 'history.typeLabel.text';
             case 2: return 'history.typeLabel.upload';
             case 4: return 'history.typeLabel.download';
+            case 5: return 'history.typeLabel.image';
             default: return 'history.typeLabel.text';
         }
     };
@@ -334,6 +412,7 @@ function History() {
             case 1: return 'text';
             case 2: return 'upload';
             case 4: return 'download';
+            case 5: return 'image';
             default: return 'text';
         }
     };
@@ -346,9 +425,15 @@ function History() {
                 return <svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>;
             case 4:
                 return <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
+            case 5:
+                return <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>;
             default:
                 return <svg viewBox="0 0 24 24"><path d="M5 5h14"/><path d="M12 5v15"/></svg>;
         }
+    };
+
+    const getImageMeta = (content) => {
+        try { return JSON.parse(content); } catch { return null; }
     };
 
     const handleSortToggle = () => {
@@ -364,7 +449,7 @@ function History() {
 
             <div className="header-actions">
                 <div className="filter-tabs">
-                    {["all", "files", "text"].map(filter => (
+                    {["all", "files", "text", "images"].map(filter => (
                         <button
                             key={filter}
                             className={"filter-tab" + (activeFilter === filter ? " active" : "")}
@@ -406,16 +491,20 @@ function History() {
                         <div
                             className="list-row"
                             key={item.id}
+                            onClick={() => viewDetail(item)}
                             onContextMenu={(e) => showContextMenu(e, item)}
                         >
                             <div className={"type-icon " + getTypeIconClass(item.type)} title={t(getTypeLabelKey(item.type))}>
                                 {getTypeIcon(item.type)}
                             </div>
-                            <div className="item-name">{item.content}</div>
+                            <div className="item-name">{item.type === 5 ? (getImageMeta(item.content)?.original_name || 'image.png') : item.content}</div>
                             <div className="item-tags">
                                 <span className="item-tag ip" title={t('history.tagTooltip.ip')}>{item.ip}</span>
                                 {item.type === 2 && (
                                     <span className="item-tag size" title={t('history.tagTooltip.size')}>{item.content ? item.content.length + 'B' : '-'}</span>
+                                )}
+                                {item.type === 5 && getImageMeta(item.content)?.size != null && (
+                                    <span className="item-tag size" title={t('history.tagTooltip.size')}>{formatFileSize(getImageMeta(item.content).size)}</span>
                                 )}
                                 {item.type === 2 && item.isOverwrite && (
                                     <span className="item-tag overwrite" title={t('history.tagTooltip.overwrite')}>{t('history.tag.overwriteYes')}</span>
@@ -452,8 +541,12 @@ function History() {
                         </button>
                     )}
                     <div className="context-menu-separator" />
-                    <button className="context-menu-item" onClick={() => { copyToClipboard(contextMenu.item.content); hideContextMenu(); }}>
-                        {contextMenu.item.type === 2 ? t('history.contextMenu.copyPath') : t('history.contextMenu.copyContent')}
+                    <button className="context-menu-item" onClick={() => {
+                        if (contextMenu.item.type === 5) copyImageToClipboard(contextMenu.item);
+                        else copyToClipboard(contextMenu.item.content);
+                        hideContextMenu();
+                    }}>
+                        {contextMenu.item.type === 2 ? t('history.contextMenu.copyPath') : contextMenu.item.type === 5 ? t('imageSharing.contextMenu.copyImage') : t('history.contextMenu.copyContent')}
                     </button>
                     <button className="context-menu-item" onClick={() => { copyToClipboard(contextMenu.item.ip); hideContextMenu(); }}>
                         {t('history.contextMenu.copyIp')}
@@ -461,6 +554,7 @@ function History() {
                     <div className="context-menu-separator" />
                     <button className="context-menu-item danger" onClick={() => {
                         if (contextMenu.item.type === 1) deleteTextItem(contextMenu.item.id);
+                        else if (contextMenu.item.type === 5) deleteImageItem(contextMenu.item.id);
                         else deleteHistoryItem(contextMenu.item.id);
                     }}>
                         {t('history.contextMenu.deleteRecord')}

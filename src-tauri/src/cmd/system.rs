@@ -36,6 +36,13 @@ pub struct AllSettings {
     pub exclude_system_files: bool,
     pub exclude_patterns: Vec<String>,
     pub delete_to_trash: bool,
+    pub image_sharing_dir: String,
+}
+
+#[derive(Serialize)]
+pub struct ClearResult {
+    pub text_count: u64,
+    pub image_count: u64,
 }
 
 /// 获取本机内网IP
@@ -81,18 +88,43 @@ fn get_hostname() -> Option<String> {
     }
 }
 
-/// 清空共享文本记录（同时清空关联的复制记录）
+/// 清空共享文本和图片记录
 #[tauri::command]
-pub async fn clear_sharing_text() -> u64 {
-    let result_count = upload_dao::remove_by_types(&[1, 3]).await.unwrap_or(0);
-    log::info!("清空共享文本和复制记录{}条", result_count);
-    result_count
+pub async fn clear_sharing_text() -> ClearResult {
+    // 先删除图片文件
+    match upload_dao::list_contents_by_type(5).await {
+        Ok(records) => {
+            for (_, content_json_str) in &records {
+                if let Ok(content_json) = serde_json::from_str::<serde_json::Value>(content_json_str) {
+                    if let Some(name) = content_json.get("path").and_then(|v| v.as_str()) {
+                        let dir = crate::config::config::get_image_sharing_dir().await;
+                        let file_path = dir.join(name);
+                        if file_path.exists() {
+                            if let Err(e) = std::fs::remove_file(&file_path) {
+                                log::error!("删除图片文件失败: {}", e);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            log::error!("查询图片记录失败: {}", e);
+        }
+    }
+
+    let text_count = upload_dao::remove_by_types(&[1, 3]).await.unwrap_or(0);
+    let image_count = upload_dao::remove_by_types(&[5]).await.unwrap_or(0);
+
+    log::info!("清空共享文本记录{}条，图片记录{}条", text_count, image_count);
+
+    ClearResult { text_count, image_count }
 }
 
-/// 获取文本共享历史记录
+/// 获取文本和图片共享历史记录
 #[tauri::command]
 pub async fn get_text_sharing_history() -> Result<Vec<crate::db::entity::TransferRecord>, String> {
-    match upload_dao::list_by_type(1).await {
+    match upload_dao::list_by_types(&[1, 5]).await {
         Ok(records) => Ok(records),
         Err(err) => {
             log::error!("获取文本共享历史记录失败: {}", err);
@@ -101,16 +133,409 @@ pub async fn get_text_sharing_history() -> Result<Vec<crate::db::entity::Transfe
     }
 }
 
-/// 删除指定的文本共享记录（级联删除关联的复制记录）
+/// 删除指定记录（图片记录时连带删除文件）
 #[tauri::command]
-pub async fn delete_text_sharing_record(id: i64) -> Result<u64, String> {
-    match upload_dao::remove_text_cascade(id).await {
-        Ok(count) => Ok(count),
-        Err(err) => {
-            log::error!("删除文本共享记录失败: {}", err);
-            Err(err.to_string())
+pub async fn delete_record(id: i64, action_type: i64) -> Result<u64, String> {
+    if action_type == 5 {
+        match upload_dao::get_by_id(id).await {
+            Ok(Some(record)) => {
+                if let Ok(content_json) = serde_json::from_str::<serde_json::Value>(&record.content) {
+                    if let Some(name) = content_json.get("path").and_then(|v| v.as_str()) {
+                        let dir = crate::config::config::get_image_sharing_dir().await;
+                        let file_path = dir.join(name);
+                        if file_path.exists() {
+                            if let Err(e) = std::fs::remove_file(&file_path) {
+                                log::error!("删除图片文件失败: {}", e);
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(None) => {
+                return Err("记录不存在".to_string());
+            }
+            Err(e) => {
+                log::error!("查询记录失败: {}", e);
+                return Err(e.to_string());
+            }
         }
     }
+
+    if action_type == 1 {
+        match upload_dao::remove_text_cascade(id).await {
+            Ok(count) => Ok(count),
+            Err(err) => {
+                log::error!("删除文本及关联复制记录失败: {}", err);
+                Err(err.to_string())
+            }
+        }
+    } else {
+        match upload_dao::remove(id).await {
+            Ok(count) => Ok(count),
+            Err(err) => {
+                log::error!("删除记录失败: {}", err);
+                Err(err.to_string())
+            }
+        }
+    }
+}
+
+/// 读取剪贴板/文件图片并保存
+/// 如果传入了 image_bytes（粘贴文件），直接从字节解码；否则从系统剪贴板读取
+#[tauri::command]
+pub async fn read_clipboard_image(image_bytes: Option<Vec<u8>>) -> Result<serde_json::Value, String> {
+    use sha2::{Sha256, Digest};
+
+    let (width, height, rgba_bytes) = if let Some(bytes) = image_bytes {
+        // 从文件字节解码（粘贴图片文件场景）
+        let img = image::load_from_memory(&bytes)
+            .map_err(|e| format!("解码图片失败: {}", e))?;
+        let rgba = img.to_rgba8();
+        let (w, h) = rgba.dimensions();
+        (w, h, rgba.into_raw())
+    } else {
+        // 从剪贴板读取（直接复制图片场景）
+        let mut clipboard = arboard::Clipboard::new().map_err(|e| format!("无法访问剪贴板: {}", e))?;
+        let img_data = clipboard.get_image().map_err(|e| format!("读取剪贴板图片失败: {}", e))?;
+        (img_data.width as u32, img_data.height as u32, img_data.bytes.to_vec())
+    };
+
+    // 计算 SHA256
+    let mut hasher = Sha256::new();
+    hasher.update(&rgba_bytes);
+    let sha256_hash = format!("{:x}", hasher.finalize());
+
+    // 编码 RGBA 为 PNG 并计算文件 size
+    let img = image::RgbaImage::from_raw(width, height, rgba_bytes)
+        .ok_or("创建图片缓冲失败".to_string())?;
+    let mut png_bytes = Vec::new();
+    img.write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)
+        .map_err(|e| format!("PNG编码失败: {}", e))?;
+    let size = png_bytes.len() as i64;
+
+    let local_ip = local_ip_address::local_ip().unwrap().to_string();
+
+    // 检查是否已存在相同 sha256 + size 的图片
+    if let Ok(Some(existing)) = upload_dao::find_image_by_sha256_size(&sha256_hash, size).await {
+        log::info!("发现重复图片 ID={}，刷新时间", existing.id);
+        upload_dao::bump_record(existing.id).await
+            .map_err(|e| format!("刷新记录失败: {}", e))?;
+
+        let content_json: serde_json::Value = serde_json::from_str(&existing.content)
+            .unwrap_or_else(|_| serde_json::json!({}));
+        return Ok(content_json);
+    }
+
+    let save_dir = crate::config::config::get_image_sharing_dir().await.clone();
+    tokio::fs::create_dir_all(&save_dir).await.map_err(|e| format!("创建目录失败: {}", e))?;
+
+    let file_name = format!("lans_{}.png", sha256_hash);
+    let save_path = save_dir.join(&file_name);
+
+    // 检查文件是否已存在（可能之前手动清理过DB记录但文件还在）
+    if !save_path.exists() {
+        tokio::fs::write(&save_path, &png_bytes).await
+            .map_err(|e| format!("写入PNG文件失败: {}", e))?;
+        log::info!("图片已保存至: {:?}", save_path);
+    } else {
+        log::info!("图片文件已存在: {:?}", save_path);
+    }
+
+    // 插入 DB 记录
+    let id = upload_dao::add(5, "{}", None, &local_ip, false).await
+        .map_err(|e| format!("插入记录失败: {}", e))?;
+
+    let content_json = serde_json::json!({
+        "path": file_name,
+        "original_name": file_name,
+        "sha256": sha256_hash,
+        "size": size
+    });
+
+    upload_dao::update_content(id, &content_json.to_string()).await
+        .map_err(|e| format!("更新记录内容失败: {}", e))?;
+
+    log::info!("图片记录已创建, ID={}", id);
+
+    Ok(content_json)
+}
+
+/// 复制文本到剪贴板
+#[tauri::command]
+pub async fn copy_text_to_clipboard(text: String) -> Result<(), String> {
+    let mut clipboard = arboard::Clipboard::new().map_err(|e| format!("无法访问剪贴板: {}", e))?;
+    clipboard.set_text(&text).map_err(|e| format!("设置剪贴板文本失败: {}", e))?;
+    log::info!("文本已复制到剪贴板");
+    Ok(())
+}
+
+/// 复制图片文件到剪贴板
+#[tauri::command]
+pub async fn copy_image_to_clipboard(image_path: String) -> Result<(), String> {
+    let full_path = {
+        let dir = crate::config::config::get_image_sharing_dir().await;
+        let p = std::path::Path::new(&image_path);
+        if p.is_absolute() { p.to_path_buf() } else { dir.join(&image_path) }
+    };
+
+    let img = image::open(&full_path).map_err(|e| format!("打开图片失败: {}", e))?;
+    let rgba = img.to_rgba8();
+    let (width, height) = rgba.dimensions();
+    let bytes = rgba.into_raw();
+
+    #[cfg(target_os = "windows")]
+    {
+        copy_image_to_clipboard_windows(&bytes, width, height)?;
+        log::info!("图片已通过 Win32 API 复制到剪贴板: {:?}", full_path);
+        return Ok(());
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let mut clipboard = arboard::Clipboard::new().map_err(|e| format!("无法访问剪贴板: {}", e))?;
+        clipboard.set_image(arboard::ImageData {
+            width: width as usize,
+            height: height as usize,
+            bytes: std::borrow::Cow::Owned(bytes),
+        }).map_err(|e| format!("设置剪贴板图片失败: {}", e))?;
+        log::info!("图片已复制到剪贴板: {:?}", full_path);
+        return Ok(());
+    }
+}
+
+/// Windows 平台：使用 Win32 API 同时写入图片 (CF_DIBV5) 和文本 (CF_UNICODETEXT)
+/// 确保大图片也能被 Windows 剪贴板历史收录
+#[cfg(target_os = "windows")]
+fn copy_image_to_clipboard_windows(rgba_bytes: &[u8], width: u32, height: u32) -> Result<(), String> {
+    use std::ptr;
+
+    extern "system" {
+        fn OpenClipboard(hwnd: *mut std::ffi::c_void) -> i32;
+        fn CloseClipboard() -> i32;
+        fn EmptyClipboard() -> i32;
+        fn SetClipboardData(uFormat: u32, hMem: isize) -> isize;
+        fn GlobalAlloc(uFlags: u32, dwBytes: usize) -> isize;
+        fn GlobalLock(hMem: isize) -> *mut std::ffi::c_void;
+        fn GlobalUnlock(hMem: isize) -> i32;
+        fn GlobalFree(hMem: isize) -> isize;
+    }
+
+    const CF_DIBV5: u32 = 17;
+    const CF_UNICODETEXT: u32 = 13;
+    const GHND: u32 = 0x0042; // GMEM_MOVEABLE | GMEM_ZEROINIT
+
+    // 转换 RGBA → BGRA + alpha 预乘
+    let pixel_count = (width * height) as usize;
+    let mut bgra = Vec::with_capacity(pixel_count * 4);
+    for pixel in rgba_bytes.chunks(4) {
+        let r = pixel[0] as u32;
+        let g = pixel[1] as u32;
+        let b = pixel[2] as u32;
+        let a = pixel[3] as u32;
+        let bgra_b = (b * a / 255) as u8;
+        let bgra_g = (g * a / 255) as u8;
+        let bgra_r = (r * a / 255) as u8;
+        bgra.extend_from_slice(&[bgra_b, bgra_g, bgra_r, a as u8]);
+    }
+
+    let dib_size = pixel_count * 4;
+
+    // BITMAPV5HEADER (124 bytes)
+    let bmp_header: Vec<u8> = {
+        let b5_size: u32 = 124;
+        // 使用负高度表示 top-down DIB
+        let b5_height: i32 = -(height as i32);
+        let comp_bi_bitfields: u32 = 3;
+        let cs_type: u32 = 0x57696E20; // "Win " LCS_WINDOWS_COLOR_SPACE
+        let intent_lcs_gm_images: u32 = 4;
+
+        let mut hdr = Vec::with_capacity(124);
+        hdr.extend_from_slice(&b5_size.to_le_bytes());          // bV5Size
+        hdr.extend_from_slice(&(width as i32).to_le_bytes());   // bV5Width
+        hdr.extend_from_slice(&b5_height.to_le_bytes());        // bV5Height
+        hdr.extend_from_slice(&1u16.to_le_bytes());             // bV5Planes
+        hdr.extend_from_slice(&32u16.to_le_bytes());            // bV5BitCount
+        hdr.extend_from_slice(&comp_bi_bitfields.to_le_bytes());// bV5Compression
+        hdr.extend_from_slice(&(dib_size as u32).to_le_bytes());// bV5SizeImage
+        hdr.extend_from_slice(&0i32.to_le_bytes());             // bV5XPelsPerMeter
+        hdr.extend_from_slice(&0i32.to_le_bytes());             // bV5YPelsPerMeter
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5ClrUsed
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5ClrImportant
+        hdr.extend_from_slice(&0x00FF0000u32.to_le_bytes());    // bV5RedMask
+        hdr.extend_from_slice(&0x0000FF00u32.to_le_bytes());    // bV5GreenMask
+        hdr.extend_from_slice(&0x000000FFu32.to_le_bytes());    // bV5BlueMask
+        hdr.extend_from_slice(&0xFF000000u32.to_le_bytes());    // bV5AlphaMask
+        hdr.extend_from_slice(&cs_type.to_le_bytes());          // bV5CSType
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5Endpoints[0]
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5Endpoints[1]
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5Endpoints[2]
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5Endpoints[3]
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5Endpoints[4]
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5Endpoints[5]
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5Endpoints[6]
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5Endpoints[7]
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5Endpoints[8]
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5GammaRed
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5GammaGreen
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5GammaBlue
+        hdr.extend_from_slice(&intent_lcs_gm_images.to_le_bytes()); // bV5Intent
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5ProfileData
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5ProfileSize
+        hdr.extend_from_slice(&0u32.to_le_bytes());             // bV5Reserved
+        debug_assert!(hdr.len() == 124, "BITMAPV5HEADER 大小必须为 124 字节");
+        hdr
+    };
+
+    // 组装完整 DIB 数据: header + pixels
+    let mut dib_data = bmp_header;
+    dib_data.extend_from_slice(&bgra);
+
+    // 分配全局内存并复制 DIB 数据
+    let h_dib = unsafe { GlobalAlloc(GHND, dib_data.len()) };
+    if h_dib == 0 {
+        return Err("分配全局内存失败 (DIB)".to_string());
+    }
+    unsafe {
+        let p_dib = GlobalLock(h_dib) as *mut u8;
+        if p_dib.is_null() {
+            GlobalFree(h_dib);
+            return Err("锁定全局内存失败 (DIB)".to_string());
+        }
+        ptr::copy_nonoverlapping(dib_data.as_ptr(), p_dib, dib_data.len());
+        GlobalUnlock(h_dib);
+    }
+
+    // 分配全局内存并复制文本数据（用于触发剪贴板历史收录）
+    let text_wide: Vec<u16> = "LAN Share 图片\0".encode_utf16().collect();
+    let text_bytes = text_wide.len() * 2;
+    let h_text = unsafe { GlobalAlloc(GHND, text_bytes) };
+    if h_text == 0 {
+        // 失败时释放已分配的内存
+        unsafe { GlobalFree(h_dib); }
+        return Err("分配全局内存失败 (TEXT)".to_string());
+    }
+    unsafe {
+        let p_text = GlobalLock(h_text) as *mut u16;
+        if p_text.is_null() {
+            GlobalFree(h_dib);
+            GlobalFree(h_text);
+            return Err("锁定全局内存失败 (TEXT)".to_string());
+        }
+        ptr::copy_nonoverlapping(text_wide.as_ptr(), p_text, text_wide.len());
+        GlobalUnlock(h_text);
+    }
+
+    // 写入剪贴板
+    let result = unsafe { OpenClipboard(ptr::null_mut()) };
+    if result == 0 {
+        unsafe { GlobalFree(h_dib); GlobalFree(h_text); }
+        return Err("打开剪贴板失败".to_string());
+    }
+
+    unsafe { EmptyClipboard(); }
+
+    let ret_dib = unsafe { SetClipboardData(CF_DIBV5, h_dib) };
+    let ret_text = unsafe { SetClipboardData(CF_UNICODETEXT, h_text) };
+
+    unsafe { CloseClipboard(); }
+
+    // 如果 SetClipboardData 失败，返回错误
+    // 注意: SetClipboardData 成功后，内存 ownership 转移给系统，不再需要 GlobalFree
+    if ret_dib == 0 && ret_text == 0 {
+        // 都失败时需要释放内存
+        unsafe { GlobalFree(h_dib); GlobalFree(h_text); }
+        return Err("设置剪贴板数据失败".to_string());
+    }
+
+    Ok(())
+}
+
+
+
+/// 设置图片共享目录
+#[tauri::command]
+pub async fn set_image_sharing_dir(directory_path: String) -> Result<(), String> {
+    let path = std::path::PathBuf::from(&directory_path);
+
+    if !path.exists() {
+        return Err("路径不存在".to_string());
+    }
+
+    if !path.is_dir() {
+        return Err("请选择一个有效的目录".to_string());
+    }
+
+    // 验证目录可写
+    let test_file_path = path.join(".writable_test");
+    match tokio::fs::write(&test_file_path, b"").await {
+        Ok(_) => {
+            let _ = tokio::fs::remove_file(&test_file_path).await;
+        }
+        Err(e) => {
+            return Err(format!("目录不可写: {}", e));
+        }
+    }
+
+    // 保存到数据库配置
+    config_dao::set_config("image_sharing_dir", &crate::utils::path::normalize_path(&path)).await
+        .map_err(|e| format!("保存配置失败: {}", e))?;
+
+    // 更新全局图片共享目录
+    crate::config::config::set_image_sharing_dir_raw(path).await;
+
+    log::info!("图片共享目录已设置为: {}", directory_path);
+    Ok(())
+}
+
+/// 迁移图片共享目录（将 from 目录中的 PNG 文件复制到 to 目录）
+#[tauri::command]
+pub async fn migrate_image_sharing_dir(from: String, to: String) -> Result<(), String> {
+    let from_path = std::path::PathBuf::from(&from);
+
+    if !from_path.exists() {
+        return Err("源路径不存在".to_string());
+    }
+
+    if !from_path.is_dir() {
+        return Err("源路径不是有效的目录".to_string());
+    }
+
+    tokio::fs::create_dir_all(&to).await
+        .map_err(|e| format!("创建目标目录失败: {}", e))?;
+
+    let to_path = std::path::PathBuf::from(&to);
+
+    // 只迁移数据库中 action_type=5 记录的图片文件
+    let records = upload_dao::list_contents_by_type(5).await
+        .map_err(|e| format!("查询图片记录失败: {}", e))?;
+
+    let mut count = 0u64;
+    let mut moved = Vec::new();
+    for (_, content_json_str) in &records {
+        if let Ok(content_json) = serde_json::from_str::<serde_json::Value>(content_json_str) {
+            if let Some(name) = content_json.get("path").and_then(|v| v.as_str()) {
+                let src = from_path.join(name);
+                if !src.exists() { continue; }
+                let dest = to_path.join(name);
+                match tokio::fs::rename(&src, &dest).await {
+                    Ok(_) => {
+                        moved.push(name.to_string());
+                        count += 1;
+                    }
+                    Err(e) => {
+                        // 回滚已移动的文件
+                        for f in &moved {
+                            let _ = tokio::fs::rename(to_path.join(f), from_path.join(f)).await;
+                        }
+                        return Err(format!("移动文件 {} 失败，已回滚: {}", name, e));
+                    }
+                }
+            }
+        }
+    }
+
+    log::info!("已迁移 {} 个图片文件从 {:?} 到 {:?}", count, from_path, to_path);
+    Ok(())
 }
 
 /// 分享文本到局域网
@@ -121,14 +546,29 @@ pub async fn share_text_to_lan(text_data: String) -> Result<(), String> {
 
     log::info!("来自[{}]的文本：{}", local_ip, text_data);
 
-    // 将文本保存到数据库
-    match upload_dao::add(1, &text_data, None, &local_ip, false).await {
-        Ok(_) => {
-            log::info!("文本分享成功");
+    // 检查是否存在内容完全一致的文本记录
+    match upload_dao::find_text_by_content(&text_data).await {
+        Ok(Some(existing)) => {
+            log::info!("发现重复文本 ID={}，刷新时间，共享数+1", existing.id);
+            upload_dao::bump_record(existing.id).await
+                .map_err(|e| format!("刷新记录失败: {}", e))?;
             Ok(())
         }
+        Ok(None) => {
+            // 不存在相同内容，新增记录
+            match upload_dao::add(1, &text_data, None, &local_ip, false).await {
+                Ok(_) => {
+                    log::info!("文本分享成功");
+                    Ok(())
+                }
+                Err(err) => {
+                    log::error!("文本分享失败: {}", err);
+                    Err(err.to_string())
+                }
+            }
+        }
         Err(err) => {
-            log::error!("文本分享失败: {}", err);
+            log::error!("查询文本记录失败: {}", err);
             Err(err.to_string())
         }
     }
@@ -554,13 +994,13 @@ fn update_autostart_args(minimized: bool) {
 pub async fn get_http_port() -> Result<u16, String> {
     match config_dao::get_config_value("http_port").await {
         Ok(Some(value)) => {
-            let port = value.parse::<u16>().unwrap_or(3000);
+            let port = value.parse::<u16>().unwrap_or(6633);
             Ok(port)
         }
-        Ok(None) => Ok(3000),
+        Ok(None) => Ok(6633),
         Err(e) => {
             log::warn!("获取HTTP端口设置失败: {}", e);
-            Ok(3000)
+            Ok(6633)
         }
     }
 }
@@ -1080,6 +1520,7 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
         "exclude_system_files",
         "exclude_patterns",
         "delete_to_trash",
+        "image_sharing_dir",
     ];
     let configs = config_dao::get_config_values(keys).await;
 
@@ -1099,6 +1540,14 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
 
     let autostart = app.autolaunch().is_enabled().unwrap_or(false);
 
+    let image_sharing_dir = match configs.get("image_sharing_dir") {
+        Some(path) => path.clone(),
+        None => {
+            let img_dir = crate::config::config::get_image_sharing_dir().await;
+            crate::utils::path::normalize_path(&(*img_dir))
+        }
+    };
+
     let result = AllSettings {
         sharing_directory,
         upload_enabled: configs.get("upload_enabled").map(|v| v == "true").unwrap_or(false),
@@ -1111,13 +1560,14 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
         record_download_enabled: configs.get("record_download_enabled").map(|v| v == "true").unwrap_or(false),
         autostart,
         autostart_minimized: configs.get("autostart_minimized").map(|v| v == "true").unwrap_or(false),
-        http_port: configs.get("http_port").and_then(|v| v.parse::<u16>().ok()).unwrap_or(3000),
+        http_port: configs.get("http_port").and_then(|v| v.parse::<u16>().ok()).unwrap_or(6633),
         theme_setting: configs.get("theme_setting").cloned().unwrap_or_else(|| "system".to_string()),
         theme_color: configs.get("theme_color").cloned().unwrap_or_else(|| "{\"h\":210,\"s\":100,\"l\":40}".to_string()),
         language: configs.get("language").cloned().unwrap_or_default(),
         exclude_system_files: configs.get("exclude_system_files").map(|v| v == "true").unwrap_or(true),
         exclude_patterns: configs.get("exclude_patterns").and_then(|v| serde_json::from_str(v).ok()).unwrap_or_default(),
         delete_to_trash: configs.get("delete_to_trash").map(|v| v == "true").unwrap_or(true),
+        image_sharing_dir,
     };
 
     log::debug!(

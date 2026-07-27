@@ -22,13 +22,13 @@ pub fn get_config_dir() -> &'static PathBuf {
 /// 当前HTTP服务运行端口（启动时设定，重启后才变更）
 pub static RUNNING_HTTP_PORT: OnceLock<u16> = OnceLock::new();
 pub fn get_running_http_port() -> &'static u16 {
-    RUNNING_HTTP_PORT.get().unwrap_or(&3000)
+    RUNNING_HTTP_PORT.get().unwrap_or(&6633)
 }
 
 /// 配置的HTTP端口（在init中从DB读取，供setup同步使用）
 pub static CONFIGURED_HTTP_PORT: OnceLock<u16> = OnceLock::new();
 pub fn get_configured_http_port() -> &'static u16 {
-    CONFIGURED_HTTP_PORT.get().unwrap_or(&3000)
+    CONFIGURED_HTTP_PORT.get().unwrap_or(&6633)
 }
 
 /// 被占用的端口号（setup同步检测后设置，前端发app-ready时读取并通知）
@@ -47,10 +47,24 @@ lazy_static::lazy_static! {
     /// 文件共享根目录  
     /// **注意：用户不能访问当前目录的更高级目录**
     pub static ref FILE_SHARING_ROOT_DIR: RwLock<PathBuf> = RwLock::new(std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+    /// 图片共享暂存目录
+    pub static ref IMAGE_SHARING_DIR: RwLock<PathBuf> = RwLock::new(
+        dirs::data_dir().map(|d| d.join("lan-share").join("shared-images"))
+            .unwrap_or_else(|| PathBuf::from("."))
+    );
 }
 
 pub async fn get_sharing_root() -> tokio::sync::RwLockReadGuard<'static, PathBuf> {
     FILE_SHARING_ROOT_DIR.read().await
+}
+
+pub async fn get_image_sharing_dir() -> tokio::sync::RwLockReadGuard<'static, PathBuf> {
+    IMAGE_SHARING_DIR.read().await
+}
+
+pub async fn set_image_sharing_dir_raw(path: PathBuf) {
+    let mut guard = IMAGE_SHARING_DIR.write().await;
+    *guard = path;
 }
 
 pub async fn set_sharing_root_new(path: PathBuf) -> Result<(), String> {
@@ -116,6 +130,40 @@ pub async fn init_sharing_root_from_config() -> Result<(), String> {
             log::error!("读取共享根目录配置失败: {}", e);
             let default_path = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
             set_sharing_root_new(default_path).await.map_err(|_| "无法设置默认共享根目录".to_string())
+        }
+    }
+}
+
+/// 初始化图片共享暂存目录（从配置中加载）
+pub async fn init_image_sharing_dir_from_config() {
+    use crate::db::dao::config_dao;
+
+    match config_dao::get_config_value("image_sharing_dir").await {
+        Ok(Some(saved_path)) => {
+            let path = PathBuf::from(saved_path);
+            if !path.exists() {
+                if let Err(e) = std::fs::create_dir_all(&path) {
+                    log::error!("创建图片共享目录失败: {}", e);
+                    return;
+                }
+            }
+            set_image_sharing_dir_raw(path).await;
+            log::info!("从配置中加载图片共享目录成功");
+        }
+        Ok(None) => {
+            log::info!("未找到图片共享目录配置，使用默认目录");
+            let default = dirs::data_dir()
+                .map(|d| d.join("lan-share").join("shared-images"))
+                .unwrap_or_else(|| PathBuf::from("."));
+            if !default.exists() {
+                if let Err(e) = std::fs::create_dir_all(&default) {
+                    log::error!("创建默认图片共享目录失败: {}", e);
+                }
+            }
+            set_image_sharing_dir_raw(default).await;
+        }
+        Err(e) => {
+            log::error!("读取图片共享目录配置失败: {}", e);
         }
     }
 }

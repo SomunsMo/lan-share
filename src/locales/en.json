@@ -13,7 +13,7 @@
   },
   "route": {
     "home": "Home",
-    "textSharing": "Share Text",
+    "textSharing": "Share Text & Images",
     "history": "Transfer Log",
     "settings": "Settings",
     "about": "About"
@@ -67,6 +67,8 @@
       "languageDesc": "Select interface language",
       "shareRoot": "Sharing Root",
       "shareRootDesc": "Root directory for providing file sharing services",
+      "imageShareDir": "Image Sharing Directory",
+      "imageShareDirDesc": "Temporary storage path for shared images",
       "webUpload": "Web Upload",
       "webUploadDesc": "Allow file uploads via browser",
       "uploadOverwrite": "Upload Overwrite",
@@ -114,7 +116,10 @@
       "saveFailed": "Failed to save {{name}} setting: {{error}}",
       "selectFailed": "Failed to select folder: {{error}}",
       "patternDuplicate": "Rule already exists",
-      "patternInvalid": "Invalid regex pattern"
+      "patternInvalid": "Invalid regex pattern",
+      "migrateFailed": "Failed to migrate images: {{error}}",
+      "dirChanged": "Image directory updated",
+      "openDirFailed": "Failed to open directory: {{error}}"
     },
     "dialog": {
       "changePort": {
@@ -128,8 +133,9 @@
       }
     },
     "labels": {
-      "browse": "Browse",
-      "clickToSelect": "Click to select directory"
+      "browse": "Change",
+      "clickToSelect": "Click to select directory",
+      "openDir": "Open folder"
     }
   },
   "history": {
@@ -138,16 +144,21 @@
     "filterAll": "All",
     "filterFiles": "Files",
     "filterText": "Text",
+    "filterImages": "Images",
     "type": {
       "text": "Text",
-      "file": "File"
+      "file": "File",
+      "image": "Image"
     },
     "typeLabel": {
       "text": "Share text",
       "upload": "Upload file",
-      "download": "Download file"
+      "download": "Download file",
+      "image": "Share image"
     },
     "detailTitle": "Record Detail",
+    "detailCreatedTime": "Created Time",
+    "detailUpdatedTime": "Updated Time",
     "noPreview": "(File preview not supported)",
     "noCopyRecords": "No copy records",
     "copyRecordsTitle": "Copy Records",
@@ -224,7 +235,7 @@
     "quit": "Quit"
   },
   "textSharing": {
-    "pageTitle": "Share Text Locally",
+    "pageTitle": "Share Text & Images Locally",
     "pageDesc": "Shared text can be viewed or copied by other devices on the LAN via browser",
     "deleteCascadeWarning": "Deleting this record will also delete related copy records",
     "clearButton": "Clear",
@@ -235,13 +246,34 @@
     "detailTime": "Time",
     "detailIp": "Source IP",
     "detailContent": "Content",
-    "placeholder": "Enter text to share",
+    "placeholder": "Type text or paste image",
     "shareButton": "Share",
     "contextMenu": {
       "viewDetail": "View Detail",
       "copyContent": "Copy Content",
       "copyIp": "Copy IP",
       "deleteRecord": "Delete Record"
+    }
+  },
+  "imageSharing": {
+    "dirConfigTitle": "Change Image Storage Path",
+    "dirConfigContent": "Would you like to set a custom image sharing directory?\nDefault path will be used if skipped.",
+    "dirConfigButton": "Choose Path",
+    "selectDirTitle": "Select Image Directory",
+    "dirMigrateContent": "New path: {{path}}",
+    "dirMigrateHint": "Configuration will only be saved after migration is confirmed.",
+    "cancelChange": "Cancel Change",
+    "confirmMigrate": "Confirm & Migrate",
+    "pasteTitle": "Image detected in clipboard",
+    "shareButton": "Share",
+    "detailTitle": "Image Detail",
+    "detailFileName": "File Name",
+    "detailSha256": "SHA256",
+    "detailSize": "Size",
+    "copyImageButton": "Copy Image",
+    "contextMenu": {
+      "copyImage": "Copy Image",
+      "viewImage": "View Image"
     }
   }
 }
