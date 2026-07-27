@@ -1,372 +1,79 @@
-[English](../README.md) | **中文**
+[English](../../README.md) | **中文**
 
 ---
 
 # Lan Share
 
-> 基于 **Tauri**（Rust + JS）开发的跨平台局域网共享工具，内置 **HTTP Server**，浏览器即可访问，提供 Windows / macOS / Linux 桌面客户端
+> 局域网内的文件、文字和图片共享工具。电脑运行后，与电脑互通（同一局域网）的任何设备，用现代浏览器就能查看和下载共享的内容。
 
-![Rust](https://img.shields.io/badge/Rust-1.85%2B-orange?logo=rust)
-![Tauri](https://img.shields.io/badge/Tauri-2-ffc131?logo=tauri&logoColor=black)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
+![Tauri](https://img.shields.io/badge/Tauri-2-ffc131?logo=tauri&logoColor=black)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
----
+![主页预览](../../docs/img/preview-home.png)
 
-## 功能
+## 工作原理
 
-| 功能 | 描述 |
-|------|------|
-| **文件共享** | 选择共享目录后，局域网内任何设备通过浏览器浏览、下载文件 |
-| **目录上传** | 浏览器端支持选择目录或文件上传到宿主机指定路径 |
-| **文本速传** | 桌面端粘贴文本，浏览器端直接查看/复制，免去 IM 转发的麻烦 |
-| **自定义端口** | 桌面端可自由配置 HTTP 端口，默认 6633，端口被占用时有自动检测提示 |
-| **安全防护** | 路径穿越拦截、文件名危险字符过滤、各类操作（上传/重命名/删除/覆写）均需在桌面端显式开启 |
-| **自定义主题** | 支持亮色/暗色主题切换，桌面端与 Web 端独立设置 |
-| **国际化** | 支持中文和英文，自动检测系统语言，用户可手动选择切换 — 桌面端持久化到 SQLite，Web 端持久化到 localStorage |
-| **历史记录** | 文本和文件分享记录持久化存储，支持查看和删除 |
+Lan Share 会在你电脑上启动一个小型文件服务器。连上同一个 Wi-Fi 的手机、平板、笔记本甚至电视，都能打开浏览器看你共享的内容。数据只在局域网里走，不会传到外网。
 
-## 快速开始
+## 快速上手
 
-### 开发
+1. **下载安装** — 从 [Releases](https://github.com/SomunsMo/lan-share/releases) 下载对应系统的安装包
+2. **安装并打开** Lan Share
+3. **选一个要共享的文件夹**（在设置页面操作）
+4. **用手机扫首页的二维码**，或者在浏览器里输入主页上显示的地址（比如 `http://192.168.x.x:6633`）
 
-```bash
-# 安装依赖
-pnpm install
-cd src-web && pnpm install
+搞定了，直接用。
 
-# 启动 Tauri 开发模式（Vite + Tauri）
-pnpm tauri dev
-
-# Web 前端独立开发（浏览器直接访问）
-cd src-web && pnpm dev
-```
-
-### 构建
-
-```bash
-# 生产构建（自动编译 Web 前端并嵌入二进制）
-pnpm tauri build
-```
-
-构建产物位于 `target/release/`（Cargo 工作区根目录），产物名为 `lan-share`（Windows 为 `lan-share.exe`）。Web 前端由 `build.rs` 在编译时自动构建并嵌入可执行程序，无需手动操作。
-
-### 使用流程
-
-1. 启动桌面端 → 在设置页选择**共享目录**并开启所需权限
-2. 桌面端主页显示局域网访问地址：`http://192.168.x.x:6633`
-3. 同一局域网的其他设备打开浏览器访问该地址即可
-
-## 原理
-
-桌面端启动后，在后台拉起一个嵌入式 HTTP 服务器（基于 `hyper`）。同一局域网内的其他设备通过浏览器直接访问该 HTTP 服务，进行文件浏览、上传、下载和文本共享。所有文件操作直接作用于宿主机文件系统。
-
-```
-┌────────────────────────────────────────────────────┐
-│                      宿主机                         │
-│                                                      │
-│  ┌─────────── Tauri 桌面应用 ───────────────────┐  │
-│  │                                                  │  │
-│  │  ┌──────────┐     IPC      ┌──────────────────┐ │  │
-│  │  │ React UI │◄───────────►│   Rust 后端       │ │  │
-│  │  │  (src/)  │             │                   │ │  │
-│  │  └──────────┘             │  ┌─────────────┐  │ │  │
-│  │                           │  │ HTTP 服务器  │──┼─┼──│──→
-│  │                           │  │  (hyper)    │  │ │  │
-│  │                           │  ├─────────────┤  │ │  │
-│  │                           │  │ SQLite 数据库│  │ │  │
-│  │                           │  ├─────────────┤  │ │  │
-│  │                           │  │  文件系统接口 │  │ │  │
-│  │                           │  └─────────────┘  │ │  │
-│  │                           └───────────────────┘ │  │
-│  └─────────────────────────────────────────────────┘  │
-│                            │                          │
-│                     ┌──────┴──────┐                   │
-│                     │   文件系统   │                   │
-│                     └─────────────┘                   │
-└──────────────────────────────────────────────────────┘
-                               │ 局域网
-                    ┌──────────┴──────────┐
-                    ↓                     ↓
-               ┌────────┐           ┌────────┐
-               │浏览器 A │           │浏览器 B │
-               │  /web  │           │  /web  │
-               └────────┘           └────────┘
-```
-
-**启动流程**：`main()` → 初始化日志 → 创建配置目录 → 初始化 SQLite → 从数据库加载配置 → 启动 Tauri 应用 → `setup` 回调中检测端口 → 启动 HTTP 服务器。
-
-## HTTP API
-
-所有 JSON 接口响应格式为 `{ code, msg, data }`。
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/upload/file` | 列出共享文件（含权限信息 + 磁盘剩余空间） |
-| POST | `/upload/file` | 上传文件（multipart，支持覆写检测） |
-| GET | `/download/file` | 下载文件（含 Content-Disposition） |
-| PUT | `/rename/file` | 重命名文件/目录 |
-| DELETE | `/delete/file` | 删除文件/目录 |
-| GET | `/upload/text` | 列出共享文本记录 |
-| POST | `/upload/text` | 分享文本（JSON body） |
-| GET | `/config/permissions` | 获取 Web 端权限配置 |
-| GET | `/web` | 访问 Web 前端页面 |
-| GET | `/` | 重定向到 `/web` |
-
-## 安全
-
-- **路径穿越防护**：所有文件路径参数经 `sanitize_path_segment()` 处理，`..` 段被剥离，分隔符被规范化
-- **文件名过滤**：依操作系统去除危险字符（`\`、`/`、`:` 等）
-- **权限系统**：上传、重命名、删除、覆写操作默认为关闭状态，需在桌面端设置页显式开启，服务端强制校验
-- **网络隔离**：HTTP 服务默认监听 `0.0.0.0:{port}`，仅在局域网内可达
-
-## 自定义网页
-
-默认的 Web 前端（`/web`）由 `src-web/` 项目经 `build.rs` 自动构建并嵌入到可执行程序中。
-
-若你想替换 Web 前端为自己的页面，可以通过自定义网页功能实现：
-
-### 自定义首页
-
-将 `index.html` 放入配置目录下的 `frontend/` 文件夹中，HTTP 服务器会在启动时优先读取该文件：
-
-```
-{config_dir}/Somunsm/LanShare/frontend/index.html
-```
-
-- 无需重新编译程序，重启应用即可生效
-- 如果该文件不存在，则使用嵌入的默认前端
-
-### 自定义 404 页面
-
-同理，将 `404.html` 放入相同目录：
-
-```
-{config_dir}/Somunsm/LanShare/frontend/404.html
-```
-
-当请求的路径不存在时，HTTP 服务器会返回此页面。如果该文件也不存在，则返回默认的 404 提示文字。
-
-### 配置目录路径
-
-不同操作系统下 `{config_dir}` 的默认位置：
-
-| 系统 | 路径 |
-|------|------|
-| Windows | `C:\Users\<用户名>\AppData\Roaming\Somunsm\LanShare` |
-| Linux | `~/.config/Somunsm/LanShare` |
-| macOS | `~/Library/Application Support/Somunsm/LanShare` |
-
-## 技术栈
-
-### 桌面端 UI（`src/`）
-
-- **React 19** + **Vite 8**
-- **React Router 7** — 页面路由
-- **styled-components** — 样式方案
-- **react-dropzone** — 文件拖拽上传
-- **qrcode.react** — 二维码生成
-- **copy-to-clipboard** — 剪贴板复制
-- **@tauri-apps/api** — Tauri IPC 通信
-- **i18next** + **react-i18next** — 国际化（按语言懒加载）
-
-### Web 端 UI（`src-web/`）
-
-- **React 19** + **Vite 8**
-- **styled-components** — 样式方案
-- **vite-plugin-singlefile** — 构建为单 HTML 文件（便于嵌入二进制）
-- **axios** — HTTP API 调用
-- **qrcode.react** + **copy-to-clipboard**
-- **i18next** + **react-i18next** — 国际化（静态导入兼容单文件打包）
-
-> **注意**：`public` 文件夹内不宜存放资源，`vite-plugin-singlefile` 无法将其打包到 HTML 中，请使用 `src/assets/`。
-
-### Rust 后端（`src-tauri/`）
-
-- **Tauri v2** — 桌面应用框架（系统托盘、单实例、自动启动、对话框插件）
-- **hyper v1** + **hyper-util** + **tokio** — 嵌入式异步 HTTP 服务器
-- **sqlx** (SQLite) — 异步数据库（配置持久化 + 分享记录）
-- **multer** — multipart 文件上传解析
-- **mime_guess** — 文件下载 MIME 类型推断
-- **local-ip-address** — 局域网 IP 自动检测
-- **listeners** — 端口占用检测
-- **fs4** — 磁盘剩余空间查询
-- **directories** — 跨平台配置目录
-- **form_urlencoded** — URL 查询参数解析
-- **serde / serde_json** — 序列化
-
-### Proc-macro 路由宏（`crates/http-macros/`）
-
-自定义 proc-macro crate，提供声明式路由宏：
-
-- `#[get("/path")]`、`#[post("/path")]`、`#[put("/path")]`、`#[delete("/path")]`、`#[request("/path")]`
-- 自动注入 `QueryParams` 参数
-- 编译期通过 `#[ctor]` 自动注册路由到全局处理器注册表
-- 无需手动维护路由表
-
-## 项目结构
-
-```
-lan-share/
-├── src/                        # Tauri 桌面端 UI（React 19）
-│   ├── i18n.ts                 # i18next 初始化（懒加载翻译 + SQLite 持久化）
-│   ├── locales/
-│   │   ├── zh-CN.json          # 中文翻译
-│   │   └── en.json             # 英文翻译
-│   ├── App.jsx                 # 应用入口（主题加载 + 路由挂载）
-│   ├── main.jsx                # React 渲染入口（等待 i18n 初始化后挂载）
-│   ├── AppLight.css / AppDark.css
-│   ├── assets/icon/            # 导航栏图标 SVG（home / history / text / setting）
-│   ├── components/
-│   │   ├── card/               # 通用卡片组件
-│   │   ├── dialog/             # 模态弹窗（替代原生对话框）
-│   │   ├── navbar/             # 底部导航栏
-│   │   └── toast/              # 轻提示组件
-│   └── pages/
-│       ├── home/               # 主页：局域网地址 + QR 码 + 端口状态
-│       ├── history/            # 完整上传历史记录
-│       ├── settings/           # 设置：共享目录、权限开关、端口、主题、开机自启
-│       └── text-sharing-manager/ # 文本分享管理
-│
-├── src-tauri/                  # Rust 后端（Tauri v2 + hyper）
-│   ├── build.rs                # 编译时构建 src-web → 嵌入 index.html
-│   ├── icons/                  # 应用图标（多尺寸 + .ico / .icns）
-│   ├── src/
-│   │   ├── main.rs             # 入口：初始化日志 → SQLite → 加载配置 → run()
-│   │   ├── lib.rs              # Tauri Builder：插件 / 托盘 / 窗口事件 / HTTP 启动
-│   │   ├── tray.rs             # 系统托盘：双击切换 / 右键菜单 / 退出
-│   │   ├── cmd/
-│   │   │   ├── _cmd_handler.rs # generate_handler![] 命令注册中心
-│   │   │   └── system.rs       # 25 个 Tauri IPC 命令实现
-│   │   ├── config/config.rs    # 全局运行时状态（OnceLock / RwLock）
-│   │   ├── db/
-│   │   │   ├── sqlite.rs       # 连接池初始化 + 建表
-│   │   │   ├── entity.rs       # 数据结构（Config / UploadRecord）
-│   │   │   └── dao/            # 数据访问层（config_dao / upload_dao）
-│   │   ├── http_server/
-│   │   │   ├── http_server.rs  # TCP 监听 + 请求分发
-│   │   │   ├── handler.rs      # 路由注册表（LazyLock<RwLock<HashMap>>）
-│   │   │   ├── responses.rs    # 响应辅助函数（success / error / redirect / not_found）
-│   │   │   └── path_handler/   # 路由处理器（宏自动注册）
-│   │   │       ├── file_sharing_handler.rs  # 文件 CRUD
-│   │   │       ├── text_sharing_handler.rs  # 文本分享
-│   │   │       └── web_handler.rs           # /web 前端页面
-│   │   ├── normalizer/         # URL 路径标准化
-│   │   └── utils/              # 工具函数（datetime / path）
-│
-├── src-web/                    # Web 前端（React + Vite + vite-plugin-singlefile）
-│   ├── vite.config.js          # 配置：vite-plugin-singlefile + host:true
-│   ├── src/
-│   │   ├── i18n.ts             # i18next 初始化（静态导入 + localStorage 持久化）
-│   │   ├── locales/
-│   │   │   ├── zh-CN.json      # 中文翻译
-│   │   │   └── en.json         # 英文翻译
-│   │   ├── App.jsx             # 应用入口（QR 码 + 文件共享 + 文本共享）
-│   │   ├── component/
-│   │   │   ├── FileSharing/    # 文件浏览 / 上传 / 下载 / 重命名 / 删除
-│   │   │   ├── TextSharing/    # 文本查看与复制
-│   │   │   ├── Card/           # 文件列表卡片
-│   │   │   ├── Dialog/         # 模态弹窗
-│   │   │   ├── Toast/          # 轻提示
-│   │   │   └── ProgressBar/    # 文件上传进度条
-│   │   ├── service/
-│   │   │   ├── MyAxios.js      # axios 实例封装
-│   │   │   └── API.js          # HTTP API 方法（文件 / 文本 / 配置）
-│   │   └── util/file.js        # 前端文件工具函数
-│
-└── crates/http-macros/         # Proc-macro：声明式 HTTP 路由宏
-    └── src/lib.rs              # #[get] / #[post] / #[put] / #[delete] / #[request]
-```
-
-## IPC 命令
-
-桌面端 React UI 通过 Tauri IPC 调用 Rust 后端，30 个命令按功能分类：
-
-### 文本共享
-| 命令 | 说明 |
-|------|------|
-| `get_local_ip` | 获取本机内网 IP |
-| `share_text_to_lan` | 分享文本到局域网 |
-| `get_text_sharing_history` | 获取文本分享历史 |
-| `delete_record` | 按 id 和 action_type 删除记录 |
-| `clear_sharing_text` | 清空所有分享记录（返回 `{text_count, image_count}`） |
-
-### 图片共享
-| 命令 | 说明 |
-|------|------|
-| `read_clipboard_image` | 读取剪贴板图片并共享到局域网 |
-| `copy_image_to_clipboard` | 按记录 id 将共享图片复制到本地剪贴板 |
-| `set_image_sharing_dir` | 设置图片共享存储目录 |
-| `migrate_image_sharing_dir` | 将图片从一个目录迁移到另一个目录 |
+## 功能一览
 
 ### 文件共享
-| 命令 | 说明 |
+- 共享文件夹里的文件，任何设备都能浏览和下载
+- 从浏览器上传文件，整个文件夹也行
+- 支持重命名和删除（可选，在设置里开启）
+- 支持拖拽上传
+
+### 文字和图片共享
+- 电脑上打一段字，其他设备马上就能看到
+- 剪贴板里的图片可以直接分享，不用先存到本地
+- 桌面端和 Web 端都能查看分享历史
+
+### 传输记录
+- 所有文件、文字、图片的分享记录都保留着
+- 按类型（文字/文件/图片）筛选、按内容搜索、按时间排序
+- 复制和下载事件也会被记录下来
+
+### 个性化设置
+- **浅色/深色主题**——桌面端和 Web 端可以分开设置
+- **强调色**——用 HSL 调色板随便选个喜欢的颜色
+- **语言**——中文和英文随时切换
+- **端口**——HTTP 端口可以自由修改（默认 6633）
+
+### 安全可控
+- 共享文件夹之外的文件访问不到
+- 上传、重命名、删除、覆盖这些操作**默认全关**，由你自己决定开哪些
+- 删除的文件可以进回收站（可选）
+- 危险文件名和路径穿越攻击自动拦截
+- 内置和自定义的文件排除规则
+
+### 跨平台
+- Windows、macOS、Linux 三平台体验一致
+- 支持系统托盘，随时打开
+- 可选开机自启，开机后直接最小化到托盘
+
+## 常见问题
+
+| 问题 | 回答 |
 |------|------|
-| `set_sharing_directory` | 设置共享目录 |
-| `get_sharing_directory` | 获取当前共享目录 |
-| `get_file_sharing_history` | 获取文件分享历史 |
-| `delete_file_sharing_record` | 删除指定文件记录 |
-| `clear_sharing_file` | 清空所有文件分享记录 |
-| `get_transfer_log` | 分页获取传输日志 |
-| `is_sharing_root_configured` | 是否已配置共享目录 |
+| 需要联网吗 | 不需要。只走局域网，没网也能用 |
+| 哪些设备能访问 | 任何带浏览器的设备都行——手机、平板、笔记本、智能电视。不用装 App |
+| 数据安全吗 | 数据不会离开你的局域网，外网连不进来 |
+| 能同时共享多个文件夹吗 | 目前一次只能共享一个，但随时可以在设置里换 |
+| 在哪反馈问题 | 在 [GitHub](https://github.com/SomunsMo/lan-share/issues) 上提 Issue 就行 |
 
-### 权限控制
-| 命令 | 说明 |
-|------|------|
-| `get_upload_enabled` / `set_upload_enabled` | 获取/设置上传权限 |
-| `get_rename_enabled` / `set_rename_enabled` | 获取/设置重命名权限 |
-| `get_delete_enabled` / `set_delete_enabled` | 获取/设置删除权限 |
-| `get_upload_overwrite_enabled` / `set_upload_overwrite_enabled` | 获取/设置覆写权限 |
+## 给开发者
 
-### 服务配置
-| 命令 | 说明 |
-|------|------|
-| `get_http_port` / `set_http_port` | 获取/设置 HTTP 端口 |
-| `get_running_port` | 获取实际运行端口 |
-| `get_server_status` | 获取服务器状态（含端口占用信息） |
-
-### 系统设置
-| 命令 | 说明 |
-|------|------|
-| `get_autostart` / `set_autostart` | 获取/设置开机自启 |
-| `get_theme_setting` / `set_theme_setting` | 获取/设置主题（light / dark） |
-| `get_language` / `set_language` | 获取/设置语言（zh-CN / en） |
-| `get_all_settings` | 获取全部设置（含 image_sharing_dir） |
-
-## 数据库
-
-SQLite 数据库文件位于 `{config_dir}/Somunsm/LanShare/config.db`，包含三张表：
-
-### `config` 表
-键值对配置存储。
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `cfg_key` | TEXT | 配置键 |
-| `cfg_value` | TEXT | 配置值 |
-| `created_at` | DATETIME | 创建时间 |
-
-### `upload_record` 表
-文本/文件分享记录。
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `upload_type` | INTEGER | 类型：`1`=文本, `2`=文件 |
-| `content` | TEXT | 文本内容或文件路径 |
-| `ip` | TEXT | 来源 IP 地址 |
-| `is_overwrite` | INTEGER | 是否覆写（`0`/`1`） |
-| `created_at` | DATETIME | 创建时间 |
-
-### `transfer_record` 表
-传输日志（图片共享通过 `action_type=5` 查询）。
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `action_type` | INTEGER | 类型：`1`=文本, `5`=图片 |
-| `content` | TEXT | 文本内容或图片元数据 JSON |
-| `ip` | TEXT | 来源 IP 地址 |
-| `id` | INTEGER | 主键 |
-| `created_at` | DATETIME | 创建时间 |
+技术架构、API 文档、构建指南和参与贡献的方式，请见[开发指南](development.md)。
 
 ## 许可
 
