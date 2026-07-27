@@ -32,10 +32,10 @@ export const ToastContainerWrapper = styled.div`
 `;
 
 export const ToastItemOuter = styled.div`
-  overflow: ${props => props.$collapsing ? 'hidden' : 'visible'};
+  overflow: ${props => props.$exiting ? 'hidden' : 'visible'};
   transition: height 0.25s ease, margin 0.25s ease;
-  height: ${props => props.$collapsing ? '0px' : props.$height ? `${props.$height}px` : 'auto'};
-  margin-bottom: ${props => props.$collapsing ? '0px' : '0'};
+  height: ${props => props.$exiting ? '0px' : props.$height ? `${props.$height}px` : 'auto'};
+  margin-bottom: ${props => props.$exiting ? '0px' : '0'};
   pointer-events: auto;
 `;
 

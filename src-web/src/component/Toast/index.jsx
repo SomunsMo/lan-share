@@ -45,20 +45,6 @@ export function ToastProvider({ children }) {
         if (exitingToasts.length === 0) return;
 
         const timers = exitingToasts.map(t =>
-            setTimeout(() => {
-                setToasts(prev => prev.map(toast =>
-                    toast.id === t.id ? { ...toast, phase: 'collapsing' } : toast
-                ));
-            }, 300)
-        );
-        return () => timers.forEach(clearTimeout);
-    }, [toasts]);
-
-    useEffect(() => {
-        const collapsingToasts = toasts.filter(t => t.phase === 'collapsing');
-        if (collapsingToasts.length === 0) return;
-
-        const timers = collapsingToasts.map(t =>
             setTimeout(() => removeToast(t.id), 300)
         );
         return () => timers.forEach(clearTimeout);
@@ -99,10 +85,9 @@ function ToastItem({ toast, onClose }) {
     }, [toast.phase]);
 
     const isExiting = toast.phase === 'exiting';
-    const isCollapsing = toast.phase === 'collapsing';
 
     return (
-        <ToastItemOuter $collapsing={isCollapsing} $height={height}>
+        <ToastItemOuter $exiting={isExiting} $height={height}>
             <ToastItemInner ref={innerRef} $type={toast.type} $exiting={isExiting}>
                 <ToastBar $type={toast.type} />
                 <ToastMessage>{toast.message}</ToastMessage>
