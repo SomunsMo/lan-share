@@ -4,7 +4,7 @@
 
 # Lan Share
 
-> A LAN file, text, and image sharing tool. Once running on your computer, any device on the same local network can view and download shared content using a modern browser.
+> A LAN file, text, and image sharing tool for Windows, macOS, and Linux. Once running on your computer, any device on the same local network can view and download shared content using a modern browser.
 
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
 ![Tauri](https://img.shields.io/badge/Tauri-2-ffc131?logo=tauri&logoColor=black)
@@ -46,8 +46,11 @@ That's it — you're sharing.
 ### Customizable
 - **Light / Dark** theme — set independently for desktop and web
 - **Accent color** — pick any color with the HSL picker
-- **Language** — switch between Chinese and English
 - **Port** — change the HTTP port freely (default 6633)
+
+### Internationalization
+- **Chinese and English** — switch anytime in Settings, or let it auto-detect your system language
+- Desktop UI and web UI are both fully translated
 
 ### Security You Control
 - Files outside the shared folder are never accessible
@@ -57,7 +60,7 @@ That's it — you're sharing.
 - Built-in and custom file exclusion rules
 
 ### Cross-Platform
-- Windows, macOS, and Linux — same experience on all platforms
+- **Windows, macOS, and Linux** — the desktop app runs on all three with the same experience
 - System tray for quick access
 - Optional autostart on login (with minimized to tray)
 
