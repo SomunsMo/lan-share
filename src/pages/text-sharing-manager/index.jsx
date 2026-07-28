@@ -192,50 +192,145 @@ function TextSharingManager(props) {
         }
     }
 
+    // 解析 file:// URI 列表，返回第一个图片文件路径
+    const extractImagePathFromUriList = useCallback((text) => {
+        for (const line of text.split('\n')) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            let path = trimmed;
+            if (path.startsWith('file://')) {
+                path = decodeURIComponent(path.slice(7));
+                if (path.startsWith('localhost/')) path = path.slice(10);
+                if (path.startsWith('/')) { /* absolute path */ }
+                else {
+                    const idx = path.indexOf('/');
+                    if (idx >= 0) path = path.substring(idx);
+                }
+            }
+            const ext = path.split('.').pop()?.toLowerCase();
+            if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'tif'].includes(ext)) {
+                return path;
+            }
+        }
+        return null;
+    }, []);
+
+    // 通过 Async Clipboard API 读取剪贴板图片（Tauri 安全上下文下可用）
+    const readClipboardViaAsyncApi = useCallback(() => {
+        if (!navigator.clipboard?.read) return;
+        navigator.clipboard.read().then((clipboardItems) => {
+            for (const item of clipboardItems) {
+                for (const type of item.types) {
+                    if (type.startsWith('image/')) {
+                        item.getType(type).then((blob) => {
+                            blob.arrayBuffer().then((buffer) => {
+                                const bytes = new Uint8Array(buffer);
+                                invoke('read_clipboard_image', { imageBytes: Array.from(bytes), filePath: null })
+                                    .then((result) => {
+                                        if (result) {
+                                            showToast({message: t('common.toast.copied'), type: 'success'});
+                                            loadHistory();
+                                        }
+                                    })
+                                    .catch(() => {});
+                            });
+                        });
+                        return;
+                    }
+                }
+            }
+        }).catch(() => {});
+    }, [showToast, loadHistory, t]);
+
     const handlePaste = useCallback((e) => {
         const items = e.clipboardData?.items;
         if (!items) return;
-        let imageFile = null;
+
+        // Phase 1: 原有逻辑 — image/* + getAsFile 成功（保持 handler 同步，不改变原有行为）
         for (let i = 0; i < items.length; i++) {
             if (items[i].type.startsWith('image/')) {
-                imageFile = items[i].getAsFile();
-                break;
+                const file = items[i].getAsFile();
+                if (file) {
+                    e.preventDefault();
+                    const previewUrl = URL.createObjectURL(file);
+                    showDialog({
+                        title: t('imageSharing.pasteTitle'),
+                        content: (
+                            <div className="paste-preview">
+                                <DialogImage src={previewUrl} alt="paste preview" />
+                            </div>
+                        ),
+                        buttons: [
+                            {label: 'common.button.cancel', value: null},
+                            {
+                                label: 'imageSharing.shareButton',
+                                value: true,
+                                primary: true,
+                                action: () => {
+                                    file.arrayBuffer().then((buffer) => {
+                                        const bytes = new Uint8Array(buffer);
+                                        invoke('read_clipboard_image', { imageBytes: Array.from(bytes), filePath: null })
+                                            .then(() => {
+                                                showToast({message: t('common.toast.copied'), type: 'success'});
+                                                loadHistory();
+                                            })
+                                            .catch((error) => {
+                                                console.error('保存图片失败:', error);
+                                                showToast({message: t('common.toast.operationFailed'), type: 'error'});
+                                            });
+                                    });
+                                }
+                            },
+                        ],
+                    }).then(() => {
+                        URL.revokeObjectURL(previewUrl);
+                    });
+                    return;
+                }
             }
         }
-        if (!imageFile) return;
-        e.preventDefault();
-        const previewUrl = URL.createObjectURL(imageFile);
-        showDialog({
-            title: t('imageSharing.pasteTitle'),
-            content: (
-                <div className="paste-preview">
-                    <DialogImage src={previewUrl} alt="paste preview" />
-                </div>
-            ),
-            buttons: [
-                {label: 'common.button.cancel', value: null},
-                {
-                    label: 'imageSharing.shareButton',
-                    value: true,
-                    primary: true,
-                    action: async () => {
-                        try {
-                            const buffer = await imageFile.arrayBuffer();
-                            const bytes = new Uint8Array(buffer);
-                            await invoke('read_clipboard_image', { imageBytes: Array.from(bytes) });
-                            showToast({message: t('common.toast.copied'), type: 'success'});
-                            loadHistory();
-                        } catch (error) {
-                            console.error('保存图片失败:', error);
-                            showToast({message: t('common.toast.operationFailed'), type: 'error'});
-                        }
+
+        // Phase 2: text/uri-list（资源管理器复制）— 用 getAsString 回调，不引入 await
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type === 'text/uri-list' || items[i].type === 'x-special/gnome-copied-files') {
+                items[i].getAsString((uriText) => {
+                    if (!uriText) return;
+                    const filePath = extractImagePathFromUriList(uriText);
+                    if (filePath) {
+                        invoke('read_clipboard_image', { imageBytes: null, filePath })
+                            .then((result) => {
+                                if (result) {
+                                    showToast({message: t('common.toast.copied'), type: 'success'});
+                                    loadHistory();
+                                }
+                            })
+                            .catch((err) => {
+                                console.error('读取图片文件失败:', err);
+                                showToast({message: t('common.toast.operationFailed'), type: 'error'});
+                            });
                     }
-                },
-            ],
-        }).then(() => {
-            URL.revokeObjectURL(previewUrl);
-        });
-    }, [showDialog, showToast, t, loadHistory]);
+                });
+                e.preventDefault();
+                return;
+            }
+        }
+
+        // Phase 3: Async Clipboard API — navigator.clipboard.read()
+        // 安全上下文下可读浏览器"复制图片"的数据
+        readClipboardViaAsyncApi();
+
+        // Phase 4: Rust 模板方法兜底（延迟执行，不影响同步粘贴）
+        setTimeout(() => {
+            invoke('read_clipboard_image', { imageBytes: null, filePath: null })
+                .then((result) => {
+                    if (result) {
+                        showToast({message: t('common.toast.copied'), type: 'success'});
+                        loadHistory();
+                    }
+                })
+                .catch(() => {});
+        }, 100);
+    }, [showDialog, showToast, t, loadHistory, extractImagePathFromUriList, readClipboardViaAsyncApi]);
 
     const copyImageToClipboard = useCallback(async (item) => {
         try {
