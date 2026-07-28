@@ -41,6 +41,7 @@ fn read_file_uris_nspasteboard() -> Result<Vec<String>, String> {
     unsafe {
         use objc2::msg_send;
         use objc2::runtime::{AnyClass, NSObject};
+        use objc2_foundation::NSString;
 
         let cls = AnyClass::get(c"NSPasteboard").ok_or("NSPasteboard 类未找到")?;
         let pb: *mut NSObject = msg_send![cls, generalPasteboard];
@@ -63,9 +64,10 @@ fn read_file_uris_nspasteboard() -> Result<Vec<String>, String> {
                 continue;
             }
             // 获取 NSPasteboardTypeFileURL (public.file-url)
+            let type_key = NSString::from_str("public.file-url");
             let type_str: *mut NSObject = msg_send![
                 item,
-                stringForType: c"public.file-url"
+                stringForType: &*type_key
             ];
             if !type_str.is_null() {
                 if let Ok(uri) = nsstring_to_string(type_str) {
@@ -74,9 +76,10 @@ fn read_file_uris_nspasteboard() -> Result<Vec<String>, String> {
             }
             if paths.is_empty() {
                 // 兜底: 尝试 NSPasteboardTypeString
+                let str_key = NSString::from_str("public.utf8-plain-text");
                 let str: *mut NSObject = msg_send![
                     item,
-                    stringForType: c"public.utf8-plain-text"
+                    stringForType: &*str_key
                 ];
                 if !str.is_null() {
                     if let Ok(s) = nsstring_to_string(str) {
