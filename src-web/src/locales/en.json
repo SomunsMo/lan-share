@@ -93,6 +93,7 @@
     "sharing": "Sharing...",
     "uploadImageBtn": "Share Image",
     "pasteNotSupported": "Cannot read clipboard image over HTTP, use the image upload button",
+    "pasteFileUriHint": "Pasting images from file manager is not supported in web, use the upload button",
     "toast": {
       "shared": "Image shared"
     },

@@ -91,17 +91,23 @@ function TextSharing() {
 
         let imageFile = null;
         let hasImageType = false;
+        let hasFileUri = false;
 
         const items = dt.items;
         if (items) {
             for (let i = 0; i < items.length; i++) {
                 const item = items[i];
-                if (item && item.type && item.type.startsWith('image/')) {
-                    hasImageType = true;
-                    if (item.kind === 'file') {
-                        imageFile = item.getAsFile();
+                if (item && item.type) {
+                    if (item.type.startsWith('image/')) {
+                        hasImageType = true;
+                        if (item.kind === 'file') {
+                            imageFile = item.getAsFile();
+                        }
+                        if (imageFile) break;
                     }
-                    if (imageFile) break;
+                    if (item.type === 'text/uri-list' || item.type === 'x-special/gnome-copied-files') {
+                        hasFileUri = true;
+                    }
                 }
             }
         }
@@ -122,6 +128,8 @@ function TextSharing() {
         if (!imageFile) {
             if (hasImageType && !isSecureContext) {
                 showToast({message: t('imageSharing.pasteNotSupported'), type: 'info'});
+            } else if (hasFileUri) {
+                showToast({message: t('imageSharing.pasteFileUriHint'), type: 'info'});
             }
             return;
         }

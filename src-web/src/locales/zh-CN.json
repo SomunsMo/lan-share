@@ -93,6 +93,7 @@
     "sharing": "共享中...",
     "uploadImageBtn": "共享图片",
     "pasteNotSupported": "HTTP 下无法读取剪切板图片，请使用图片上传按钮",
+    "pasteFileUriHint": "暂不支持粘贴文件管理器中的图片，请使用图片上传按钮",
     "toast": {
       "shared": "图片已共享"
     },
