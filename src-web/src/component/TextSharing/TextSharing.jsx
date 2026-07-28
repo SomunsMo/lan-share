@@ -1,7 +1,8 @@
-import React, {useEffect, useState, useMemo} from 'react';
+import React, {useCallback, useEffect, useRef, useState, useMemo} from 'react';
 import Card from "../Card/Card.js";
 import TextSharingStyle from "./TextSharingStyle.js";
-import {getUploadRecordsAPI, uploadTextAPI, recordCopyAPI} from "../../service/API.js";
+import {getUploadRecordsAPI, uploadTextAPI, recordCopyAPI, uploadImageAPI} from "../../service/API.js";
+import {useDialog} from "@/component/Dialog/index.jsx";
 import {useToast} from "@/component/Toast/index.jsx";
 import copy from "copy-to-clipboard";
 import {useTranslation} from "react-i18next";
@@ -9,6 +10,7 @@ import {useTranslation} from "react-i18next";
 function TextSharing() {
     const { t } = useTranslation();
     const {showToast} = useToast();
+    const {showDialog} = useDialog();
     const isTouch = useMemo(() => 'ontouchstart' in window || navigator.maxTouchPoints > 0, []);
     const [uploadText, setUploadText] = useState("");
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, content: '', id: null, actionType: null });
@@ -38,6 +40,105 @@ function TextSharing() {
             showToast({message: t('textSharing.toast.loadFailed', {error: error.message || '未知错误'}), type: 'error'});
         })
     }
+
+    const fileInputRef = useRef(null);
+    const isSecureContext = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+    const uploadImageFile = useCallback((imageFile) => {
+        const previewUrl = URL.createObjectURL(imageFile);
+
+        showDialog({
+            title: t('imageSharing.pasteTitle'),
+            content: (
+                <div style={{textAlign: 'center', margin: '12px 0'}}>
+                    <img src={previewUrl} alt="paste preview"
+                         style={{maxWidth: '100%', maxHeight: '40vh', objectFit: 'contain', borderRadius: '4px'}} />
+                </div>
+            ),
+            buttons: [
+                {label: 'common.button.cancel', value: null},
+                {
+                    label: 'imageSharing.shareButton',
+                    value: true,
+                    primary: true,
+                    loadingLabel: 'imageSharing.sharing',
+                    handler: async () => {
+                        try {
+                            const res = await uploadImageAPI(imageFile);
+                            if (res.code !== 200) {
+                                showToast({message: t('common.toast.operationFailed'), type: 'error'});
+                                return;
+                            }
+                            showToast({message: t('imageSharing.toast.shared'), type: 'success'});
+                            flushRecords();
+                        } catch (error) {
+                            console.error('上传图片失败:', error);
+                            showToast({message: t('common.toast.operationFailed'), type: 'error'});
+                        }
+                    },
+                },
+            ],
+        }).then((confirmed) => {
+            URL.revokeObjectURL(previewUrl);
+        }).catch(() => {
+            URL.revokeObjectURL(previewUrl);
+        });
+    }, [showDialog, showToast, t, flushRecords]);
+
+    const handlePaste = useCallback((e) => {
+        const dt = e.clipboardData || e.nativeEvent?.clipboardData;
+        if (!dt) return;
+
+        let imageFile = null;
+        let hasImageType = false;
+
+        const items = dt.items;
+        if (items) {
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item && item.type && item.type.startsWith('image/')) {
+                    hasImageType = true;
+                    if (item.kind === 'file') {
+                        imageFile = item.getAsFile();
+                    }
+                    if (imageFile) break;
+                }
+            }
+        }
+
+        if (!imageFile) {
+            const files = dt.files;
+            if (files && files.length > 0) {
+                for (let i = 0; i < files.length; i++) {
+                    if (files[i] && files[i].type.startsWith('image/')) {
+                        hasImageType = true;
+                        imageFile = files[i];
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!imageFile) {
+            if (hasImageType && !isSecureContext) {
+                showToast({message: t('imageSharing.pasteNotSupported'), type: 'info'});
+            }
+            return;
+        }
+
+        e.preventDefault();
+        uploadImageFile(imageFile);
+    }, [uploadImageFile, isSecureContext, showToast, t]);
+
+    const handleFileInputChange = useCallback((e) => {
+        const file = e.target.files?.[0];
+        if (!file || !file.type.startsWith('image/')) {
+            showToast({message: t('common.toast.operationFailed'), type: 'error'});
+            return;
+        }
+        uploadImageFile(file);
+        e.target.value = '';
+    }, [uploadImageFile, showToast, t]);
 
     const uploadTextOnChange = (e) => {
         setUploadText(e.target.value);
@@ -98,9 +199,17 @@ function TextSharing() {
     return (
         <TextSharingStyle>
             <Card>
-                <textarea id="textInput" value={uploadText} onChange={uploadTextOnChange}></textarea>
+                <textarea id="textInput" value={uploadText} onChange={uploadTextOnChange} onPaste={handlePaste}></textarea>
                 <div className="sendBtnWrapper">
                     <button onClick={sendText}>{t('textSharing.sendBtn')}</button>
+                    <label className="imageUploadBtn" title={t('imageSharing.uploadImageBtn')}>
+                        <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleFileInputChange} />
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                    </label>
                 </div>
             </Card>
 

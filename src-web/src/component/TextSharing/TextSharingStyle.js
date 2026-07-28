@@ -134,6 +134,29 @@ const TextSharingStyle = styled.div`
 
     .sendBtnWrapper {
         text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .imageUploadBtn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        cursor: pointer;
+        color: var(--text-secondary);
+        background: transparent;
+        transition: background 0.15s, color 0.15s;
+    }
+
+    .imageUploadBtn:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
     }
 
     .context-menu {

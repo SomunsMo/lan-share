@@ -88,6 +88,14 @@
     "noRecords": "暂无记录"
   },
   "imageSharing": {
+    "pasteTitle": "检测到剪贴板图片",
+    "shareButton": "共享",
+    "sharing": "共享中...",
+    "uploadImageBtn": "共享图片",
+    "pasteNotSupported": "HTTP 下无法读取剪切板图片，请使用图片上传按钮",
+    "toast": {
+      "shared": "图片已共享"
+    },
     "hintDesktop": "右键复制图片即可复制到剪切板",
     "hintMobile": "长按图片后可选择下载图片"
   },

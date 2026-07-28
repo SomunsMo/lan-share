@@ -64,6 +64,19 @@ export const deleteFileAPI = (dir, fileName) => {
     });
 }
 
+// 上传共享图片（Web 端粘贴图片）
+export const uploadImageAPI = (imageBlob) => {
+    return request({
+        method: "POST",
+        url: "/upload/image",
+        data: imageBlob,
+        headers: {
+            "Content-Type": "application/octet-stream",
+        },
+        timeout: 60000,
+    });
+}
+
 // 记录文本复制
 export const recordCopyAPI = (contentId) => {
     return request({

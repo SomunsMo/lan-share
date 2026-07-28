@@ -88,6 +88,14 @@
     "noRecords": "No records"
   },
   "imageSharing": {
+    "pasteTitle": "Image detected in clipboard",
+    "shareButton": "Share",
+    "sharing": "Sharing...",
+    "uploadImageBtn": "Share Image",
+    "pasteNotSupported": "Cannot read clipboard image over HTTP, use the image upload button",
+    "toast": {
+      "shared": "Image shared"
+    },
     "hintDesktop": "Right-click to copy image",
     "hintMobile": "Long-press image to download"
   },
