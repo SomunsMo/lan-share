@@ -1,4 +1,5 @@
 use std::ffi::CStr;
+use objc2::runtime::NSObject;
 
 /// 从剪贴板直接读取图片数据
 pub(crate) fn read_image_data() -> Result<(u32, u32, Vec<u8>), String> {
