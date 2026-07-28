@@ -214,23 +214,25 @@ function TextSharingManager(props) {
             ),
             buttons: [
                 {label: 'common.button.cancel', value: null},
-                {label: 'imageSharing.shareButton', value: true, primary: true},
+                {
+                    label: 'imageSharing.shareButton',
+                    value: true,
+                    primary: true,
+                    action: async () => {
+                        try {
+                            const buffer = await imageFile.arrayBuffer();
+                            const bytes = new Uint8Array(buffer);
+                            await invoke('read_clipboard_image', { imageBytes: Array.from(bytes) });
+                            showToast({message: t('common.toast.copied'), type: 'success'});
+                            loadHistory();
+                        } catch (error) {
+                            console.error('保存图片失败:', error);
+                            showToast({message: t('common.toast.operationFailed'), type: 'error'});
+                        }
+                    }
+                },
             ],
-        }).then(async (confirmed) => {
-            URL.revokeObjectURL(previewUrl);
-            if (!confirmed) return;
-            try {
-                // 读取文件字节传给后端，支持粘贴图片文件和直接复制图片两种场景
-                const buffer = await imageFile.arrayBuffer();
-                const bytes = new Uint8Array(buffer);
-                await invoke('read_clipboard_image', { imageBytes: Array.from(bytes) });
-                showToast({message: t('common.toast.copied'), type: 'success'});
-                loadHistory();
-            } catch (error) {
-                console.error('保存图片失败:', error);
-                showToast({message: t('common.toast.operationFailed'), type: 'error'});
-            }
-        }).catch(() => {
+        }).then(() => {
             URL.revokeObjectURL(previewUrl);
         });
     }, [showDialog, showToast, t, loadHistory]);
