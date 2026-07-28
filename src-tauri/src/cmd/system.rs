@@ -181,12 +181,24 @@ pub async fn delete_record(id: i64, action_type: i64) -> Result<u64, String> {
 }
 
 /// 读取剪贴板/文件图片并保存
-/// 如果传入了 image_bytes（粘贴文件），直接从字节解码；否则从系统剪贴板读取
+/// 优先级：file_path > image_bytes > 系统剪贴板模板方法
+/// - file_path: 前端从 paste event 中提取的文件路径（避免操作剪贴板）
+/// - image_bytes: 前端从 paste event getAsFile 读取的字节
+/// - None: 使用 clipboard 模块的模板方法（跨平台：arboard / NSPasteboard / wl-paste）
 #[tauri::command]
-pub async fn read_clipboard_image(image_bytes: Option<Vec<u8>>) -> Result<serde_json::Value, String> {
+pub async fn read_clipboard_image(
+    image_bytes: Option<Vec<u8>>,
+    file_path: Option<String>,
+) -> Result<serde_json::Value, String> {
     use sha2::{Sha256, Digest};
 
-    let (width, height, rgba_bytes) = if let Some(bytes) = image_bytes {
+    let (width, height, rgba_bytes) = if let Some(path) = file_path {
+        // 从文件路径读取（前端从 paste event 中提取的 URI，避免系统剪贴板竞争）
+        let img = image::open(&path).map_err(|e| format!("打开图片文件失败: {}", e))?;
+        let rgba = img.to_rgba8();
+        let (w, h) = rgba.dimensions();
+        (w, h, rgba.into_raw())
+    } else if let Some(bytes) = image_bytes {
         // 从文件字节解码（粘贴图片文件场景）
         let img = image::load_from_memory(&bytes)
             .map_err(|e| format!("解码图片失败: {}", e))?;
@@ -194,10 +206,11 @@ pub async fn read_clipboard_image(image_bytes: Option<Vec<u8>>) -> Result<serde_
         let (w, h) = rgba.dimensions();
         (w, h, rgba.into_raw())
     } else {
-        // 从剪贴板读取（直接复制图片场景）
-        let mut clipboard = arboard::Clipboard::new().map_err(|e| format!("无法访问剪贴板: {}", e))?;
-        let img_data = clipboard.get_image().map_err(|e| format!("读取剪贴板图片失败: {}", e))?;
-        (img_data.width as u32, img_data.height as u32, img_data.bytes.to_vec())
+        // 使用 clipboard 模块的模板方法：
+        // 1) 直接读图片数据（浏览器"复制图片"）
+        // 2) 读文件 URI（资源管理器"复制"）
+        // 3) 各平台各自实现（Win32 / NSPasteboard / wl-paste）
+        crate::clipboard::read_image_from_clipboard()?
     };
 
     // 计算 SHA256

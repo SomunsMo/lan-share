@@ -38,6 +38,7 @@ pub mod utils {
     pub mod path;
 }
 
+pub mod clipboard;
 pub mod macos;
 pub mod tray;
 
