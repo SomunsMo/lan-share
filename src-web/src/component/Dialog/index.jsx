@@ -76,6 +76,7 @@ export function DialogProvider({ children }) {
 function DialogItem({ dialog, index, closeDialog }) {
     const { t } = useTranslation();
     const [inputValue, setInputValue] = useState(dialog.input?.defaultValue || '');
+    const [loadingValue, setLoadingValue] = useState(null);
     const inputRef = useRef(null);
 
     const handleConfirm = () => {
@@ -84,12 +85,24 @@ function DialogItem({ dialog, index, closeDialog }) {
         }
     };
 
-    const handleButtonClick = (btn) => {
+    const handleButtonClick = async (btn) => {
         if (btn.value === '__confirm_input__') {
             handleConfirm();
-        } else {
-            closeDialog(dialog.id, btn.value);
+            return;
         }
+
+        if (btn.handler) {
+            setLoadingValue(btn.value);
+            try {
+                await btn.handler();
+            } catch {
+                // handler errors handled by caller
+            } finally {
+                setLoadingValue(null);
+            }
+        }
+
+        closeDialog(dialog.id, btn.value);
     };
 
     const handleInputKeyDown = (e) => {
@@ -98,6 +111,9 @@ function DialogItem({ dialog, index, closeDialog }) {
             handleConfirm();
         }
     };
+
+    const isLoading = (btn) => btn.value != null && loadingValue === btn.value;
+    const isAnyLoading = loadingValue !== null;
 
     return (
         <DialogOverlay
@@ -123,9 +139,11 @@ function DialogItem({ dialog, index, closeDialog }) {
                             key={btnIndex}
                             $primary={btn.primary}
                             $danger={btn.danger}
+                            $loading={isLoading(btn)}
+                            $disabled={isAnyLoading && !isLoading(btn)}
                             onClick={() => handleButtonClick(btn)}
                         >
-                            {t(btn.label)}
+                            {isLoading(btn) ? (btn.loadingLabel ? t(btn.loadingLabel) : t(btn.label)) : t(btn.label)}
                         </DialogButton>
                     ))}
                 </DialogFooter>

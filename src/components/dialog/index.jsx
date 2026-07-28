@@ -66,6 +66,7 @@ export function DialogProvider({ children }) {
 function DialogItem({ dialog, index, closeDialog }) {
     const { t } = useTranslation();
     const [inputValue, setInputValue] = useState(dialog.input?.defaultValue || '');
+    const [loading, setLoading] = useState(false);
     const inputRef = useRef(null);
 
     const handleClose = (result) => {
@@ -78,9 +79,16 @@ function DialogItem({ dialog, index, closeDialog }) {
         }
     };
 
-    const handleButtonClick = (btn) => {
+    const handleButtonClick = async (btn) => {
         if (btn.value === '__confirm_input__') {
             handleConfirm();
+        } else if (btn.action) {
+            setLoading(true);
+            try {
+                await btn.action();
+            } finally {
+                handleClose(btn.value);
+            }
         } else {
             handleClose(btn.value);
         }
@@ -132,6 +140,8 @@ function DialogItem({ dialog, index, closeDialog }) {
                         key={btnIndex}
                         variant={btn.primary ? 'contained' : 'text'}
                         color={btn.danger ? 'error' : 'primary'}
+                        loading={loading && !!btn.action}
+                        disabled={loading && !btn.action}
                         onClick={() => {
                             if (btn.handler) btn.handler();
                             handleButtonClick(btn);

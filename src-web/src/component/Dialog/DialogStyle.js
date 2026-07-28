@@ -122,15 +122,23 @@ export const DialogButton = styled.button`
   font-size: 0.82rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
+  font-family: inherit;
+  line-height: 1;
+  box-sizing: border-box;
+  transition: border-color 0.15s, opacity 0.15s;
   border: 1px solid ${props => props.$primary ? 'transparent' : 'var(--border)'};
-  background: ${props => props.$primary ? (props.$danger ? 'var(--danger)' : 'var(--accent)') : 'transparent'};
+  background: ${props => props.$primary ? (props.$danger ? 'var(--danger)' : 'var(--accent)') : 'var(--bg-card)'};
   color: ${props => props.$primary ? 'var(--text-accent)' : 'var(--text-primary)'};
 
   &:hover {
     ${props => props.$primary
         ? 'opacity: 0.85;'
-        : 'background: var(--bg-hover);'
+        : 'background: var(--bg-card) !important; border-color: var(--accent);'
     }
   }
+
+  ${props => (props.$loading || props.$disabled) && `
+    opacity: 0.5;
+    pointer-events: none;
+  `}
 `;
