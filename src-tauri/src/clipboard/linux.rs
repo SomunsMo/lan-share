@@ -1,11 +1,54 @@
 /// 从剪贴板直接读取图片数据
 pub(crate) fn read_image_data() -> Result<(u32, u32, Vec<u8>), String> {
-    let mut cb =
-        arboard::Clipboard::new().map_err(|e| format!("无法访问剪贴板: {}", e))?;
-    let img = cb
-        .get_image()
-        .map_err(|e| format!("读取剪贴板图片失败: {}", e))?;
-    Ok((img.width as u32, img.height as u32, img.bytes.to_vec()))
+    // Try arboard first (wl-clipboard-rs on Wayland, X11 fallback)
+    if let Ok(mut cb) = arboard::Clipboard::new() {
+        match cb.get_image() {
+            Ok(img) => {
+                log::info!("arboard 读取剪贴板图片成功");
+                return Ok((img.width as u32, img.height as u32, img.bytes.to_vec()));
+            }
+            Err(e) => log::debug!("arboard get_image 失败: {}", e),
+        }
+    } else {
+        log::debug!("arboard Clipboard::new 失败");
+    }
+
+    // Fallback: subprocess wl-paste / xclip 读取原始数据并尝试解码
+    read_image_via_subprocess()
+}
+
+fn read_image_via_subprocess() -> Result<(u32, u32, Vec<u8>), String> {
+    let cmds = [
+        "wl-paste 2>/dev/null",
+        "xclip -o -selection clipboard 2>/dev/null",
+    ];
+
+    for cmd in &cmds {
+        let output = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(cmd)
+            .output();
+
+        match output {
+            Ok(output) if output.status.success() && !output.stdout.is_empty() => {
+                match image::load_from_memory(&output.stdout) {
+                    Ok(img) => {
+                        let rgba = img.to_rgba8();
+                        let (w, h) = rgba.dimensions();
+                        log::info!("子进程读取剪贴板图片成功: {}x{}", w, h);
+                        return Ok((w, h, rgba.into_raw()));
+                    }
+                    Err(e) => log::debug!("子进程输出无法解码为图片: {}", e),
+                }
+            }
+            Ok(output) => {
+                log::debug!("{} 退出码={}, stdout={}bytes", cmd, output.status, output.stdout.len());
+            }
+            Err(e) => log::debug!("执行 {} 失败: {}", cmd, e),
+        }
+    }
+
+    Err("无法从剪贴板读取图片数据".to_string())
 }
 
 /// 从剪贴板读取文件 URI 列表
@@ -20,7 +63,10 @@ pub(crate) fn read_file_uris() -> Result<Vec<String>, String> {
             let uris: Vec<String> = text
                 .lines()
                 .map(|l| l.trim().to_string())
-                .filter(|l| !l.is_empty() && l.starts_with("file://"))
+                .filter(|l| {
+                    if l.is_empty() { return false; }
+                    l.starts_with("file://") || l.starts_with('/')
+                })
                 .collect();
             if !uris.is_empty() {
                 return Ok(uris);

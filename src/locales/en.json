@@ -266,6 +266,7 @@
     "cancelChange": "Cancel Change",
     "confirmMigrate": "Confirm & Migrate",
     "pasteTitle": "Image detected in clipboard",
+    "pasteFileConfirm": "Image file detected: {{file}}\nShare this image?",
     "shareButton": "Share",
     "detailTitle": "Image Detail",
     "detailFileName": "File Name",

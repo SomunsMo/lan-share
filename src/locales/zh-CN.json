@@ -266,6 +266,7 @@
     "cancelChange": "取消更改",
     "confirmMigrate": "同意并迁移",
     "pasteTitle": "检测到剪贴板图片",
+    "pasteFileConfirm": "检测到图片文件：{{file}}\n确定要共享此图片吗？",
     "shareButton": "共享",
     "detailTitle": "图片详情",
     "detailFileName": "文件名",

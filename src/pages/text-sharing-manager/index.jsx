@@ -232,7 +232,7 @@ function TextSharingManager(props) {
                                             loadHistory();
                                         }
                                     })
-                                    .catch(() => {});
+                .catch((err) => { console.debug('Phase 4 剪贴板读取失败（无图片属正常）:', err); });
                             });
                         });
                         return;
@@ -288,27 +288,39 @@ function TextSharingManager(props) {
             }
         }
 
-        // Phase 2: text/uri-list（资源管理器复制）— 用 getAsString 回调，不引入 await
+        // Phase 2: text/uri-list（资源管理器复制）— 弹确认对话框
         for (let i = 0; i < items.length; i++) {
             if (items[i].type === 'text/uri-list' || items[i].type === 'x-special/gnome-copied-files') {
+                e.preventDefault();
                 items[i].getAsString((uriText) => {
                     if (!uriText) return;
                     const filePath = extractImagePathFromUriList(uriText);
                     if (filePath) {
-                                invoke('read_clipboard_image', { imageBytes: null, filePath })
-                                    .then((result) => {
-                                        if (result) {
+                        const fileName = filePath.split('/').pop() || filePath.split('\\').pop();
+                        showDialog({
+                            title: t('imageSharing.pasteTitle'),
+                            content: <p>{t('imageSharing.pasteFileConfirm', { file: fileName })}</p>,
+                            buttons: [
+                                {label: 'common.button.cancel', value: null},
+                                {
+                                    label: 'imageSharing.shareButton',
+                                    value: true,
+                                    primary: true,
+                                    action: async () => {
+                                        try {
+                                            await invoke('read_clipboard_image', { imageBytes: null, filePath });
                                             showToast({message: t('common.toast.shared'), type: 'success'});
                                             loadHistory();
+                                        } catch (error) {
+                                            console.error('读取图片文件失败:', error);
+                                            showToast({message: t('common.toast.operationFailed'), type: 'error'});
                                         }
-                                    })
-                                    .catch((err) => {
-                                        console.error('读取图片文件失败:', err);
-                                showToast({message: t('common.toast.operationFailed'), type: 'error'});
-                            });
+                                    }
+                                },
+                            ],
+                        });
                     }
                 });
-                e.preventDefault();
                 return;
             }
         }
