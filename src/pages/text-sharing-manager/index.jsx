@@ -228,7 +228,7 @@ function TextSharingManager(props) {
                                 invoke('read_clipboard_image', { imageBytes: Array.from(bytes), filePath: null })
                                     .then((result) => {
                                         if (result) {
-                                            showToast({message: t('common.toast.copied'), type: 'success'});
+                                            showToast({message: t('common.toast.shared'), type: 'success'});
                                             loadHistory();
                                         }
                                     })
@@ -266,19 +266,17 @@ function TextSharingManager(props) {
                                 label: 'imageSharing.shareButton',
                                 value: true,
                                 primary: true,
-                                action: () => {
-                                    file.arrayBuffer().then((buffer) => {
-                                        const bytes = new Uint8Array(buffer);
-                                        invoke('read_clipboard_image', { imageBytes: Array.from(bytes), filePath: null })
-                                            .then(() => {
-                                                showToast({message: t('common.toast.copied'), type: 'success'});
-                                                loadHistory();
-                                            })
-                                            .catch((error) => {
-                                                console.error('保存图片失败:', error);
-                                                showToast({message: t('common.toast.operationFailed'), type: 'error'});
-                                            });
-                                    });
+                                action: async () => {
+                                    const buffer = await file.arrayBuffer();
+                                    const bytes = new Uint8Array(buffer);
+                                    try {
+                                        await invoke('read_clipboard_image', { imageBytes: Array.from(bytes), filePath: null });
+                                        showToast({message: t('common.toast.shared'), type: 'success'});
+                                        loadHistory();
+                                    } catch (error) {
+                                        console.error('保存图片失败:', error);
+                                        showToast({message: t('common.toast.operationFailed'), type: 'error'});
+                                    }
                                 }
                             },
                         ],
@@ -297,15 +295,15 @@ function TextSharingManager(props) {
                     if (!uriText) return;
                     const filePath = extractImagePathFromUriList(uriText);
                     if (filePath) {
-                        invoke('read_clipboard_image', { imageBytes: null, filePath })
-                            .then((result) => {
-                                if (result) {
-                                    showToast({message: t('common.toast.copied'), type: 'success'});
-                                    loadHistory();
-                                }
-                            })
-                            .catch((err) => {
-                                console.error('读取图片文件失败:', err);
+                                invoke('read_clipboard_image', { imageBytes: null, filePath })
+                                    .then((result) => {
+                                        if (result) {
+                                            showToast({message: t('common.toast.shared'), type: 'success'});
+                                            loadHistory();
+                                        }
+                                    })
+                                    .catch((err) => {
+                                        console.error('读取图片文件失败:', err);
                                 showToast({message: t('common.toast.operationFailed'), type: 'error'});
                             });
                     }
@@ -324,7 +322,7 @@ function TextSharingManager(props) {
             invoke('read_clipboard_image', { imageBytes: null, filePath: null })
                 .then((result) => {
                     if (result) {
-                        showToast({message: t('common.toast.copied'), type: 'success'});
+                        showToast({message: t('common.toast.shared'), type: 'success'});
                         loadHistory();
                     }
                 })

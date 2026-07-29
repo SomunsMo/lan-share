@@ -101,7 +101,7 @@
     "hintMobile": "长按图片后可选择下载图片"
   },
   "textSharing": {
-    "sendBtn": "发送文本",
+    "sendBtn": "共享文本",
     "contextMenu": {
       "copy": "复制"
     },

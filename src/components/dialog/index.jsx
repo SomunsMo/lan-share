@@ -104,7 +104,7 @@ function DialogItem({ dialog, index, closeDialog }) {
     return (
         <Dialog
             open={true}
-            onClose={() => handleClose(false)}
+            onClose={loading ? undefined : () => handleClose(false)}
             transitionDuration={0}
             maxWidth={false}
             slotProps={{

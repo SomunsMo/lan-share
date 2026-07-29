@@ -8,7 +8,8 @@
     },
     "toast": {
       "operationFailed": "Operation failed",
-      "copied": "Copied"
+      "copied": "Copied",
+      "shared": "Shared"
     }
   },
   "route": {
