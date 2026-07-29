@@ -204,46 +204,49 @@ pub async fn peek_clipboard_image() -> Result<serde_json::Value, String> {
     Ok(result)
 }
 
-/// 同步读取并准备图片数据：file_path > image_bytes > 系统剪贴板，统一输出 (sha256, png_bytes, size)
-/// 供 read_clipboard_image 在阻塞线程池中调用
+/// 同步读取并准备图片数据：file_path > image_bytes > 系统剪贴板
+/// 返回 (sha256, file_bytes, size, ext)
+/// - file_path / image_bytes：hash 原始字节，保存原格式（优化 A）
+/// - clipboard（RGBA）：先编码 PNG，再 hash PNG 字节（优化 B）
 fn prepare_image_payload(
     image_bytes: Option<Vec<u8>>,
     file_path: Option<String>,
-) -> Result<(String, Vec<u8>, i64), String> {
+) -> Result<(String, Vec<u8>, i64, String), String> {
     use sha2::{Sha256, Digest};
 
-    let (width, height, rgba_bytes) = if let Some(path) = file_path {
-        // 从文件路径读取（前端从 paste event 中提取的文件 URI，避免系统剪贴板竞争）
-        let img = image::open(&path).map_err(|e| format!("打开图片文件失败: {}", e))?;
-        let rgba = img.to_rgba8();
-        let (w, h) = rgba.dimensions();
-        (w, h, rgba.into_raw())
+    if let Some(path) = file_path {
+        // 从文件路径读取（优化 A：直接 hash 原文件字节，不做图片解码）
+        let bytes = std::fs::read(&path).map_err(|e| format!("读取图片文件失败: {}", e))?;
+        let format = image::guess_format(&bytes).map_err(|e| format!("无法识别的图片格式: {}", e))?;
+        let ext = format.extensions_str().first().copied().unwrap_or("png").to_string();
+        let mut hasher = Sha256::new();
+        hasher.update(&bytes);
+        let sha256_hash = format!("{:x}", hasher.finalize());
+        let size = bytes.len() as i64;
+        Ok((sha256_hash, bytes, size, ext))
     } else if let Some(bytes) = image_bytes {
-        // 从文件字节解码（粘贴图片文件场景）
-        let img = image::load_from_memory(&bytes)
-            .map_err(|e| format!("解码图片失败: {}", e))?;
-        let rgba = img.to_rgba8();
-        let (w, h) = rgba.dimensions();
-        (w, h, rgba.into_raw())
+        // 从文件字节保存（优化 A：前端 getAsFile 传来的原始字节，直接 hash 保存）
+        let format = image::guess_format(&bytes).map_err(|e| format!("无法识别的图片格式: {}", e))?;
+        let ext = format.extensions_str().first().copied().unwrap_or("png").to_string();
+        let mut hasher = Sha256::new();
+        hasher.update(&bytes);
+        let sha256_hash = format!("{:x}", hasher.finalize());
+        let size = bytes.len() as i64;
+        Ok((sha256_hash, bytes, size, ext))
     } else {
-        // 使用 clipboard 模块的模板方法（跨平台：arboard / NSPasteboard / wl-paste）
-        crate::clipboard::read_image_from_clipboard()?
-    };
-
-    // 计算 SHA256
-    let mut hasher = Sha256::new();
-    hasher.update(&rgba_bytes);
-    let sha256_hash = format!("{:x}", hasher.finalize());
-
-    // 编码 RGBA 为 PNG 并计算文件 size
-    let img = image::RgbaImage::from_raw(width, height, rgba_bytes)
-        .ok_or("创建图片缓冲失败".to_string())?;
-    let mut png_bytes = Vec::new();
-    img.write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)
-        .map_err(|e| format!("PNG编码失败: {}", e))?;
-    let size = png_bytes.len() as i64;
-
-    Ok((sha256_hash, png_bytes, size))
+        // 从系统剪贴板读取（优化 B：先编码 PNG，再 hash PNG 字节而非原始 RGBA）
+        let (width, height, rgba_bytes) = crate::clipboard::read_image_from_clipboard()?;
+        let img = image::RgbaImage::from_raw(width, height, rgba_bytes)
+            .ok_or("创建图片缓冲失败".to_string())?;
+        let mut png_bytes = Vec::new();
+        img.write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)
+            .map_err(|e| format!("PNG编码失败: {}", e))?;
+        let mut hasher = Sha256::new();
+        hasher.update(&png_bytes);
+        let sha256_hash = format!("{:x}", hasher.finalize());
+        let size = png_bytes.len() as i64;
+        Ok((sha256_hash, png_bytes, size, "png".to_string()))
+    }
 }
 
 /// 读取剪贴板/文件图片并保存
@@ -257,7 +260,7 @@ pub async fn read_clipboard_image(
     file_path: Option<String>,
 ) -> Result<serde_json::Value, String> {
     // 读取/解码/编码/哈希均为同步阻塞（含剪贴板访问与文件 IO），放到阻塞线程池避免卡住 async runtime
-    let (sha256_hash, png_bytes, size) =
+    let (sha256_hash, file_bytes, size, ext) =
         tokio::task::spawn_blocking(move || prepare_image_payload(image_bytes, file_path))
             .await
             .map_err(|e| format!("图片处理任务失败: {}", e))??;
@@ -278,13 +281,13 @@ pub async fn read_clipboard_image(
     let save_dir = crate::config::config::get_image_sharing_dir().await.clone();
     tokio::fs::create_dir_all(&save_dir).await.map_err(|e| format!("创建目录失败: {}", e))?;
 
-    let file_name = format!("lans_{}.png", sha256_hash);
+    let file_name = format!("lans_{}.{}", sha256_hash, ext);
     let save_path = save_dir.join(&file_name);
 
     // 检查文件是否已存在（可能之前手动清理过DB记录但文件还在）
     if !save_path.exists() {
-        tokio::fs::write(&save_path, &png_bytes).await
-            .map_err(|e| format!("写入PNG文件失败: {}", e))?;
+        tokio::fs::write(&save_path, &file_bytes).await
+            .map_err(|e| format!("写入图片文件失败: {}", e))?;
         log::info!("图片已保存至: {:?}", save_path);
     } else {
         log::info!("图片文件已存在: {:?}", save_path);

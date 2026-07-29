@@ -117,31 +117,18 @@ pub async fn upload_image(
         return error(StatusCode::BAD_REQUEST, "请求体为空");
     }
 
-    let img = match image::load_from_memory(&body_bytes) {
-        Ok(img) => img,
-        Err(e) => return error(StatusCode::BAD_REQUEST, &format!("解码图片失败: {}", e)),
+    // 检测图片格式（轻量，仅读 magic bytes）
+    let format = match image::guess_format(&body_bytes) {
+        Ok(f) => f,
+        Err(_) => return error(StatusCode::BAD_REQUEST, "无法识别的图片格式"),
     };
-    let rgba = img.to_rgba8();
-    let (width, height) = rgba.dimensions();
-    let rgba_bytes = rgba.into_raw();
+    let ext = format.extensions_str().first().copied().unwrap_or("png");
 
+    // SHA256 及 size 基于原始文件字节
     let mut hasher = Sha256::new();
-    hasher.update(&rgba_bytes);
+    hasher.update(&body_bytes);
     let sha256_hash = format!("{:x}", hasher.finalize());
-
-    let img = match image::RgbaImage::from_raw(width, height, rgba_bytes) {
-        Some(img) => img,
-        None => return error(StatusCode::INTERNAL_SERVER_ERROR, "创建图片缓冲失败"),
-    };
-    let mut png_bytes = Vec::new();
-    if let Err(e) = img.write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)
-    {
-        return error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            &format!("PNG编码失败: {}", e),
-        );
-    }
-    let size = png_bytes.len() as i64;
+    let size = body_bytes.len() as i64;
 
     if let Ok(Some(existing)) = upload_dao::find_image_by_sha256_size(&sha256_hash, size).await {
         log::info!("发现重复图片 ID={}，刷新时间", existing.id);
@@ -175,14 +162,14 @@ pub async fn upload_image(
         );
     }
 
-    let file_name = format!("lans_{}.png", sha256_hash);
+    let file_name = format!("lans_{}.{}", sha256_hash, ext);
     let save_path = save_dir.join(&file_name);
 
     if !save_path.exists() {
-        if let Err(e) = tokio::fs::write(&save_path, &png_bytes).await {
+        if let Err(e) = tokio::fs::write(&save_path, &body_bytes).await {
             return error(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                &format!("写入PNG文件失败: {}", e),
+                &format!("写入图片文件失败: {}", e),
             );
         }
         log::info!("图片已保存至: {:?}", save_path);
