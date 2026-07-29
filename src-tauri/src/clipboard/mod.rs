@@ -15,44 +15,56 @@ use std::path::Path;
 /// 3. read_image_via_subprocess    — [Linux] wl-paste/xclip 读图片数据
 /// 4. read_uris_via_subprocess     — [Linux] wl-paste/xclip 读文件 URI
 pub(crate) fn read_image_from_clipboard() -> Result<(u32, u32, Vec<u8>), String> {
+    log::info!("[clipboard] read_image_from_clipboard 开始");
+
     // Step 1: arboard 直接读取图片数据（不消耗 text/uri-list offer）
+    log::info!("[clipboard] Step 1: arboard 读图片");
     match platform_read_image_data() {
         Ok(img) => {
-            log::info!("剪贴板图片读取成功 {}x{}", img.0, img.1);
+            log::info!("[clipboard] Step 1 成功 {}x{}", img.0, img.1);
             return Ok(img);
         }
-        Err(e) => log::debug!("platform_read_image_data: {}", e),
+        Err(e) => log::info!("[clipboard] Step 1 失败: {}", e),
     }
 
     // Step 2: arboard 读取文件 URI（不消耗 image/ offer）
+    log::info!("[clipboard] Step 2: arboard 读 URI");
     match platform_read_file_uris() {
         Ok(uris) => {
+            log::info!("[clipboard] Step 2 得到 URI: {:?}", uris);
             if let Some(img) = resolve_and_load_uris(&uris) {
                 return Ok(img);
             }
         }
-        Err(e) => log::debug!("platform_read_file_uris: {}", e),
+        Err(e) => log::info!("[clipboard] Step 2 失败: {}", e),
     }
 
     // Step 3: [Linux] 子进程读取图片（可能消耗 offer，须在 arboard 之后）
     #[cfg(target_os = "linux")]
-    match linux::read_image_via_subprocess() {
-        Ok(img) => {
-            log::info!("子进程读取剪贴板图片成功 {}x{}", img.0, img.1);
-            return Ok(img);
+    {
+        log::info!("[clipboard] Step 3: 子进程读图片");
+        match linux::read_image_via_subprocess() {
+            Ok(img) => {
+                log::info!("[clipboard] Step 3 成功 {}x{}", img.0, img.1);
+                return Ok(img);
+            }
+            Err(e) => log::info!("[clipboard] Step 3 失败: {}", e),
         }
-        Err(e) => log::debug!("read_image_via_subprocess: {}", e),
     }
 
     // Step 4: [Linux] 子进程读取文件 URI
     #[cfg(target_os = "linux")]
-    match linux::read_uris_via_subprocess() {
-        Ok(uris) => {
-            if let Some(img) = resolve_and_load_uris(&uris) {
-                return Ok(img);
+    {
+        log::info!("[clipboard] Step 4: 子进程读 URI");
+        match linux::read_uris_via_subprocess() {
+            Ok(uris) => {
+                log::info!("[clipboard] Step 4 得到 URI: {:?}", uris);
+                if let Some(img) = resolve_and_load_uris(&uris) {
+                    return Ok(img);
+                }
             }
+            Err(e) => log::info!("[clipboard] Step 4 失败: {}", e),
         }
-        Err(e) => log::debug!("read_uris_via_subprocess: {}", e),
     }
 
     Err("剪贴板中未找到可粘贴的图片".to_string())

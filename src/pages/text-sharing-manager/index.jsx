@@ -244,7 +244,11 @@ function TextSharingManager(props) {
 
     const handlePaste = useCallback((e) => {
         const items = e.clipboardData?.items;
-        if (!items) return;
+        console.warn('[handlePaste] clipboardData.items:', items?.length, '个类型:', items ? Array.from(items).map(i => i.type) : '无');
+        if (!items) {
+            console.warn('[handlePaste] clipboardData.items 为 null，Phase 4 不会执行');
+            return;
+        }
 
         // Phase 1: 原有逻辑 — image/* + getAsFile 成功（保持 handler 同步，不改变原有行为）
         for (let i = 0; i < items.length; i++) {
@@ -329,16 +333,21 @@ function TextSharingManager(props) {
         // 安全上下文下可读浏览器"复制图片"的数据
         readClipboardViaAsyncApi();
 
-        // Phase 4: Rust 模板方法兜底（延迟执行，不影响同步粘贴）
+        // Phase 4: Rust 模板方法兜底
         setTimeout(() => {
+            console.warn('[Phase 4] 调用 Rust read_clipboard_image');
             invoke('read_clipboard_image', { imageBytes: null, filePath: null })
                 .then((result) => {
+                    console.warn('[Phase 4] 成功:', result ? '有结果' : '无结果');
                     if (result) {
                         showToast({message: t('common.toast.shared'), type: 'success'});
                         loadHistory();
                     }
                 })
-                .catch(() => {});
+                .catch((err) => {
+                    console.error('[Phase 4] 失败:', err);
+                    showToast({message: `Phase 4 错误: ${err}`, type: 'error'});
+                });
         }, 100);
     }, [showDialog, showToast, t, loadHistory, extractImagePathFromUriList, readClipboardViaAsyncApi]);
 
