@@ -269,6 +269,7 @@
     "pasteFileConfirm": "检测到图片文件：{{file}}\n确定要共享此图片吗？",
     "shareButton": "共享",
     "noClipboardImage": "剪贴板中未检测到图片",
+    "unsupportedFile": "剪贴板中的内容不是支持的图片格式",
     "detailTitle": "图片详情",
     "detailFileName": "文件名",
     "detailSha256": "SHA256",

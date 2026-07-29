@@ -269,6 +269,7 @@
     "pasteFileConfirm": "Image file detected: {{file}}\nShare this image?",
     "shareButton": "Share",
     "noClipboardImage": "No image detected in clipboard",
+    "unsupportedFile": "Clipboard content is not a supported image format",
     "detailTitle": "Image Detail",
     "detailFileName": "File Name",
     "detailSha256": "SHA256",

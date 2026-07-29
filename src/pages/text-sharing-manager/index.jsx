@@ -19,6 +19,11 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import CircularProgress from '@mui/material/CircularProgress';
 
 function TextSharingManager(props) {
     const { t } = useTranslation();
@@ -216,80 +221,59 @@ function TextSharingManager(props) {
     }, []);
 
     const pasteFiredRef = useRef(false);
+    const lastPasteTypesRef = useRef([]);
+    // 粘贴预览对话框：null | {status:'loading'} | {status:'ready', data_base64, width, height}
+    const [pasteDialog, setPasteDialog] = useState(null);
 
     // 全局 keydown 监听 Ctrl+V — WebKitGTK 上 paste 事件可能触发但 clipboardData 无有效图片数据，用 peek 兜底
     useEffect(() => {
         const onKeyDown = (e) => {
             if (e.ctrlKey && e.code === 'KeyV') {
-                showToast({message: `[diag] keydown Ctrl+V`, type: 'info', duration: 8000});
                 pasteFiredRef.current = false;
                 setTimeout(() => {
-                    showToast({message: `[diag] 150ms fired=${pasteFiredRef.current}`, type: 'info', duration: 8000});
                     if (pasteFiredRef.current) return;
-                    console.warn('[keydown] paste 未弹框，走 peek + 确认对话框');
+                    // 纯文本（paste 事件含 text/plain 且无 image/uri）不弹框，正常粘贴到输入框
+                    const types = lastPasteTypesRef.current || [];
+                    const isPlainText = types.includes('text/plain')
+                        && !types.some(t => t.startsWith('image/'))
+                        && !types.includes('text/uri-list');
+                    if (isPlainText) return;
+                    // 非文本：可能是图片或不支持的文件，立即弹 loading + peek
+                    setPasteDialog({status: 'loading'});
                     invoke('peek_clipboard_image')
                         .then((result) => {
-                            if (!result?.data_base64) return;
-                            const { width, height, data_base64 } = result;
-                            showToast({message: `[diag] peek成功 ${width}x${height}`, type: 'success', duration: 8000});
-                            showDialog({
-                                title: t('imageSharing.pasteTitle'),
-                                content: (
-                                    <div className="paste-preview">
-                                        <DialogImage src={data_base64} alt="paste preview" />
-                                        <p style={{textAlign:'center',fontSize:'13px',marginTop:8,opacity:0.6}}>
-                                            {width} × {height}
-                                        </p>
-                                    </div>
-                                ),
-                                buttons: [
-                                    {label: 'common.button.cancel', value: null},
-                                    {
-                                        label: 'imageSharing.shareButton',
-                                        value: true,
-                                        primary: true,
-                                        action: async () => {
-                                            const raw = atob(data_base64.split(',')[1]);
-                                            const bytes = new Uint8Array(raw.length);
-                                            for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-                                            try {
-                                                await invoke('read_clipboard_image', { imageBytes: Array.from(bytes), filePath: null });
-                                                showToast({message: t('common.toast.shared'), type: 'success'});
-                                                loadHistory();
-                                            } catch (error) {
-                                                console.error('保存图片失败:', error);
-                                                showToast({message: t('common.toast.operationFailed'), type: 'error'});
-                                            }
-                                        }
-                                    },
-                                ],
-                            });
+                            if (!result?.data_base64) {
+                                setPasteDialog(null);
+                                showToast({message: t('imageSharing.unsupportedFile'), type: 'info'});
+                                return;
+                            }
+                            setPasteDialog({status: 'ready', ...result});
                         })
                         .catch((err) => {
+                            setPasteDialog(null);
                             console.debug('[keydown] 未读到剪贴板图片:', err);
-                            showToast({message: `[diag] peek失败: ${String(err)}`, type: 'error', duration: 8000});
+                            showToast({message: t('imageSharing.unsupportedFile'), type: 'info'});
                         });
-                }, 150);
+                }, 50);
             }
         };
         document.addEventListener('keydown', onKeyDown);
         return () => document.removeEventListener('keydown', onKeyDown);
-    }, [showDialog, showToast, t, loadHistory]);
+    }, [showToast, t, loadHistory]);
 
     const handlePaste = useCallback((e) => {
         // 不在此处设置 pasteFiredRef；仅在真正弹出对话框时才设置。
         // 否则 Ubuntu WebKitGTK 上 paste 事件虽触发但 clipboardData 无有效图片数据时，
         // 会错误阻断 keydown 的 peek 兜底，导致粘贴无反应（无弹框、无 log）。
         const items = e.clipboardData?.items;
-        const _diagTypes = items ? Array.from(items).map(i => `${i.kind}:${i.type}`).join('|') : 'none';
-        showToast({message: `[diag] paste types=[${_diagTypes}]`, type: 'info', duration: 8000});
         if (!items) return;
+        // 记录 paste 事件的剪贴板类型，供 keydown 判断是否纯文本（纯文本不弹框）
+        lastPasteTypesRef.current = Array.from(items).map(i => i.type);
 
         // Phase 1: 原有逻辑 — image/* + getAsFile 成功（保持 handler 同步，不改变原有行为）
         for (let i = 0; i < items.length; i++) {
             if (items[i].type.startsWith('image/')) {
                 const file = items[i].getAsFile();
-                showToast({message: `[diag] P1 image ${items[i].type} file=${file ? file.name : 'null'}`, type: file ? 'success' : 'warning', duration: 8000});
                 if (file) {
                     e.preventDefault();
                     pasteFiredRef.current = true;
@@ -336,7 +320,6 @@ function TextSharingManager(props) {
                 items[i].getAsString((uriText) => {
                     if (!uriText) return;
                     const filePath = extractImagePathFromUriList(uriText);
-                    showToast({message: `[diag] P2 uri-list filePath=${filePath || 'null'}`, type: filePath ? 'success' : 'warning', duration: 8000});
                     if (filePath) {
                         pasteFiredRef.current = true;
                         const fileName = filePath.split('/').pop() || filePath.split('\\').pop();
@@ -362,6 +345,9 @@ function TextSharingManager(props) {
                                 },
                             ],
                         });
+                    } else {
+                        // 文件 URI 但非图片文件，提示不支持
+                        showToast({message: t('imageSharing.unsupportedFile'), type: 'info'});
                     }
                 });
                 return;
@@ -370,8 +356,6 @@ function TextSharingManager(props) {
 
         // Phase 3: 由 keydown 的 peek_clipboard_image 兜底（IPC 直接读系统剪贴板，
         // 比 navigator.clipboard.read 更可靠，且不依赖 paste event 暴露的数据）
-        // 不再调用 readClipboardViaAsyncApi，避免 paste 触发但无有效数据时阻断 keydown 兜底
-        showToast({message: `[diag] paste结束 fired=${pasteFiredRef.current}`, type: 'info', duration: 8000});
 
     }, [showDialog, showToast, t, loadHistory, extractImagePathFromUriList]);
 
@@ -580,6 +564,54 @@ function TextSharingManager(props) {
                         </>
                     )}
                 </div>
+            )}
+            {pasteDialog && (
+                <Dialog
+                    open={true}
+                    onClose={() => setPasteDialog(null)}
+                    transitionDuration={0}
+                    maxWidth={false}
+                    sx={{ '& .MuiDialog-paper': { width: { xs: 'calc(100vw - 32px)', sm: '60vw', md: '50vw', lg: '45vw' }, minWidth: { xs: 0, sm: 500 }, maxWidth: '900px' } }}
+                >
+                    <DialogTitle>{t('imageSharing.pasteTitle')}</DialogTitle>
+                    <DialogContent sx={{ overflowX: 'hidden' }}>
+                        {pasteDialog.status === 'loading' ? (
+                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '32px' }}>
+                                <CircularProgress />
+                            </div>
+                        ) : (
+                            <div className="paste-preview">
+                                <DialogImage src={pasteDialog.data_base64} alt="paste preview" />
+                                <p style={{ textAlign: 'center', fontSize: '13px', marginTop: 8, opacity: 0.6 }}>
+                                    {pasteDialog.width} × {pasteDialog.height}
+                                </p>
+                            </div>
+                        )}
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setPasteDialog(null)}>{t('common.button.cancel')}</Button>
+                        <Button
+                            variant="contained"
+                            disabled={pasteDialog.status === 'loading'}
+                            onClick={async () => {
+                                const raw = atob(pasteDialog.data_base64.split(',')[1]);
+                                const bytes = new Uint8Array(raw.length);
+                                for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+                                try {
+                                    await invoke('read_clipboard_image', { imageBytes: Array.from(bytes), filePath: null });
+                                    showToast({message: t('common.toast.shared'), type: 'success'});
+                                    loadHistory();
+                                } catch (error) {
+                                    console.error('保存图片失败:', error);
+                                    showToast({message: t('common.toast.operationFailed'), type: 'error'});
+                                }
+                                setPasteDialog(null);
+                            }}
+                        >
+                            {t('imageSharing.shareButton')}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
             )}
         </TextSharingManagerStyle>
     );
