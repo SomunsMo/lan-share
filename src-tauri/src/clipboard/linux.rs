@@ -50,7 +50,7 @@ pub(crate) fn read_image_via_subprocess() -> Result<(u32, u32, Vec<u8>), String>
 /// 从剪贴板读取文件 URI 列表（仅 arboard，不消耗 Wayland 非文本 offer）
 pub(crate) fn read_file_uris() -> Result<Vec<String>, String> {
     log::info!("[linux::read_file_uris] arboard::Clipboard::new ...");
-    let cb = match arboard::Clipboard::new() {
+    let mut cb = match arboard::Clipboard::new() {
         Ok(cb) => cb,
         Err(e) => {
             log::warn!("[linux::read_file_uris] Clipboard::new 失败: {}", e);
