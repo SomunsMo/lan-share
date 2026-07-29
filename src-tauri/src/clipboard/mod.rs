@@ -61,17 +61,36 @@ pub(crate) fn read_image_from_clipboard() -> Result<(u32, u32, Vec<u8>), String>
 /// 从 URI 列表中解析路径并加载图片
 fn resolve_and_load_uris(uris: &[String]) -> Option<(u32, u32, Vec<u8>)> {
     for uri in uris {
-        let path = resolve_uri_to_path(uri)?;
-        if !is_image_file(&path) {
-            log::debug!("跳过非图片文件: {:?}", path);
-            continue;
-        }
-        match load_image_file(&path) {
-            Ok(img) => {
-                log::info!("从 URI 加载图片成功: {:?}", path);
-                return Some(img);
+        // Direct resolution（file:// URI / 绝对路径 / CWD 下文件）
+        if let Some(path) = resolve_uri_to_path(uri) {
+            if !is_image_file(&path) {
+                log::debug!("跳过非图片文件: {:?}", path);
+                continue;
             }
-            Err(e) => log::debug!("加载图片文件失败 {:?}: {}", path, e),
+            match load_image_file(&path) {
+                Ok(img) => {
+                    log::info!("从 URI 加载图片成功: {:?}", path);
+                    return Some(img);
+                }
+                Err(e) => log::debug!("加载图片文件失败 {:?}: {}", path, e),
+            }
+        }
+
+        // Fallback: text/plain 中可能是纯文件名，在常见目录中搜索
+        let name = std::path::Path::new(uri.trim()).file_name()?.to_str()?.to_string();
+        for dir_str in &["Pictures", "Downloads", "Desktop"] {
+            if let Some(home) = dirs::home_dir() {
+                let path = home.join(dir_str).join(&name);
+                if path.exists() && is_image_file(&path) {
+                    match load_image_file(&path) {
+                        Ok(img) => {
+                            log::info!("在 ~/{} 找到文件: {:?}", dir_str, path);
+                            return Some(img);
+                        }
+                        Err(e) => log::debug!("加载图片失败 {:?}: {}", path, e),
+                    }
+                }
+            }
         }
     }
     None

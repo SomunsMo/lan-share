@@ -50,10 +50,7 @@ pub(crate) fn read_file_uris() -> Result<Vec<String>, String> {
             let uris: Vec<String> = text
                 .lines()
                 .map(|l| l.trim().to_string())
-                .filter(|l| {
-                    if l.is_empty() { return false; }
-                    l.starts_with("file://") || l.starts_with('/')
-                })
+                .filter(|l| !l.is_empty())
                 .collect();
             if !uris.is_empty() {
                 return Ok(uris);
