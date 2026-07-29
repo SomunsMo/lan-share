@@ -242,13 +242,38 @@ function TextSharingManager(props) {
         }).catch(() => {});
     }, [showToast, loadHistory, t]);
 
+    const pasteFiredRef = useRef(false);
+
+    // 全局 keydown 监听 Ctrl+V — WebKitGTK 对非文本剪贴板不触发 paste 事件
+    useEffect(() => {
+        const onKeyDown = (e) => {
+            if (e.ctrlKey && e.code === 'KeyV') {
+                pasteFiredRef.current = false;
+                setTimeout(() => {
+                    if (!pasteFiredRef.current) {
+                        console.warn('[keydown] paste 事件未触发，走 Rust IPC 兜底');
+                        invoke('read_clipboard_image', { imageBytes: null, filePath: null })
+                            .then((result) => {
+                                if (result) {
+                                    showToast({message: t('common.toast.shared'), type: 'success'});
+                                    loadHistory();
+                                }
+                            })
+                            .catch((err) => console.debug('[keydown] Rust IPC 未读到图片:', err));
+                    } else {
+                        console.warn('[keydown] paste 事件已触发，跳过 Rust IPC');
+                    }
+                }, 150);
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+    }, [showToast, t, loadHistory]);
+
     const handlePaste = useCallback((e) => {
+        pasteFiredRef.current = true;
         const items = e.clipboardData?.items;
-        console.warn('[handlePaste] clipboardData.items:', items?.length, '个类型:', items ? Array.from(items).map(i => i.type) : '无');
-        if (!items) {
-            console.warn('[handlePaste] clipboardData.items 为 null，Phase 4 不会执行');
-            return;
-        }
+        if (!items) return;
 
         // Phase 1: 原有逻辑 — image/* + getAsFile 成功（保持 handler 同步，不改变原有行为）
         for (let i = 0; i < items.length; i++) {
@@ -333,22 +358,6 @@ function TextSharingManager(props) {
         // 安全上下文下可读浏览器"复制图片"的数据
         readClipboardViaAsyncApi();
 
-        // Phase 4: Rust 模板方法兜底
-        setTimeout(() => {
-            console.warn('[Phase 4] 调用 Rust read_clipboard_image');
-            invoke('read_clipboard_image', { imageBytes: null, filePath: null })
-                .then((result) => {
-                    console.warn('[Phase 4] 成功:', result ? '有结果' : '无结果');
-                    if (result) {
-                        showToast({message: t('common.toast.shared'), type: 'success'});
-                        loadHistory();
-                    }
-                })
-                .catch((err) => {
-                    console.error('[Phase 4] 失败:', err);
-                    showToast({message: `Phase 4 错误: ${err}`, type: 'error'});
-                });
-        }, 100);
     }, [showDialog, showToast, t, loadHistory, extractImagePathFromUriList, readClipboardViaAsyncApi]);
 
     const copyImageToClipboard = useCallback(async (item) => {
