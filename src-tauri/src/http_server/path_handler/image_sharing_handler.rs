@@ -89,6 +89,7 @@ pub async fn serve_shared_image(
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, content_type)
         .header(header::CONTENT_DISPOSITION, disposition)
+        .header(header::CACHE_CONTROL, "public, max-age=31536000, immutable")
         .body(body)
         .unwrap();
 
