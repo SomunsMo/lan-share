@@ -394,8 +394,8 @@ function TextSharingManager(props) {
                 </div>
             ),
             buttons: [
-                { label: 'textSharing.copyButton', value: null, handler: () => copyImageToClipboard(item) },
-                { label: 'common.button.confirm', value: true, primary: true },
+                { label: 'common.button.close', value: false },
+                { label: 'textSharing.copyButton', value: true, primary: true, handler: () => copyImageToClipboard(item) },
             ],
         });
     };
@@ -423,8 +423,8 @@ function TextSharingManager(props) {
                 </div>
             ),
             buttons: [
-                { label: 'textSharing.copyButton', value: null, handler: () => copyToClipboard(item.content) },
-                { label: 'common.button.confirm', value: true, primary: true },
+                { label: 'common.button.close', value: false },
+                { label: 'textSharing.copyButton', value: true, primary: true, handler: () => copyToClipboard(item.content) },
             ],
         });
     }

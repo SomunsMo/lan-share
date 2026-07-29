@@ -4,7 +4,8 @@
     "button": {
       "cancel": "Cancel",
       "confirm": "Confirm",
-      "delete": "Delete"
+      "delete": "Delete",
+      "close": "Close"
     },
     "toast": {
       "operationFailed": "Operation failed",
