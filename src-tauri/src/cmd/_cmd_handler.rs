@@ -7,6 +7,7 @@ pub fn get_cmd_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
         system::clear_sharing_text,
         system::get_text_sharing_history,
         system::delete_record,
+        system::peek_clipboard_image,
         system::read_clipboard_image,
         system::copy_image_to_clipboard,
         system::copy_text_to_clipboard,

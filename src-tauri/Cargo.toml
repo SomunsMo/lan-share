@@ -67,6 +67,7 @@ regex = "1"
 trash = "5"
 image = "0.25"
 sha2 = "0.10"
+base64 = "0.22"
 
 
 [target.'cfg(windows)'.dependencies]

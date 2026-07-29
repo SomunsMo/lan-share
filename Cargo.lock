@@ -2711,6 +2711,7 @@ name = "lan-share"
 version = "1.1.0"
 dependencies = [
  "arboard",
+ "base64 0.22.1",
  "chrono",
  "colored",
  "ctor 0.6.3",

@@ -223,16 +223,36 @@ function TextSharingManager(props) {
                 for (const type of item.types) {
                     if (type.startsWith('image/')) {
                         item.getType(type).then((blob) => {
-                            blob.arrayBuffer().then((buffer) => {
-                                const bytes = new Uint8Array(buffer);
-                                invoke('read_clipboard_image', { imageBytes: Array.from(bytes), filePath: null })
-                                    .then((result) => {
-                                        if (result) {
-                                            showToast({message: t('common.toast.shared'), type: 'success'});
-                                            loadHistory();
+                            const previewUrl = URL.createObjectURL(blob);
+                            showDialog({
+                                title: t('imageSharing.pasteTitle'),
+                                content: (
+                                    <div className="paste-preview">
+                                        <DialogImage src={previewUrl} alt="paste preview" />
+                                    </div>
+                                ),
+                                buttons: [
+                                    {label: 'common.button.cancel', value: null},
+                                    {
+                                        label: 'imageSharing.shareButton',
+                                        value: true,
+                                        primary: true,
+                                        action: async () => {
+                                            const buffer = await blob.arrayBuffer();
+                                            const bytes = new Uint8Array(buffer);
+                                            try {
+                                                await invoke('read_clipboard_image', { imageBytes: Array.from(bytes), filePath: null });
+                                                showToast({message: t('common.toast.shared'), type: 'success'});
+                                                loadHistory();
+                                            } catch (error) {
+                                                console.error('保存图片失败:', error);
+                                                showToast({message: t('common.toast.operationFailed'), type: 'error'});
+                                            }
                                         }
-                                    })
-                .catch((err) => { console.debug('Phase 4 剪贴板读取失败（无图片属正常）:', err); });
+                                    },
+                                ],
+                            }).then(() => {
+                                URL.revokeObjectURL(previewUrl);
                             });
                         });
                         return;
@@ -240,7 +260,7 @@ function TextSharingManager(props) {
                 }
             }
         }).catch(() => {});
-    }, [showToast, loadHistory, t]);
+    }, [showToast, loadHistory, t, showDialog]);
 
     const pasteFiredRef = useRef(false);
 
@@ -250,25 +270,55 @@ function TextSharingManager(props) {
             if (e.ctrlKey && e.code === 'KeyV') {
                 pasteFiredRef.current = false;
                 setTimeout(() => {
-                    if (!pasteFiredRef.current) {
-                        console.warn('[keydown] paste 事件未触发，走 Rust IPC 兜底');
-                        invoke('read_clipboard_image', { imageBytes: null, filePath: null })
-                            .then((result) => {
-                                if (result) {
-                                    showToast({message: t('common.toast.shared'), type: 'success'});
-                                    loadHistory();
-                                }
-                            })
-                            .catch((err) => console.debug('[keydown] Rust IPC 未读到图片:', err));
-                    } else {
-                        console.warn('[keydown] paste 事件已触发，跳过 Rust IPC');
-                    }
+                    if (pasteFiredRef.current) return;
+                    console.warn('[keydown] paste 事件未触发，走 peek + 确认对话框');
+                    invoke('peek_clipboard_image')
+                        .then((result) => {
+                            if (!result?.data_base64) return;
+                            const { width, height, data_base64 } = result;
+                            showDialog({
+                                title: t('imageSharing.pasteTitle'),
+                                content: (
+                                    <div className="paste-preview">
+                                        <DialogImage src={data_base64} alt="paste preview" />
+                                        <p style={{textAlign:'center',fontSize:'13px',marginTop:8,opacity:0.6}}>
+                                            {width} × {height}
+                                        </p>
+                                    </div>
+                                ),
+                                buttons: [
+                                    {label: 'common.button.cancel', value: null},
+                                    {
+                                        label: 'imageSharing.shareButton',
+                                        value: true,
+                                        primary: true,
+                                        action: async () => {
+                                            const raw = atob(data_base64.split(',')[1]);
+                                            const bytes = new Uint8Array(raw.length);
+                                            for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+                                            try {
+                                                await invoke('read_clipboard_image', { imageBytes: Array.from(bytes), filePath: null });
+                                                showToast({message: t('common.toast.shared'), type: 'success'});
+                                                loadHistory();
+                                            } catch (error) {
+                                                console.error('保存图片失败:', error);
+                                                showToast({message: t('common.toast.operationFailed'), type: 'error'});
+                                            }
+                                        }
+                                    },
+                                ],
+                            });
+                        })
+                        .catch((err) => {
+                            console.debug('[keydown] 未读到剪贴板图片:', err);
+                            showToast({message: t('imageSharing.noClipboardImage'), type: 'info'});
+                        });
                 }, 150);
             }
         };
         document.addEventListener('keydown', onKeyDown);
         return () => document.removeEventListener('keydown', onKeyDown);
-    }, [showToast, t, loadHistory]);
+    }, [showDialog, showToast, t, loadHistory]);
 
     const handlePaste = useCallback((e) => {
         pasteFiredRef.current = true;

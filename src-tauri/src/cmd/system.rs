@@ -180,20 +180,40 @@ pub async fn delete_record(id: i64, action_type: i64) -> Result<u64, String> {
     }
 }
 
-/// 读取剪贴板/文件图片并保存
-/// 优先级：file_path > image_bytes > 系统剪贴板模板方法
-/// - file_path: 前端从 paste event 中提取的文件路径（避免操作剪贴板）
-/// - image_bytes: 前端从 paste event getAsFile 读取的字节
-/// - None: 使用 clipboard 模块的模板方法（跨平台：arboard / NSPasteboard / wl-paste）
+/// 预览剪贴板图片（只读不存，返回 base64 供前端弹确认框）
 #[tauri::command]
-pub async fn read_clipboard_image(
+pub async fn peek_clipboard_image() -> Result<serde_json::Value, String> {
+    // 剪贴板读取与图片编码均为同步阻塞操作，放到阻塞线程池避免卡住 async runtime
+    let result = tokio::task::spawn_blocking(|| -> Result<serde_json::Value, String> {
+        let (width, height, rgba_bytes) = crate::clipboard::read_image_from_clipboard()?;
+        // RGBA → PNG bytes → base64
+        let img = image::RgbaImage::from_raw(width, height, rgba_bytes)
+            .ok_or("创建图片缓冲失败")?;
+        let mut png_bytes = Vec::new();
+        img.write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)
+            .map_err(|e| format!("PNG编码失败: {}", e))?;
+        let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &png_bytes);
+        Ok(serde_json::json!({
+            "width": width,
+            "height": height,
+            "data_base64": format!("data:image/png;base64,{}", b64),
+        }))
+    })
+    .await
+    .map_err(|e| format!("剪贴板读取任务失败: {}", e))??;
+    Ok(result)
+}
+
+/// 同步读取并准备图片数据：file_path > image_bytes > 系统剪贴板，统一输出 (sha256, png_bytes, size)
+/// 供 read_clipboard_image 在阻塞线程池中调用
+fn prepare_image_payload(
     image_bytes: Option<Vec<u8>>,
     file_path: Option<String>,
-) -> Result<serde_json::Value, String> {
+) -> Result<(String, Vec<u8>, i64), String> {
     use sha2::{Sha256, Digest};
 
     let (width, height, rgba_bytes) = if let Some(path) = file_path {
-        // 从文件路径读取（前端从 paste event 中提取的 URI，避免系统剪贴板竞争）
+        // 从文件路径读取（前端从 paste event 中提取的文件 URI，避免系统剪贴板竞争）
         let img = image::open(&path).map_err(|e| format!("打开图片文件失败: {}", e))?;
         let rgba = img.to_rgba8();
         let (w, h) = rgba.dimensions();
@@ -206,10 +226,7 @@ pub async fn read_clipboard_image(
         let (w, h) = rgba.dimensions();
         (w, h, rgba.into_raw())
     } else {
-        // 使用 clipboard 模块的模板方法：
-        // 1) 直接读图片数据（浏览器"复制图片"）
-        // 2) 读文件 URI（资源管理器"复制"）
-        // 3) 各平台各自实现（Win32 / NSPasteboard / wl-paste）
+        // 使用 clipboard 模块的模板方法（跨平台：arboard / NSPasteboard / wl-paste）
         crate::clipboard::read_image_from_clipboard()?
     };
 
@@ -225,6 +242,25 @@ pub async fn read_clipboard_image(
     img.write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)
         .map_err(|e| format!("PNG编码失败: {}", e))?;
     let size = png_bytes.len() as i64;
+
+    Ok((sha256_hash, png_bytes, size))
+}
+
+/// 读取剪贴板/文件图片并保存
+/// 优先级：file_path > image_bytes > 系统剪贴板模板方法
+/// - file_path: 前端从 paste event 中提取的文件路径（避免操作剪贴板）
+/// - image_bytes: 前端从 paste event getAsFile 读取的字节
+/// - None: 使用 clipboard 模块的模板方法（跨平台：arboard / NSPasteboard / wl-paste）
+#[tauri::command]
+pub async fn read_clipboard_image(
+    image_bytes: Option<Vec<u8>>,
+    file_path: Option<String>,
+) -> Result<serde_json::Value, String> {
+    // 读取/解码/编码/哈希均为同步阻塞（含剪贴板访问与文件 IO），放到阻塞线程池避免卡住 async runtime
+    let (sha256_hash, png_bytes, size) =
+        tokio::task::spawn_blocking(move || prepare_image_payload(image_bytes, file_path))
+            .await
+            .map_err(|e| format!("图片处理任务失败: {}", e))??;
 
     let local_ip = local_ip_address::local_ip().unwrap().to_string();
 
