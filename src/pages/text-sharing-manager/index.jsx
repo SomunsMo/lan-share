@@ -221,14 +221,17 @@ function TextSharingManager(props) {
     useEffect(() => {
         const onKeyDown = (e) => {
             if (e.ctrlKey && e.code === 'KeyV') {
+                showToast({message: `[diag] keydown Ctrl+V`, type: 'info', duration: 8000});
                 pasteFiredRef.current = false;
                 setTimeout(() => {
+                    showToast({message: `[diag] 150ms fired=${pasteFiredRef.current}`, type: 'info', duration: 8000});
                     if (pasteFiredRef.current) return;
                     console.warn('[keydown] paste 未弹框，走 peek + 确认对话框');
                     invoke('peek_clipboard_image')
                         .then((result) => {
                             if (!result?.data_base64) return;
                             const { width, height, data_base64 } = result;
+                            showToast({message: `[diag] peek成功 ${width}x${height}`, type: 'success', duration: 8000});
                             showDialog({
                                 title: t('imageSharing.pasteTitle'),
                                 content: (
@@ -264,7 +267,7 @@ function TextSharingManager(props) {
                         })
                         .catch((err) => {
                             console.debug('[keydown] 未读到剪贴板图片:', err);
-                            showToast({message: t('imageSharing.noClipboardImage'), type: 'info'});
+                            showToast({message: `[diag] peek失败: ${String(err)}`, type: 'error', duration: 8000});
                         });
                 }, 150);
             }
@@ -278,12 +281,15 @@ function TextSharingManager(props) {
         // 否则 Ubuntu WebKitGTK 上 paste 事件虽触发但 clipboardData 无有效图片数据时，
         // 会错误阻断 keydown 的 peek 兜底，导致粘贴无反应（无弹框、无 log）。
         const items = e.clipboardData?.items;
+        const _diagTypes = items ? Array.from(items).map(i => `${i.kind}:${i.type}`).join('|') : 'none';
+        showToast({message: `[diag] paste types=[${_diagTypes}]`, type: 'info', duration: 8000});
         if (!items) return;
 
         // Phase 1: 原有逻辑 — image/* + getAsFile 成功（保持 handler 同步，不改变原有行为）
         for (let i = 0; i < items.length; i++) {
             if (items[i].type.startsWith('image/')) {
                 const file = items[i].getAsFile();
+                showToast({message: `[diag] P1 image ${items[i].type} file=${file ? file.name : 'null'}`, type: file ? 'success' : 'warning', duration: 8000});
                 if (file) {
                     e.preventDefault();
                     pasteFiredRef.current = true;
@@ -330,6 +336,7 @@ function TextSharingManager(props) {
                 items[i].getAsString((uriText) => {
                     if (!uriText) return;
                     const filePath = extractImagePathFromUriList(uriText);
+                    showToast({message: `[diag] P2 uri-list filePath=${filePath || 'null'}`, type: filePath ? 'success' : 'warning', duration: 8000});
                     if (filePath) {
                         pasteFiredRef.current = true;
                         const fileName = filePath.split('/').pop() || filePath.split('\\').pop();
@@ -364,6 +371,7 @@ function TextSharingManager(props) {
         // Phase 3: 由 keydown 的 peek_clipboard_image 兜底（IPC 直接读系统剪贴板，
         // 比 navigator.clipboard.read 更可靠，且不依赖 paste event 暴露的数据）
         // 不再调用 readClipboardViaAsyncApi，避免 paste 触发但无有效数据时阻断 keydown 兜底
+        showToast({message: `[diag] paste结束 fired=${pasteFiredRef.current}`, type: 'info', duration: 8000});
 
     }, [showDialog, showToast, t, loadHistory, extractImagePathFromUriList]);
 
