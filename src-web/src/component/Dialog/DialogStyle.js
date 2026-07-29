@@ -9,11 +9,11 @@ const fadeIn = keyframes`
 const scaleIn = keyframes`
   from {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.95);
+    transform: scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
   }
 `;
 
@@ -32,10 +32,6 @@ export const DialogOverlay = styled.div`
 `;
 
 export const DialogCard = styled.div`
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   width: calc(100vw - 32px);
   min-width: 280px;
   max-width: 900px;
@@ -65,7 +61,7 @@ export const DialogCard = styled.div`
   ${props => props.$exiting && `
     animation: none;
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.95);
+    transform: scale(0.95);
     transition: opacity 0.15s ease, transform 0.15s ease;
   `}
 `;
