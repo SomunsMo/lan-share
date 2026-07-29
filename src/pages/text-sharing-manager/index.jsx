@@ -215,63 +215,16 @@ function TextSharingManager(props) {
         return null;
     }, []);
 
-    // 通过 Async Clipboard API 读取剪贴板图片（Tauri 安全上下文下可用）
-    const readClipboardViaAsyncApi = useCallback(() => {
-        if (!navigator.clipboard?.read) return;
-        navigator.clipboard.read().then((clipboardItems) => {
-            for (const item of clipboardItems) {
-                for (const type of item.types) {
-                    if (type.startsWith('image/')) {
-                        item.getType(type).then((blob) => {
-                            const previewUrl = URL.createObjectURL(blob);
-                            showDialog({
-                                title: t('imageSharing.pasteTitle'),
-                                content: (
-                                    <div className="paste-preview">
-                                        <DialogImage src={previewUrl} alt="paste preview" />
-                                    </div>
-                                ),
-                                buttons: [
-                                    {label: 'common.button.cancel', value: null},
-                                    {
-                                        label: 'imageSharing.shareButton',
-                                        value: true,
-                                        primary: true,
-                                        action: async () => {
-                                            const buffer = await blob.arrayBuffer();
-                                            const bytes = new Uint8Array(buffer);
-                                            try {
-                                                await invoke('read_clipboard_image', { imageBytes: Array.from(bytes), filePath: null });
-                                                showToast({message: t('common.toast.shared'), type: 'success'});
-                                                loadHistory();
-                                            } catch (error) {
-                                                console.error('保存图片失败:', error);
-                                                showToast({message: t('common.toast.operationFailed'), type: 'error'});
-                                            }
-                                        }
-                                    },
-                                ],
-                            }).then(() => {
-                                URL.revokeObjectURL(previewUrl);
-                            });
-                        });
-                        return;
-                    }
-                }
-            }
-        }).catch(() => {});
-    }, [showToast, loadHistory, t, showDialog]);
-
     const pasteFiredRef = useRef(false);
 
-    // 全局 keydown 监听 Ctrl+V — WebKitGTK 对非文本剪贴板不触发 paste 事件
+    // 全局 keydown 监听 Ctrl+V — WebKitGTK 上 paste 事件可能触发但 clipboardData 无有效图片数据，用 peek 兜底
     useEffect(() => {
         const onKeyDown = (e) => {
             if (e.ctrlKey && e.code === 'KeyV') {
                 pasteFiredRef.current = false;
                 setTimeout(() => {
                     if (pasteFiredRef.current) return;
-                    console.warn('[keydown] paste 事件未触发，走 peek + 确认对话框');
+                    console.warn('[keydown] paste 未弹框，走 peek + 确认对话框');
                     invoke('peek_clipboard_image')
                         .then((result) => {
                             if (!result?.data_base64) return;
@@ -321,7 +274,9 @@ function TextSharingManager(props) {
     }, [showDialog, showToast, t, loadHistory]);
 
     const handlePaste = useCallback((e) => {
-        pasteFiredRef.current = true;
+        // 不在此处设置 pasteFiredRef；仅在真正弹出对话框时才设置。
+        // 否则 Ubuntu WebKitGTK 上 paste 事件虽触发但 clipboardData 无有效图片数据时，
+        // 会错误阻断 keydown 的 peek 兜底，导致粘贴无反应（无弹框、无 log）。
         const items = e.clipboardData?.items;
         if (!items) return;
 
@@ -331,6 +286,7 @@ function TextSharingManager(props) {
                 const file = items[i].getAsFile();
                 if (file) {
                     e.preventDefault();
+                    pasteFiredRef.current = true;
                     const previewUrl = URL.createObjectURL(file);
                     showDialog({
                         title: t('imageSharing.pasteTitle'),
@@ -375,6 +331,7 @@ function TextSharingManager(props) {
                     if (!uriText) return;
                     const filePath = extractImagePathFromUriList(uriText);
                     if (filePath) {
+                        pasteFiredRef.current = true;
                         const fileName = filePath.split('/').pop() || filePath.split('\\').pop();
                         showDialog({
                             title: t('imageSharing.pasteTitle'),
@@ -404,11 +361,11 @@ function TextSharingManager(props) {
             }
         }
 
-        // Phase 3: Async Clipboard API — navigator.clipboard.read()
-        // 安全上下文下可读浏览器"复制图片"的数据
-        readClipboardViaAsyncApi();
+        // Phase 3: 由 keydown 的 peek_clipboard_image 兜底（IPC 直接读系统剪贴板，
+        // 比 navigator.clipboard.read 更可靠，且不依赖 paste event 暴露的数据）
+        // 不再调用 readClipboardViaAsyncApi，避免 paste 触发但无有效数据时阻断 keydown 兜底
 
-    }, [showDialog, showToast, t, loadHistory, extractImagePathFromUriList, readClipboardViaAsyncApi]);
+    }, [showDialog, showToast, t, loadHistory, extractImagePathFromUriList]);
 
     const copyImageToClipboard = useCallback(async (item) => {
         try {
