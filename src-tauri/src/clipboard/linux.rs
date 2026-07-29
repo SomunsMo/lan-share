@@ -1,23 +1,15 @@
-/// 从剪贴板直接读取图片数据
+/// 从剪贴板直接读取图片数据（仅 arboard，不消耗 Wayland 非图片 offer）
 pub(crate) fn read_image_data() -> Result<(u32, u32, Vec<u8>), String> {
-    // Try arboard first (wl-clipboard-rs on Wayland, X11 fallback)
-    if let Ok(mut cb) = arboard::Clipboard::new() {
-        match cb.get_image() {
-            Ok(img) => {
-                log::info!("arboard 读取剪贴板图片成功");
-                return Ok((img.width as u32, img.height as u32, img.bytes.to_vec()));
-            }
-            Err(e) => log::debug!("arboard get_image 失败: {}", e),
-        }
-    } else {
-        log::debug!("arboard Clipboard::new 失败");
-    }
-
-    // Fallback: subprocess wl-paste / xclip 读取原始数据并尝试解码
-    read_image_via_subprocess()
+    let mut cb =
+        arboard::Clipboard::new().map_err(|e| format!("无法访问剪贴板: {}", e))?;
+    let img = cb
+        .get_image()
+        .map_err(|e| format!("读取剪贴板图片失败: {}", e))?;
+    Ok((img.width as u32, img.height as u32, img.bytes.to_vec()))
 }
 
-fn read_image_via_subprocess() -> Result<(u32, u32, Vec<u8>), String> {
+/// 子进程方式读取剪贴板图片数据（兜底，可能消耗 Wayland offer，须最后调用）
+pub(crate) fn read_image_via_subprocess() -> Result<(u32, u32, Vec<u8>), String> {
     let cmds = [
         "wl-paste 2>/dev/null",
         "xclip -o -selection clipboard 2>/dev/null",
@@ -51,13 +43,8 @@ fn read_image_via_subprocess() -> Result<(u32, u32, Vec<u8>), String> {
     Err("无法从剪贴板读取图片数据".to_string())
 }
 
-/// 从剪贴板读取文件 URI 列表
-///
-/// 策略：
-/// 1. 尝试 arboard::get_text()（少数环境可能同时设了 text/plain）
-/// 2. 子进程调用 wl-paste（Wayland）或 xclip（X11）读取 text/uri-list
+/// 从剪贴板读取文件 URI 列表（仅 arboard，不消耗 Wayland 非文本 offer）
 pub(crate) fn read_file_uris() -> Result<Vec<String>, String> {
-    // Try arboard text first
     if let Ok(mut cb) = arboard::Clipboard::new() {
         if let Ok(text) = cb.get_text() {
             let uris: Vec<String> = text
@@ -73,12 +60,11 @@ pub(crate) fn read_file_uris() -> Result<Vec<String>, String> {
             }
         }
     }
-
-    // Subprocess fallback for text/uri-list
-    read_uris_via_subprocess()
+    Err("arboard 未读到文件 URI".to_string())
 }
 
-fn read_uris_via_subprocess() -> Result<Vec<String>, String> {
+/// 子进程方式读取文件 URI 列表（兜底，可能消耗 Wayland offer，须最后调用）
+pub(crate) fn read_uris_via_subprocess() -> Result<Vec<String>, String> {
     let cmds = [
         "wl-paste --type text/uri-list 2>/dev/null",
         "wl-paste 2>/dev/null",
