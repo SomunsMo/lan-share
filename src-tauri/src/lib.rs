@@ -77,8 +77,13 @@ fn save_window_state(window: &tauri::Window) {
             height: size.height,
         };
         if let Ok(json) = serde_json::to_string(&state) {
+            let json_clone = json.clone();
             tauri::async_runtime::spawn(async move {
-                let _ = crate::db::dao::config_dao::set_config("window_state", &json).await;
+                if crate::db::dao::config_dao::set_config("window_state", &json).await.is_ok() {
+                    if let Ok(mut guard) = crate::config::config::WINDOW_STATE_JSON.write() {
+                        *guard = Some(json_clone);
+                    }
+                }
             });
         }
     }
@@ -86,9 +91,10 @@ fn save_window_state(window: &tauri::Window) {
 
 pub(crate) fn load_window_state() -> Option<WindowState> {
     crate::config::config::WINDOW_STATE_JSON
-        .get()
-        .and_then(|opt| opt.as_ref())
-        .and_then(|json| serde_json::from_str(json).ok())
+        .read()
+        .ok()
+        .and_then(|guard| guard.clone())
+        .and_then(|json| serde_json::from_str(&json).ok())
 }
 
 pub(crate) fn get_monitor_containing(

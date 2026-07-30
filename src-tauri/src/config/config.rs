@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
+use std::sync::RwLock as StdRwLock;
 use log::error;
 use regex::Regex;
 use tokio::sync::RwLock;
@@ -10,8 +11,8 @@ pub const REPO_URL: &str = "https://github.com/SomunsMo/lan-share";
 /// GitHub API 地址（用于检查新版本）
 pub const REPO_API: &str = "https://api.github.com/repos/SomunsMo/lan-share";
 
-/// 窗口状态JSON（init中从DB读取，供setup同步使用）
-pub static WINDOW_STATE_JSON: OnceLock<Option<String>> = OnceLock::new();
+/// 窗口状态JSON（init中从DB读取，供setup同步使用；关闭时更新）
+pub static WINDOW_STATE_JSON: StdRwLock<Option<String>> = StdRwLock::new(None);
 
 /// 软件配置目录
 pub static CONFIG_DIR: OnceLock<PathBuf> = OnceLock::new();
