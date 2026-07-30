@@ -10,7 +10,7 @@
     }
   },
   "web": {
-    "subtitle": "LAN file sharing tool over HTTP",
+    "subtitle": "LAN text, image & file sharing tool over HTTP",
     "themeLabel": {
       "system": "Follow System",
       "light": "Light",

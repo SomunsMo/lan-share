@@ -21,7 +21,7 @@
     "about": "关于"
   },
   "navbar": {
-    "tagline": "局域网文件与文本共享"
+    "tagline": "局域网文本、图片、文件共享"
   },
   "home": {
     "scanTips": "扫码连接",
@@ -238,7 +238,7 @@
   },
   "textSharing": {
     "pageTitle": "共享文图",
-    "pageDesc": "共享文本后，局域网内其他设备可通过浏览器查看或复制",
+    "pageDesc": "共享文本或图片后，局域网内其他设备可通过浏览器查看或复制",
     "deleteCascadeWarning": "删除该记录会导致相关的复制记录也会被删除",
     "clearButton": "清空",
     "recentTitle": "最近共享",

@@ -10,7 +10,7 @@
     }
   },
   "web": {
-    "subtitle": "基于HTTP的局域网文件传输工具",
+    "subtitle": "基于HTTP的局域网文本、图片、文件共享工具",
     "themeLabel": {
       "system": "跟随系统",
       "light": "浅色",
