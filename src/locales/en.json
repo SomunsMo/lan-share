@@ -98,7 +98,11 @@
       "excludePatterns": "Custom Exclusion Rules",
       "excludePatternsDesc": "Exclude files from the web list by exact filename or regex pattern (one per line)",
       "excludePatternPlaceholder": "e.g. desktop.ini, \\.bak$, ^private_",
-      "noExcludePatterns": "No exclusion rules"
+      "noExcludePatterns": "No exclusion rules",
+      "trayIconMode": "Menu Bar Icon (macOS)",
+      "trayIconModeDesc": "Choose between colorful or monochrome template icon",
+      "trayIconModeTemplate": "Template",
+      "trayIconModeColor": "Colorful"
     },
     "themeOption": {
       "system": "Follow System",

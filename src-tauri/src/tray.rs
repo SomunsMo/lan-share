@@ -9,6 +9,18 @@ static SHOW_ITEM: OnceLock<MenuItem<tauri::Wry>> = OnceLock::new();
 static SETTINGS_ITEM: OnceLock<MenuItem<tauri::Wry>> = OnceLock::new();
 static QUIT_ITEM: OnceLock<MenuItem<tauri::Wry>> = OnceLock::new();
 
+fn make_tray_icon(app_handle: &AppHandle, is_template: bool) -> tauri::image::Image<'_> {
+    if is_template {
+        let img = image::load_from_memory(include_bytes!("../icons/tray-template.png"))
+            .expect("加载托盘模板图标失败")
+            .into_rgba8();
+        let (w, h) = img.dimensions();
+        tauri::image::Image::new_owned(img.into_raw(), w, h)
+    } else {
+        app_handle.default_window_icon().cloned().expect("获取应用图标失败")
+    }
+}
+
 /// 创建系统托盘
 pub fn create_tray_menu(app_handle: &AppHandle) {
     let show_item = MenuItem::with_id(app_handle, "show", "显示窗口", true, None::<&str>).expect("创建菜单项失败");
@@ -17,12 +29,20 @@ pub fn create_tray_menu(app_handle: &AppHandle) {
 
     let tray_menu = Menu::with_items(app_handle, &[&show_item, &settings_item, &quit_item]).expect("创建托盘菜单失败");
 
-    let icon = app_handle.default_window_icon().cloned().expect("获取应用图标失败");
+    #[cfg(target_os = "macos")]
+    let is_template = crate::config::config::TRAY_ICON_MODE
+        .get()
+        .map(|s| s.as_str() == "template")
+        .unwrap_or(true);
+    #[cfg(not(target_os = "macos"))]
+    let is_template = false;
+
+    let icon = make_tray_icon(app_handle, is_template);
 
     TrayIconBuilder::with_id("main-tray")
         .menu(&tray_menu)
         .icon(icon)
-        .icon_as_template(false)
+        .icon_as_template(is_template)
         .tooltip("LAN Share")
         .on_tray_icon_event(|tray, event| {
             if let tauri::tray::TrayIconEvent::DoubleClick { .. } = event {
@@ -39,6 +59,22 @@ pub fn create_tray_menu(app_handle: &AppHandle) {
     let _ = SHOW_ITEM.set(show_item);
     let _ = SETTINGS_ITEM.set(settings_item);
     let _ = QUIT_ITEM.set(quit_item);
+}
+
+/// 运行时更新托盘图标模式
+pub fn update_tray_icon(app_handle: &AppHandle, mode: &str) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    let is_template = mode == "template";
+    #[cfg(not(target_os = "macos"))]
+    let is_template = false;
+
+    let icon = make_tray_icon(app_handle, is_template);
+
+    if let Some(tray) = app_handle.tray_by_id("main-tray") {
+        tray.set_icon(Some(icon)).map_err(|e| format!("更新托盘图标失败: {}", e))?;
+        tray.set_icon_as_template(is_template).map_err(|e| format!("设置图标模板模式失败: {}", e))?;
+    }
+    Ok(())
 }
 
 /// 更新托盘菜单项文本（由 IPC 命令在语言切换时调用）

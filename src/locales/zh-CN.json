@@ -98,7 +98,11 @@
       "excludePatterns": "自定义排除规则",
       "excludePatternsDesc": "在网页端文件列表中，按精确文件名或正则表达式隐藏指定文件（每行一条规则）",
       "excludePatternPlaceholder": "例如: desktop.ini, \\.bak$, ^private_",
-      "noExcludePatterns": "暂无排除规则"
+      "noExcludePatterns": "暂无排除规则",
+      "trayIconMode": "菜单栏图标样式 (macOS)",
+      "trayIconModeDesc": "选择彩色图标或单色模板图标",
+      "trayIconModeTemplate": "模板图像",
+      "trayIconModeColor": "彩色图标"
     },
     "themeOption": {
       "system": "跟随系统",

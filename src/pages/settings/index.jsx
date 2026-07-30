@@ -53,6 +53,8 @@ function Settings() {
         } catch { return 40; }
     });
     const [primaryColorHex, setPrimaryColorHex] = useState('#0065ca');
+    const [trayIconMode, setTrayIconMode] = useState('template');
+    const isMac = navigator.platform.includes('Mac');
 
     const hslToHex = (h, s, l) => {
         s /= 100; l /= 100;
@@ -109,6 +111,7 @@ function Settings() {
                 setExcludePatterns(s.exclude_patterns);
                 setThemeSetting(s.theme_setting);
                 setHttpPort(s.http_port);
+                setTrayIconMode(s.tray_icon_mode || 'template');
 
                 const { h, s: sat, l } = JSON.parse(s.theme_color);
                 setHuePrimary(h);
@@ -467,6 +470,19 @@ function Settings() {
         }
     };
 
+    const handleTrayIconModeChange = async (event) => {
+        const newMode = event.target.value;
+        if (newMode === trayIconMode) return;
+        setTrayIconMode(newMode);
+        try {
+            await invoke('set_tray_icon_mode', {mode: newMode});
+        } catch (error) {
+            console.error('保存托盘图标模式失败:', error);
+            setTrayIconMode(trayIconMode);
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.trayIconMode'), error: error.message}), type: 'error'});
+        }
+    };
+
     const handleAutostartMinimizedChange = async (event) => {
         const checked = event.target.checked;
         setAutostartMinimized(checked);
@@ -601,6 +617,16 @@ function Settings() {
                         </Select>
                     ),
                 },
+                ...(isMac ? [{
+                    name: t('settings.option.trayIconMode'),
+                    desc: t('settings.option.trayIconModeDesc'),
+                    content: (
+                        <Select value={trayIconMode} onChange={handleTrayIconModeChange} size="small" sx={{ minWidth: 120, fontSize: '0.875rem' }}>
+                            <MenuItem value="template">{t('settings.option.trayIconModeTemplate')}</MenuItem>
+                            <MenuItem value="color">{t('settings.option.trayIconModeColor')}</MenuItem>
+                        </Select>
+                    ),
+                }] : []),
             ]
         },
         {

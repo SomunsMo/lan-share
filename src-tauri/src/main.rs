@@ -78,6 +78,14 @@ async fn init() {
         .and_then(|v| v.parse::<u16>().ok())
         .unwrap_or(6633);
     let _ = lan_share_lib::config::config::CONFIGURED_HTTP_PORT.set(port);
+
+    // 读取托盘图标模式，存入全局供setup同步使用
+    let tray_mode = config_dao::get_config_value("tray_icon_mode")
+        .await
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| "template".to_string());
+    let _ = lan_share_lib::config::config::TRAY_ICON_MODE.set(tray_mode);
 }
 
 // 初始化日志系统

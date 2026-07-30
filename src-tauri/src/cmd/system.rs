@@ -37,6 +37,7 @@ pub struct AllSettings {
     pub exclude_patterns: Vec<String>,
     pub delete_to_trash: bool,
     pub image_sharing_dir: String,
+    pub tray_icon_mode: String,
 }
 
 #[derive(Serialize)]
@@ -1337,6 +1338,33 @@ pub async fn set_language(language: String) -> Result<(), String> {
     Ok(())
 }
 
+/// 获取托盘图标模式
+#[tauri::command]
+pub async fn get_tray_icon_mode() -> Result<String, String> {
+    match config_dao::get_config_value("tray_icon_mode").await {
+        Ok(Some(value)) => Ok(value),
+        Ok(None) => Ok("template".to_string()),
+        Err(e) => {
+            log::warn!("获取托盘图标模式失败: {}", e);
+            Ok("template".to_string())
+        }
+    }
+}
+
+/// 设置托盘图标模式并立即生效
+#[tauri::command]
+pub async fn set_tray_icon_mode(app: tauri::AppHandle, mode: String) -> Result<(), String> {
+    if mode != "color" && mode != "template" {
+        return Err("无效的图标模式，仅支持 color/template".to_string());
+    }
+
+    config_dao::set_config("tray_icon_mode", &mode)
+        .await
+        .map_err(|e| format!("保存托盘图标模式失败: {}", e))?;
+
+    crate::tray::update_tray_icon(&app, &mode)
+}
+
 /// 更新托盘菜单文本（前端语言切换后同步托盘菜单）
 #[tauri::command]
 pub fn update_tray_menu(
@@ -1588,6 +1616,7 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
         "exclude_patterns",
         "delete_to_trash",
         "image_sharing_dir",
+        "tray_icon_mode",
     ];
     let configs = config_dao::get_config_values(keys).await;
 
@@ -1635,6 +1664,7 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
         exclude_patterns: configs.get("exclude_patterns").and_then(|v| serde_json::from_str(v).ok()).unwrap_or_default(),
         delete_to_trash: configs.get("delete_to_trash").map(|v| v == "true").unwrap_or(true),
         image_sharing_dir,
+        tray_icon_mode: configs.get("tray_icon_mode").cloned().unwrap_or_else(|| "template".to_string()),
     };
 
     log::debug!(
