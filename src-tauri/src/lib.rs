@@ -56,11 +56,13 @@ use tauri::Manager;
 pub(crate) static QUITTING: AtomicBool = AtomicBool::new(false);
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-struct WindowState {
+pub(crate) struct WindowState {
     x: i32,
     y: i32,
     width: u32,
     height: u32,
+    #[serde(default)]
+    maximized: bool,
 }
 
 pub(crate) const WINDOW_DEFAULT_W: u32 = 980;
@@ -68,25 +70,30 @@ pub(crate) const WINDOW_DEFAULT_H: u32 = 650;
 pub(crate) const WINDOW_MIN_W: u32 = 980;
 pub(crate) const WINDOW_MIN_H: u32 = 650;
 
-fn save_window_state(window: &tauri::Window) {
-    if let (Ok(pos), Ok(size)) = (window.outer_position(), window.inner_size()) {
-        let state = WindowState {
-            x: pos.x,
-            y: pos.y,
-            width: size.width,
-            height: size.height,
-        };
-        if let Ok(json) = serde_json::to_string(&state) {
-            let json_clone = json.clone();
-            tauri::async_runtime::spawn(async move {
-                if crate::db::dao::config_dao::set_config("window_state", &json).await.is_ok() {
-                    if let Ok(mut guard) = crate::config::config::WINDOW_STATE_JSON.write() {
-                        *guard = Some(json_clone);
-                    }
+/// 将 WindowState 持久化到 DB 并更新内存缓存
+pub(crate) fn persist_window_state(state: &WindowState) {
+    if let Ok(json) = serde_json::to_string(state) {
+        let json_clone = json.clone();
+        tauri::async_runtime::spawn(async move {
+            if crate::db::dao::config_dao::set_config("window_state", &json).await.is_ok() {
+                if let Ok(mut guard) = crate::config::config::WINDOW_STATE_JSON.write() {
+                    *guard = Some(json_clone);
                 }
-            });
-        }
+            }
+        });
     }
+}
+
+pub(crate) fn save_window_state(window: &tauri::Window) {
+    let is_maximized = window.is_maximized().unwrap_or(false);
+    let state = if is_maximized {
+        WindowState { x: 0, y: 0, width: 0, height: 0, maximized: true }
+    } else if let (Ok(pos), Ok(size)) = (window.outer_position(), window.inner_size()) {
+        WindowState { x: pos.x, y: pos.y, width: size.width, height: size.height, maximized: false }
+    } else {
+        return;
+    };
+    persist_window_state(&state);
 }
 
 pub(crate) fn load_window_state() -> Option<WindowState> {
@@ -95,6 +102,25 @@ pub(crate) fn load_window_state() -> Option<WindowState> {
         .ok()
         .and_then(|guard| guard.clone())
         .and_then(|json| serde_json::from_str(&json).ok())
+}
+
+fn restore_window_state(window: &tauri::WebviewWindow) {
+    if let Some(saved) = load_window_state() {
+        if saved.maximized {
+            let (x, y, w, h) = center_on_primary(window);
+            let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+            let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+            let _ = window.maximize();
+        } else {
+            let (x, y, w, h) = clamp_and_center(window, &saved);
+            let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+            let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+        }
+    } else {
+        let (x, y, w, h) = center_on_primary(window);
+        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+        let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+    }
 }
 
 pub(crate) fn get_monitor_containing(
@@ -184,15 +210,7 @@ pub(crate) fn create_and_position_window(
         ));
     }
 
-    if let Some(saved) = load_window_state() {
-        let (x, y, w, h) = clamp_and_center(&window, &saved);
-        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
-        let _ = window.set_size(tauri::PhysicalSize::new(w, h));
-    } else {
-        let (x, y, w, h) = center_on_primary(&window);
-        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
-        let _ = window.set_size(tauri::PhysicalSize::new(w, h));
-    }
+    restore_window_state(&window);
     let _ = window.show();
 
     window
@@ -305,15 +323,7 @@ pub fn run() {
         .setup(|app| {
             let is_silent = std::env::args().any(|a| a == "--silent");
             if let Some(window) = app.get_webview_window("main") {
-                if let Some(saved) = load_window_state() {
-                    let (x, y, w, h) = clamp_and_center(&window, &saved);
-                    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
-                    let _ = window.set_size(tauri::PhysicalSize::new(w, h));
-                } else {
-                    let (x, y, w, h) = center_on_primary(&window);
-                    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
-                    let _ = window.set_size(tauri::PhysicalSize::new(w, h));
-                }
+                restore_window_state(&window);
                 if !is_silent {
                     let _ = window.show();
                 } else {

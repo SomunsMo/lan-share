@@ -82,6 +82,17 @@ pub fn handle_system_tray_menu_event(app: &AppHandle, id: &str) {
             }
         }
         "quit" => {
+            if let Some(window) = app.get_webview_window("main") {
+                let is_maximized = window.is_maximized().unwrap_or(false);
+                let state = if is_maximized {
+                    crate::WindowState { x: 0, y: 0, width: 0, height: 0, maximized: true }
+                } else if let (Ok(pos), Ok(size)) = (window.outer_position(), window.inner_size()) {
+                    crate::WindowState { x: pos.x, y: pos.y, width: size.width, height: size.height, maximized: false }
+                } else {
+                    return;
+                };
+                crate::persist_window_state(&state);
+            }
             crate::QUITTING.store(true, Ordering::Relaxed);
             app.exit(0);
         }
