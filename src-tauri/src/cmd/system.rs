@@ -180,38 +180,90 @@ pub async fn delete_record(id: i64, action_type: i64) -> Result<u64, String> {
     }
 }
 
-/// 读取剪贴板/文件图片并保存
-/// 如果传入了 image_bytes（粘贴文件），直接从字节解码；否则从系统剪贴板读取
+/// 预览剪贴板图片（只读不存，返回 base64 供前端弹确认框）
 #[tauri::command]
-pub async fn read_clipboard_image(image_bytes: Option<Vec<u8>>) -> Result<serde_json::Value, String> {
+pub async fn peek_clipboard_image() -> Result<serde_json::Value, String> {
+    // 剪贴板读取与图片编码均为同步阻塞操作，放到阻塞线程池避免卡住 async runtime
+    let result = tokio::task::spawn_blocking(|| -> Result<serde_json::Value, String> {
+        let (width, height, rgba_bytes) = crate::clipboard::read_image_from_clipboard()?;
+        // RGBA → PNG bytes → base64
+        let img = image::RgbaImage::from_raw(width, height, rgba_bytes)
+            .ok_or("创建图片缓冲失败")?;
+        let mut png_bytes = Vec::new();
+        img.write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)
+            .map_err(|e| format!("PNG编码失败: {}", e))?;
+        let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &png_bytes);
+        Ok(serde_json::json!({
+            "width": width,
+            "height": height,
+            "data_base64": format!("data:image/png;base64,{}", b64),
+        }))
+    })
+    .await
+    .map_err(|e| format!("剪贴板读取任务失败: {}", e))??;
+    Ok(result)
+}
+
+/// 同步读取并准备图片数据：file_path > image_bytes > 系统剪贴板
+/// 返回 (sha256, file_bytes, size, ext)
+/// - file_path / image_bytes：hash 原始字节，保存原格式（优化 A）
+/// - clipboard（RGBA）：先编码 PNG，再 hash PNG 字节（优化 B）
+fn prepare_image_payload(
+    image_bytes: Option<Vec<u8>>,
+    file_path: Option<String>,
+) -> Result<(String, Vec<u8>, i64, String), String> {
     use sha2::{Sha256, Digest};
 
-    let (width, height, rgba_bytes) = if let Some(bytes) = image_bytes {
-        // 从文件字节解码（粘贴图片文件场景）
-        let img = image::load_from_memory(&bytes)
-            .map_err(|e| format!("解码图片失败: {}", e))?;
-        let rgba = img.to_rgba8();
-        let (w, h) = rgba.dimensions();
-        (w, h, rgba.into_raw())
+    if let Some(path) = file_path {
+        // 从文件路径读取（优化 A：直接 hash 原文件字节，不做图片解码）
+        let bytes = std::fs::read(&path).map_err(|e| format!("读取图片文件失败: {}", e))?;
+        let format = image::guess_format(&bytes).map_err(|e| format!("无法识别的图片格式: {}", e))?;
+        let ext = format.extensions_str().first().copied().unwrap_or("png").to_string();
+        let mut hasher = Sha256::new();
+        hasher.update(&bytes);
+        let sha256_hash = format!("{:x}", hasher.finalize());
+        let size = bytes.len() as i64;
+        Ok((sha256_hash, bytes, size, ext))
+    } else if let Some(bytes) = image_bytes {
+        // 从文件字节保存（优化 A：前端 getAsFile 传来的原始字节，直接 hash 保存）
+        let format = image::guess_format(&bytes).map_err(|e| format!("无法识别的图片格式: {}", e))?;
+        let ext = format.extensions_str().first().copied().unwrap_or("png").to_string();
+        let mut hasher = Sha256::new();
+        hasher.update(&bytes);
+        let sha256_hash = format!("{:x}", hasher.finalize());
+        let size = bytes.len() as i64;
+        Ok((sha256_hash, bytes, size, ext))
     } else {
-        // 从剪贴板读取（直接复制图片场景）
-        let mut clipboard = arboard::Clipboard::new().map_err(|e| format!("无法访问剪贴板: {}", e))?;
-        let img_data = clipboard.get_image().map_err(|e| format!("读取剪贴板图片失败: {}", e))?;
-        (img_data.width as u32, img_data.height as u32, img_data.bytes.to_vec())
-    };
+        // 从系统剪贴板读取（优化 B：先编码 PNG，再 hash PNG 字节而非原始 RGBA）
+        let (width, height, rgba_bytes) = crate::clipboard::read_image_from_clipboard()?;
+        let img = image::RgbaImage::from_raw(width, height, rgba_bytes)
+            .ok_or("创建图片缓冲失败".to_string())?;
+        let mut png_bytes = Vec::new();
+        img.write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)
+            .map_err(|e| format!("PNG编码失败: {}", e))?;
+        let mut hasher = Sha256::new();
+        hasher.update(&png_bytes);
+        let sha256_hash = format!("{:x}", hasher.finalize());
+        let size = png_bytes.len() as i64;
+        Ok((sha256_hash, png_bytes, size, "png".to_string()))
+    }
+}
 
-    // 计算 SHA256
-    let mut hasher = Sha256::new();
-    hasher.update(&rgba_bytes);
-    let sha256_hash = format!("{:x}", hasher.finalize());
-
-    // 编码 RGBA 为 PNG 并计算文件 size
-    let img = image::RgbaImage::from_raw(width, height, rgba_bytes)
-        .ok_or("创建图片缓冲失败".to_string())?;
-    let mut png_bytes = Vec::new();
-    img.write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageFormat::Png)
-        .map_err(|e| format!("PNG编码失败: {}", e))?;
-    let size = png_bytes.len() as i64;
+/// 读取剪贴板/文件图片并保存
+/// 优先级：file_path > image_bytes > 系统剪贴板模板方法
+/// - file_path: 前端从 paste event 中提取的文件路径（避免操作剪贴板）
+/// - image_bytes: 前端从 paste event getAsFile 读取的字节
+/// - None: 使用 clipboard 模块的模板方法（跨平台：arboard / NSPasteboard / wl-paste）
+#[tauri::command]
+pub async fn read_clipboard_image(
+    image_bytes: Option<Vec<u8>>,
+    file_path: Option<String>,
+) -> Result<serde_json::Value, String> {
+    // 读取/解码/编码/哈希均为同步阻塞（含剪贴板访问与文件 IO），放到阻塞线程池避免卡住 async runtime
+    let (sha256_hash, file_bytes, size, ext) =
+        tokio::task::spawn_blocking(move || prepare_image_payload(image_bytes, file_path))
+            .await
+            .map_err(|e| format!("图片处理任务失败: {}", e))??;
 
     let local_ip = local_ip_address::local_ip().unwrap().to_string();
 
@@ -229,13 +281,13 @@ pub async fn read_clipboard_image(image_bytes: Option<Vec<u8>>) -> Result<serde_
     let save_dir = crate::config::config::get_image_sharing_dir().await.clone();
     tokio::fs::create_dir_all(&save_dir).await.map_err(|e| format!("创建目录失败: {}", e))?;
 
-    let file_name = format!("lans_{}.png", sha256_hash);
+    let file_name = format!("lans_{}.{}", sha256_hash, ext);
     let save_path = save_dir.join(&file_name);
 
     // 检查文件是否已存在（可能之前手动清理过DB记录但文件还在）
     if !save_path.exists() {
-        tokio::fs::write(&save_path, &png_bytes).await
-            .map_err(|e| format!("写入PNG文件失败: {}", e))?;
+        tokio::fs::write(&save_path, &file_bytes).await
+            .map_err(|e| format!("写入图片文件失败: {}", e))?;
         log::info!("图片已保存至: {:?}", save_path);
     } else {
         log::info!("图片文件已存在: {:?}", save_path);
@@ -967,22 +1019,37 @@ fn update_autostart_args(minimized: bool) {
     {
         let arg = "--silent";
         let desktop_name = "lan-share.desktop";
-        let desktop_path = dirs::data_dir()
+        let desktop_path = dirs::config_dir()
             .map(|d| d.join("autostart").join(desktop_name));
         if let Some(path) = desktop_path {
             if path.exists() {
                 if let Ok(content) = std::fs::read_to_string(&path) {
-                    let new_content = if minimized {
-                        if content.contains(arg) {
-                            content
+                    let exec_prefix = "Exec=";
+                    let new_content = if let Some(exec_pos) = content.find(exec_prefix) {
+                        let eol = content[exec_pos..].find('\n')
+                            .map(|p| exec_pos + p)
+                            .unwrap_or(content.len());
+                        let exec_line = &content[exec_pos..eol];
+                        if minimized {
+                            if !exec_line.contains(arg) {
+                                let new_line = format!("{} {}", exec_line, arg);
+                                Some(format!("{}{}{}", &content[..exec_pos], new_line, &content[eol..]))
+                            } else {
+                                None
+                            }
+                        } else if exec_line.contains(arg) {
+                            let parts: Vec<&str> = exec_line.split_whitespace().collect();
+                            let cleaned = parts.into_iter().filter(|p| *p != arg).collect::<Vec<_>>().join(" ");
+                            Some(format!("{}{}{}", &content[..exec_pos], cleaned, &content[eol..]))
                         } else {
-                            content.replace("Exec=", &format!("Exec={} ", arg))
+                            None
                         }
                     } else {
-                        content.replace(&format!(" {} ", arg), " ")
-                            .replace(&format!("{}", arg), "")
+                        None
                     };
-                    let _ = std::fs::write(&path, new_content);
+                    if let Some(new_content) = new_content {
+                        let _ = std::fs::write(&path, new_content);
+                    }
                 }
             }
         }

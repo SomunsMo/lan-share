@@ -4,11 +4,13 @@
     "button": {
       "cancel": "Cancel",
       "confirm": "Confirm",
-      "delete": "Delete"
+      "delete": "Delete",
+      "close": "Close"
     },
     "toast": {
       "operationFailed": "Operation failed",
-      "copied": "Copied"
+      "copied": "Copied",
+      "shared": "Shared"
     }
   },
   "route": {
@@ -19,7 +21,7 @@
     "about": "About"
   },
   "navbar": {
-    "tagline": "LAN file & text sharing"
+    "tagline": "LAN text, image & file sharing"
   },
   "home": {
     "scanTips": "Scan to Connect",
@@ -236,7 +238,7 @@
   },
   "textSharing": {
     "pageTitle": "Share Text & Images Locally",
-    "pageDesc": "Shared text can be viewed or copied by other devices on the LAN via browser",
+    "pageDesc": "Shared text or images can be viewed or copied by other devices on the LAN via browser",
     "deleteCascadeWarning": "Deleting this record will also delete related copy records",
     "clearButton": "Clear",
     "recentTitle": "Recent Text Shares",
@@ -265,7 +267,10 @@
     "cancelChange": "Cancel Change",
     "confirmMigrate": "Confirm & Migrate",
     "pasteTitle": "Image detected in clipboard",
+    "pasteFileConfirm": "Image file detected: {{file}}\nShare this image?",
     "shareButton": "Share",
+    "noClipboardImage": "No image detected in clipboard",
+    "unsupportedFile": "Clipboard content is not a supported image format",
     "detailTitle": "Image Detail",
     "detailFileName": "File Name",
     "detailSha256": "SHA256",

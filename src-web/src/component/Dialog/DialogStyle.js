@@ -9,11 +9,11 @@ const fadeIn = keyframes`
 const scaleIn = keyframes`
   from {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.95);
+    transform: scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
   }
 `;
 
@@ -32,10 +32,6 @@ export const DialogOverlay = styled.div`
 `;
 
 export const DialogCard = styled.div`
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   width: calc(100vw - 32px);
   min-width: 280px;
   max-width: 900px;
@@ -65,7 +61,7 @@ export const DialogCard = styled.div`
   ${props => props.$exiting && `
     animation: none;
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.95);
+    transform: scale(0.95);
     transition: opacity 0.15s ease, transform 0.15s ease;
   `}
 `;
@@ -122,15 +118,23 @@ export const DialogButton = styled.button`
   font-size: 0.82rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
+  font-family: inherit;
+  line-height: 1;
+  box-sizing: border-box;
+  transition: border-color 0.15s, opacity 0.15s;
   border: 1px solid ${props => props.$primary ? 'transparent' : 'var(--border)'};
-  background: ${props => props.$primary ? (props.$danger ? 'var(--danger)' : 'var(--accent)') : 'transparent'};
+  background: ${props => props.$primary ? (props.$danger ? 'var(--danger)' : 'var(--accent)') : 'var(--bg-card)'};
   color: ${props => props.$primary ? 'var(--text-accent)' : 'var(--text-primary)'};
 
   &:hover {
     ${props => props.$primary
         ? 'opacity: 0.85;'
-        : 'background: var(--bg-hover);'
+        : 'background: var(--bg-card) !important; border-color: var(--accent);'
     }
   }
+
+  ${props => (props.$loading || props.$disabled) && `
+    opacity: 0.5;
+    pointer-events: none;
+  `}
 `;

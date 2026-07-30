@@ -10,7 +10,7 @@
     }
   },
   "web": {
-    "subtitle": "LAN file sharing tool over HTTP",
+    "subtitle": "LAN text, image & file sharing tool over HTTP",
     "themeLabel": {
       "system": "Follow System",
       "light": "Light",
@@ -88,11 +88,20 @@
     "noRecords": "No records"
   },
   "imageSharing": {
+    "pasteTitle": "Image detected in clipboard",
+    "shareButton": "Share",
+    "sharing": "Sharing...",
+    "uploadImageBtn": "Share Image",
+    "pasteNotSupported": "Cannot read clipboard image over HTTP, use the image upload button",
+    "pasteFileUriHint": "Pasting images from file manager is not supported in web, use the upload button",
+    "toast": {
+      "shared": "Image shared"
+    },
     "hintDesktop": "Right-click to copy image",
     "hintMobile": "Long-press image to download"
   },
   "textSharing": {
-    "sendBtn": "Send Text",
+    "sendBtn": "Share Text",
     "contextMenu": {
       "copy": "Copy"
     },

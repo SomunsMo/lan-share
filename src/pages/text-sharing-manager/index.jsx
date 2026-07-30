@@ -19,6 +19,11 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import CircularProgress from '@mui/material/CircularProgress';
 
 function TextSharingManager(props) {
     const { t } = useTranslation();
@@ -192,48 +197,167 @@ function TextSharingManager(props) {
         }
     }
 
-    const handlePaste = useCallback((e) => {
-        const items = e.clipboardData?.items;
-        if (!items) return;
-        let imageFile = null;
-        for (let i = 0; i < items.length; i++) {
-            if (items[i].type.startsWith('image/')) {
-                imageFile = items[i].getAsFile();
-                break;
+    // 解析 file:// URI 列表，返回第一个图片文件路径
+    const extractImagePathFromUriList = useCallback((text) => {
+        for (const line of text.split('\n')) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            let path = trimmed;
+            if (path.startsWith('file://')) {
+                path = decodeURIComponent(path.slice(7));
+                if (path.startsWith('localhost/')) path = path.slice(10);
+                if (path.startsWith('/')) { /* absolute path */ }
+                else {
+                    const idx = path.indexOf('/');
+                    if (idx >= 0) path = path.substring(idx);
+                }
+            }
+            const ext = path.split('.').pop()?.toLowerCase();
+            if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'tif'].includes(ext)) {
+                return path;
             }
         }
-        if (!imageFile) return;
-        e.preventDefault();
-        const previewUrl = URL.createObjectURL(imageFile);
-        showDialog({
-            title: t('imageSharing.pasteTitle'),
-            content: (
-                <div className="paste-preview">
-                    <DialogImage src={previewUrl} alt="paste preview" />
-                </div>
-            ),
-            buttons: [
-                {label: 'common.button.cancel', value: null},
-                {label: 'imageSharing.shareButton', value: true, primary: true},
-            ],
-        }).then(async (confirmed) => {
-            URL.revokeObjectURL(previewUrl);
-            if (!confirmed) return;
-            try {
-                // 读取文件字节传给后端，支持粘贴图片文件和直接复制图片两种场景
-                const buffer = await imageFile.arrayBuffer();
-                const bytes = new Uint8Array(buffer);
-                await invoke('read_clipboard_image', { imageBytes: Array.from(bytes) });
-                showToast({message: t('common.toast.copied'), type: 'success'});
-                loadHistory();
-            } catch (error) {
-                console.error('保存图片失败:', error);
-                showToast({message: t('common.toast.operationFailed'), type: 'error'});
+        return null;
+    }, []);
+
+    const pasteFiredRef = useRef(false);
+    const lastPasteTypesRef = useRef([]);
+    // 粘贴预览对话框：null | {status:'loading'} | {status:'ready', data_base64, width, height}
+    const [pasteDialog, setPasteDialog] = useState(null);
+
+    // 全局 keydown 监听 Ctrl+V — WebKitGTK 上 paste 事件可能触发但 clipboardData 无有效图片数据，用 peek 兜底
+    useEffect(() => {
+        const onKeyDown = (e) => {
+            if (e.ctrlKey && e.code === 'KeyV') {
+                pasteFiredRef.current = false;
+                setTimeout(() => {
+                    if (pasteFiredRef.current) return;
+                    // 纯文本（paste 事件含 text/plain 且无 image/uri）不弹框，正常粘贴到输入框
+                    const types = lastPasteTypesRef.current || [];
+                    const isPlainText = types.includes('text/plain')
+                        && !types.some(t => t.startsWith('image/'))
+                        && !types.includes('text/uri-list');
+                    if (isPlainText) return;
+                    // 非文本：可能是图片或不支持的文件，立即弹 loading + peek
+                    setPasteDialog({status: 'loading'});
+                    invoke('peek_clipboard_image')
+                        .then((result) => {
+                            if (!result?.data_base64) {
+                                setPasteDialog(null);
+                                showToast({message: t('imageSharing.unsupportedFile'), type: 'info'});
+                                return;
+                            }
+                            setPasteDialog({status: 'ready', ...result});
+                        })
+                        .catch((err) => {
+                            setPasteDialog(null);
+                            console.debug('[keydown] 未读到剪贴板图片:', err);
+                            showToast({message: t('imageSharing.unsupportedFile'), type: 'info'});
+                        });
+                }, 50);
             }
-        }).catch(() => {
-            URL.revokeObjectURL(previewUrl);
-        });
-    }, [showDialog, showToast, t, loadHistory]);
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+    }, [showToast, t, loadHistory]);
+
+    const handlePaste = useCallback((e) => {
+        // 不在此处设置 pasteFiredRef；仅在真正弹出对话框时才设置。
+        // 否则 Ubuntu WebKitGTK 上 paste 事件虽触发但 clipboardData 无有效图片数据时，
+        // 会错误阻断 keydown 的 peek 兜底，导致粘贴无反应（无弹框、无 log）。
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        // 记录 paste 事件的剪贴板类型，供 keydown 判断是否纯文本（纯文本不弹框）
+        lastPasteTypesRef.current = Array.from(items).map(i => i.type);
+
+        // Phase 1: 原有逻辑 — image/* + getAsFile 成功（保持 handler 同步，不改变原有行为）
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.startsWith('image/')) {
+                const file = items[i].getAsFile();
+                if (file) {
+                    e.preventDefault();
+                    pasteFiredRef.current = true;
+                    const previewUrl = URL.createObjectURL(file);
+                    showDialog({
+                        title: t('imageSharing.pasteTitle'),
+                        content: (
+                            <div className="paste-preview">
+                                <DialogImage src={previewUrl} alt="paste preview" />
+                            </div>
+                        ),
+                        buttons: [
+                            {label: 'common.button.cancel', value: null},
+                            {
+                                label: 'imageSharing.shareButton',
+                                value: true,
+                                primary: true,
+                                action: async () => {
+                                    const buffer = await file.arrayBuffer();
+                                    const bytes = new Uint8Array(buffer);
+                                    try {
+                                        await invoke('read_clipboard_image', { imageBytes: Array.from(bytes), filePath: null });
+                                        showToast({message: t('common.toast.shared'), type: 'success'});
+                                        loadHistory();
+                                    } catch (error) {
+                                        console.error('保存图片失败:', error);
+                                        showToast({message: t('common.toast.operationFailed'), type: 'error'});
+                                    }
+                                }
+                            },
+                        ],
+                    }).then(() => {
+                        URL.revokeObjectURL(previewUrl);
+                    });
+                    return;
+                }
+            }
+        }
+
+        // Phase 2: text/uri-list（资源管理器复制）— 弹确认对话框
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type === 'text/uri-list' || items[i].type === 'x-special/gnome-copied-files') {
+                e.preventDefault();
+                items[i].getAsString((uriText) => {
+                    if (!uriText) return;
+                    const filePath = extractImagePathFromUriList(uriText);
+                    if (filePath) {
+                        pasteFiredRef.current = true;
+                        const fileName = filePath.split('/').pop() || filePath.split('\\').pop();
+                        showDialog({
+                            title: t('imageSharing.pasteTitle'),
+                            content: <p>{t('imageSharing.pasteFileConfirm', { file: fileName })}</p>,
+                            buttons: [
+                                {label: 'common.button.cancel', value: null},
+                                {
+                                    label: 'imageSharing.shareButton',
+                                    value: true,
+                                    primary: true,
+                                    action: async () => {
+                                        try {
+                                            await invoke('read_clipboard_image', { imageBytes: null, filePath });
+                                            showToast({message: t('common.toast.shared'), type: 'success'});
+                                            loadHistory();
+                                        } catch (error) {
+                                            console.error('读取图片文件失败:', error);
+                                            showToast({message: t('common.toast.operationFailed'), type: 'error'});
+                                        }
+                                    }
+                                },
+                            ],
+                        });
+                    } else {
+                        // 文件 URI 但非图片文件，提示不支持
+                        showToast({message: t('imageSharing.unsupportedFile'), type: 'info'});
+                    }
+                });
+                return;
+            }
+        }
+
+        // Phase 3: 由 keydown 的 peek_clipboard_image 兜底（IPC 直接读系统剪贴板，
+        // 比 navigator.clipboard.read 更可靠，且不依赖 paste event 暴露的数据）
+
+    }, [showDialog, showToast, t, loadHistory, extractImagePathFromUriList]);
 
     const copyImageToClipboard = useCallback(async (item) => {
         try {
@@ -270,8 +394,8 @@ function TextSharingManager(props) {
                 </div>
             ),
             buttons: [
-                { label: 'textSharing.copyButton', value: null, handler: () => copyImageToClipboard(item) },
-                { label: 'common.button.confirm', value: true, primary: true },
+                { label: 'common.button.close', value: false },
+                { label: 'textSharing.copyButton', value: true, primary: true, handler: () => copyImageToClipboard(item) },
             ],
         });
     };
@@ -299,8 +423,8 @@ function TextSharingManager(props) {
                 </div>
             ),
             buttons: [
-                { label: 'textSharing.copyButton', value: null, handler: () => copyToClipboard(item.content) },
-                { label: 'common.button.confirm', value: true, primary: true },
+                { label: 'common.button.close', value: false },
+                { label: 'textSharing.copyButton', value: true, primary: true, handler: () => copyToClipboard(item.content) },
             ],
         });
     }
@@ -440,6 +564,54 @@ function TextSharingManager(props) {
                         </>
                     )}
                 </div>
+            )}
+            {pasteDialog && (
+                <Dialog
+                    open={true}
+                    onClose={() => setPasteDialog(null)}
+                    transitionDuration={0}
+                    maxWidth={false}
+                    sx={{ '& .MuiDialog-paper': { width: { xs: 'calc(100vw - 32px)', sm: '60vw', md: '50vw', lg: '45vw' }, minWidth: { xs: 0, sm: 500 }, maxWidth: '900px' } }}
+                >
+                    <DialogTitle>{t('imageSharing.pasteTitle')}</DialogTitle>
+                    <DialogContent sx={{ overflowX: 'hidden' }}>
+                        {pasteDialog.status === 'loading' ? (
+                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '32px' }}>
+                                <CircularProgress />
+                            </div>
+                        ) : (
+                            <div className="paste-preview">
+                                <DialogImage src={pasteDialog.data_base64} alt="paste preview" />
+                                <p style={{ textAlign: 'center', fontSize: '13px', marginTop: 8, opacity: 0.6 }}>
+                                    {pasteDialog.width} × {pasteDialog.height}
+                                </p>
+                            </div>
+                        )}
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setPasteDialog(null)}>{t('common.button.cancel')}</Button>
+                        <Button
+                            variant="contained"
+                            disabled={pasteDialog.status === 'loading'}
+                            onClick={async () => {
+                                const raw = atob(pasteDialog.data_base64.split(',')[1]);
+                                const bytes = new Uint8Array(raw.length);
+                                for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+                                try {
+                                    await invoke('read_clipboard_image', { imageBytes: Array.from(bytes), filePath: null });
+                                    showToast({message: t('common.toast.shared'), type: 'success'});
+                                    loadHistory();
+                                } catch (error) {
+                                    console.error('保存图片失败:', error);
+                                    showToast({message: t('common.toast.operationFailed'), type: 'error'});
+                                }
+                                setPasteDialog(null);
+                            }}
+                        >
+                            {t('imageSharing.shareButton')}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
             )}
         </TextSharingManagerStyle>
     );

@@ -10,7 +10,7 @@
     }
   },
   "web": {
-    "subtitle": "基于HTTP的局域网文件传输工具",
+    "subtitle": "基于HTTP的局域网文本、图片、文件共享工具",
     "themeLabel": {
       "system": "跟随系统",
       "light": "浅色",
@@ -88,11 +88,20 @@
     "noRecords": "暂无记录"
   },
   "imageSharing": {
+    "pasteTitle": "检测到剪贴板图片",
+    "shareButton": "共享",
+    "sharing": "共享中...",
+    "uploadImageBtn": "共享图片",
+    "pasteNotSupported": "HTTP 下无法读取剪切板图片，请使用图片上传按钮",
+    "pasteFileUriHint": "暂不支持粘贴文件管理器中的图片，请使用图片上传按钮",
+    "toast": {
+      "shared": "图片已共享"
+    },
     "hintDesktop": "右键复制图片即可复制到剪切板",
     "hintMobile": "长按图片后可选择下载图片"
   },
   "textSharing": {
-    "sendBtn": "发送文本",
+    "sendBtn": "共享文本",
     "contextMenu": {
       "copy": "复制"
     },

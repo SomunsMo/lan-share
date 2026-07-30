@@ -38,6 +38,7 @@ pub mod utils {
     pub mod path;
 }
 
+pub mod clipboard;
 pub mod macos;
 pub mod tray;
 
@@ -49,17 +50,22 @@ pub mod embedded {
 use log::error;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 use tauri::Manager;
 
 /// 用户主动退出标志，ExitRequested 时区分是窗口关闭还是主动退出
 pub(crate) static QUITTING: AtomicBool = AtomicBool::new(false);
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-struct WindowState {
-    x: i32,
-    y: i32,
-    width: u32,
-    height: u32,
+pub(crate) struct WindowState {
+    pub(crate) x: i32,
+    pub(crate) y: i32,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+    #[serde(default)]
+    pub(crate) maximized: bool,
+    #[serde(default)]
+    pub(crate) fullscreen: bool,
 }
 
 pub(crate) const WINDOW_DEFAULT_W: u32 = 980;
@@ -67,27 +73,95 @@ pub(crate) const WINDOW_DEFAULT_H: u32 = 650;
 pub(crate) const WINDOW_MIN_W: u32 = 980;
 pub(crate) const WINDOW_MIN_H: u32 = 650;
 
-fn save_window_state(window: &tauri::Window) {
-    if let (Ok(pos), Ok(size)) = (window.outer_position(), window.inner_size()) {
-        let state = WindowState {
-            x: pos.x,
-            y: pos.y,
-            width: size.width,
-            height: size.height,
-        };
-        if let Ok(json) = serde_json::to_string(&state) {
-            tauri::async_runtime::spawn(async move {
-                let _ = crate::db::dao::config_dao::set_config("window_state", &json).await;
-            });
+/// 防抖延迟（ms）
+const SAVE_DEBOUNCE_MS: u64 = 300;
+
+/// 防抖句柄（有挂起的保存时取消旧的再开新的，保证停稳后才写入）
+static DEBOUNCE_HANDLE: Mutex<Option<tauri::async_runtime::JoinHandle<()>>> = Mutex::new(None);
+
+/// 将 WindowState 持久化到 DB 并更新内存缓存
+pub(crate) fn persist_window_state(state: &WindowState) {
+    if let Ok(json) = serde_json::to_string(state) {
+        let json_clone = json.clone();
+        tauri::async_runtime::spawn(async move {
+            if crate::db::dao::config_dao::set_config("window_state", &json).await.is_ok() {
+                if let Ok(mut guard) = crate::config::config::WINDOW_STATE_JSON.write() {
+                    *guard = Some(json_clone);
+                }
+            }
+        });
+    }
+}
+
+/// 防抖保存窗口状态（仅非全屏非最大化时记录）
+///
+/// 同步拒绝写入等显示器的"假正常"尺寸。
+fn debounce_save_window_state(window: &tauri::Window) {
+    if window.is_fullscreen().unwrap_or(false) || window.is_maximized().unwrap_or(false) {
+        return;
+    }
+    let (Ok(pos), Ok(size)) = (window.outer_position(), window.inner_size()) else { return };
+
+    // 当 Windows 最大化后取消，normalPosition 未正确恢复时，
+    // 窗口尺寸等于显示器（仍属最大化尺寸），不应记录。
+    if let Ok(Some(m)) = window.current_monitor() {
+        if size.width >= m.size().width || size.height >= m.size().height {
+            return;
         }
+    }
+
+    let x = pos.x;
+    let y = pos.y;
+    let width = size.width;
+    let height = size.height;
+
+    // 取消上一次挂起的保存
+    if let Ok(mut handle) = DEBOUNCE_HANDLE.lock() {
+        if let Some(h) = handle.take() {
+            h.abort();
+        }
+    }
+
+    // 开新的定时保存
+    let handle = tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(SAVE_DEBOUNCE_MS)).await;
+        let state = WindowState { x, y, width, height, maximized: false, fullscreen: false };
+        persist_window_state(&state);
+    });
+
+    if let Ok(mut pending) = DEBOUNCE_HANDLE.lock() {
+        *pending = Some(handle);
     }
 }
 
 pub(crate) fn load_window_state() -> Option<WindowState> {
     crate::config::config::WINDOW_STATE_JSON
-        .get()
-        .and_then(|opt| opt.as_ref())
-        .and_then(|json| serde_json::from_str(json).ok())
+        .read()
+        .ok()
+        .and_then(|guard| guard.clone())
+        .and_then(|json| serde_json::from_str(&json).ok())
+}
+
+fn restore_window_state(window: &tauri::WebviewWindow) {
+    let (x, y, w, h) = if let Some(saved) = load_window_state() {
+        let (cx, cy, cw, ch) = clamp_and_center(window, &saved);
+        (cx, cy, cw, ch)
+    } else {
+        center_on_primary(window)
+    };
+    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+    let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+}
+
+/// Windows：隐藏窗口设尺寸不更新 `WINDOWPLACEMENT.normalPosition`，
+/// 导致最大化→取消最大化后回到全屏尺寸。显示后需再设一次来修正。
+#[cfg(target_os = "windows")]
+fn fix_normal_rect_after_show(window: &tauri::WebviewWindow) {
+    if let Some(saved) = load_window_state() {
+        let (x, y, w, h) = clamp_and_center(window, &saved);
+        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+        let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+    }
 }
 
 pub(crate) fn get_monitor_containing(
@@ -177,16 +251,11 @@ pub(crate) fn create_and_position_window(
         ));
     }
 
-    if let Some(saved) = load_window_state() {
-        let (x, y, w, h) = clamp_and_center(&window, &saved);
-        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
-        let _ = window.set_size(tauri::PhysicalSize::new(w, h));
-    } else {
-        let (x, y, w, h) = center_on_primary(&window);
-        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
-        let _ = window.set_size(tauri::PhysicalSize::new(w, h));
-    }
+    restore_window_state(&window);
     let _ = window.show();
+
+    #[cfg(target_os = "windows")]
+    fix_normal_rect_after_show(&window);
 
     window
 }
@@ -298,17 +367,11 @@ pub fn run() {
         .setup(|app| {
             let is_silent = std::env::args().any(|a| a == "--silent");
             if let Some(window) = app.get_webview_window("main") {
-                if let Some(saved) = load_window_state() {
-                    let (x, y, w, h) = clamp_and_center(&window, &saved);
-                    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
-                    let _ = window.set_size(tauri::PhysicalSize::new(w, h));
-                } else {
-                    let (x, y, w, h) = center_on_primary(&window);
-                    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
-                    let _ = window.set_size(tauri::PhysicalSize::new(w, h));
-                }
+                restore_window_state(&window);
                 if !is_silent {
                     let _ = window.show();
+                    #[cfg(target_os = "windows")]
+                    fix_normal_rect_after_show(&window);
                 } else {
                     // --silent: 窗口保持隐藏，首次托盘打开时自然显示/重建
                     macos::set_dock_icon(false);
@@ -346,9 +409,14 @@ pub fn run() {
             tray::handle_system_tray_menu_event(app, &event.id().0);
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
-                save_window_state(window);
-                macos::set_dock_icon(false);
+            match event {
+                tauri::WindowEvent::CloseRequested { .. } => {
+                    macos::set_dock_icon(false);
+                }
+                tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Moved(_) => {
+                    debounce_save_window_state(window);
+                }
+                _ => {}
             }
         })
         .build(tauri::generate_context!())

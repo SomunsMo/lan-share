@@ -267,8 +267,10 @@ function History() {
                 </div>
             ),
             buttons: [
-                { label: 'textSharing.copyButton', value: null, handler: () => { item.type === 5 ? copyImageToClipboard(item) : copyToClipboard(item.content); } },
-                { label: 'common.button.confirm', value: true, primary: true },
+                { label: 'common.button.close', value: false },
+                ...(item.type === 1 || item.type === 5
+                    ? [{ label: 'textSharing.copyButton', value: true, primary: true, handler: () => item.type === 5 ? copyImageToClipboard(item) : copyToClipboard(item.content) }]
+                    : []),
             ],
         });
     };
