@@ -1031,25 +1031,23 @@ fn update_autostart_args(minimized: bool) {
                             .unwrap_or(content.len());
                         let exec_line = &content[exec_pos..eol];
                         if minimized {
-                            if exec_line.contains(arg) {
-                                content
-                            } else {
+                            if !exec_line.contains(arg) {
                                 let new_line = format!("{} {}", exec_line, arg);
-                                format!("{}{}{}", &content[..exec_pos], new_line, &content[eol..])
-                            }
-                        } else {
-                            if exec_line.contains(arg) {
-                                let parts: Vec<&str> = exec_line.split_whitespace().collect();
-                                let cleaned = parts.into_iter().filter(|p| *p != arg).collect::<Vec<_>>().join(" ");
-                                format!("{}{}{}", &content[..exec_pos], cleaned, &content[eol..])
+                                Some(format!("{}{}{}", &content[..exec_pos], new_line, &content[eol..]))
                             } else {
-                                content
+                                None
                             }
+                        } else if exec_line.contains(arg) {
+                            let parts: Vec<&str> = exec_line.split_whitespace().collect();
+                            let cleaned = parts.into_iter().filter(|p| *p != arg).collect::<Vec<_>>().join(" ");
+                            Some(format!("{}{}{}", &content[..exec_pos], cleaned, &content[eol..]))
+                        } else {
+                            None
                         }
                     } else {
-                        content
+                        None
                     };
-                    if new_content != content {
+                    if let Some(new_content) = new_content {
                         let _ = std::fs::write(&path, new_content);
                     }
                 }
