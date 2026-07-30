@@ -1019,22 +1019,39 @@ fn update_autostart_args(minimized: bool) {
     {
         let arg = "--silent";
         let desktop_name = "lan-share.desktop";
-        let desktop_path = dirs::data_dir()
+        let desktop_path = dirs::config_dir()
             .map(|d| d.join("autostart").join(desktop_name));
         if let Some(path) = desktop_path {
             if path.exists() {
                 if let Ok(content) = std::fs::read_to_string(&path) {
-                    let new_content = if minimized {
-                        if content.contains(arg) {
-                            content
+                    let exec_prefix = "Exec=";
+                    let new_content = if let Some(exec_pos) = content.find(exec_prefix) {
+                        let eol = content[exec_pos..].find('\n')
+                            .map(|p| exec_pos + p)
+                            .unwrap_or(content.len());
+                        let exec_line = &content[exec_pos..eol];
+                        if minimized {
+                            if exec_line.contains(arg) {
+                                content
+                            } else {
+                                let new_line = format!("{} {}", exec_line, arg);
+                                format!("{}{}{}", &content[..exec_pos], new_line, &content[eol..])
+                            }
                         } else {
-                            content.replace("Exec=", &format!("Exec={} ", arg))
+                            if exec_line.contains(arg) {
+                                let parts: Vec<&str> = exec_line.split_whitespace().collect();
+                                let cleaned = parts.into_iter().filter(|p| *p != arg).collect::<Vec<_>>().join(" ");
+                                format!("{}{}{}", &content[..exec_pos], cleaned, &content[eol..])
+                            } else {
+                                content
+                            }
                         }
                     } else {
-                        content.replace(&format!(" {} ", arg), " ")
-                            .replace(&format!("{}", arg), "")
+                        content
                     };
-                    let _ = std::fs::write(&path, new_content);
+                    if new_content != content {
+                        let _ = std::fs::write(&path, new_content);
+                    }
                 }
             }
         }
