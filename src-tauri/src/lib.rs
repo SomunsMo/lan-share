@@ -153,11 +153,23 @@ fn restore_window_state(window: &tauri::WebviewWindow) {
     let _ = window.set_size(tauri::PhysicalSize::new(w, h));
 }
 
-/// Windows：隐藏窗口设尺寸不更新 `WINDOWPLACEMENT.normalPosition`，
-/// 导致最大化→取消最大化后回到全屏尺寸。显示后需再设一次来修正。
-#[cfg(target_os = "windows")]
-fn fix_normal_rect_after_show(window: &tauri::WebviewWindow) {
-    if let Some(saved) = load_window_state() {
+/// Windows/Linux：隐藏窗口期间设置的尺寸不会被系统记录为"普通窗口"几何。
+/// Windows 表现为最大化→取消最大化后回到全屏尺寸（`WINDOWPLACEMENT.normalPosition` 未更新），
+/// Linux 表现为登录/显示后窗口被合成器错误置为最大化且取消后尺寸不对。
+/// 因此显示后需重设一次位置和尺寸；Linux 还需把被合成器误置的最大化状态纠正回来。
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+pub(crate) fn fix_normal_rect_after_show(window: &tauri::WebviewWindow) {
+    let saved = load_window_state();
+    #[cfg(target_os = "linux")]
+    {
+        // 本应用从不主动最大化，保存状态里 maximized 恒为 false；
+        // 若合成器（如 mutter）把"从未显示过"的窗口在 show 时误置为最大化，主动纠正。
+        let saved_maximized = saved.as_ref().map(|s| s.maximized).unwrap_or(false);
+        if window.is_maximized().unwrap_or(false) && !saved_maximized {
+            let _ = window.unmaximize();
+        }
+    }
+    if let Some(saved) = saved {
         let (x, y, w, h) = clamp_and_center(window, &saved);
         let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
         let _ = window.set_size(tauri::PhysicalSize::new(w, h));
@@ -254,7 +266,7 @@ pub(crate) fn create_and_position_window(
     restore_window_state(&window);
     let _ = window.show();
 
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     fix_normal_rect_after_show(&window);
 
     window
@@ -370,7 +382,7 @@ pub fn run() {
                 restore_window_state(&window);
                 if !is_silent {
                     let _ = window.show();
-                    #[cfg(target_os = "windows")]
+                    #[cfg(any(target_os = "windows", target_os = "linux"))]
                     fix_normal_rect_after_show(&window);
                 } else {
                     // --silent: 窗口保持隐藏，首次托盘打开时自然显示/重建
