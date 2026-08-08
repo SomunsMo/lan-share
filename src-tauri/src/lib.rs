@@ -386,6 +386,12 @@ pub fn run() {
                     fix_normal_rect_after_show(&window);
                 } else {
                     // --silent: 窗口保持隐藏，首次托盘打开时自然显示/重建
+                    // 用 tauri 的 API 设置 Accessory，让 tao 在 launched() 读到的是 Accessory，
+                    // 避免母体调用 objc 时被 tao 默认的 Regular 覆盖，导致后台应用被隐性激活、
+                    // macOS 首次打开托盘菜单即被顶掉。
+                    #[cfg(target_os = "macos")]
+                    app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                    #[cfg(not(target_os = "macos"))]
                     macos::set_dock_icon(false);
                 }
             }

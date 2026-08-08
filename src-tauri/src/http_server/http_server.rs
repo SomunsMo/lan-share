@@ -39,7 +39,9 @@ pub async fn start_server(port: u16) -> Result<(), Box<dyn std::error::Error + S
 
     println!("========================================");
     println!("Lan Share 服务启动成功");
-    println!("访问地址: http://{}:{}", local_ip()?, port);
+    if let Ok(ip) = local_ip() {
+        println!("访问地址: http://{}:{}", ip, port);
+    }
     println!("========================================");
 
     loop {

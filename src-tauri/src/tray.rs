@@ -111,7 +111,9 @@ pub fn handle_system_tray_menu_event(app: &AppHandle, id: &str) {
     match id {
         "show" => { show_window(app, None); }
         "settings" => {
-            if app.get_webview_window("main").is_some() {
+            if let Some(window) = app.get_webview_window("main") {
+                // 静默启动时窗口隐藏，先显示/聚焦再导航，否则 navigate 事件收不到反馈
+                show_and_focus_window(&window);
                 let _ = app.emit("navigate", "/settings");
             } else {
                 show_window(app, Some("/settings".to_string()));

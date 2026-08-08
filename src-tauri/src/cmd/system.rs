@@ -46,10 +46,22 @@ pub struct ClearResult {
     pub image_count: u64,
 }
 
+/// 获取本机内网IP，网卡未就绪（如开机自启早期）时带重试，最多约 10 秒。
+/// 失败兜底返回 127.0.0.1，避免 panic 导致整个进程退出。
+pub fn get_local_ip_with_retry() -> String {
+    for _ in 0..10 {
+        if let Ok(ip) = local_ip_address::local_ip() {
+            return ip.to_string();
+        }
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
+    String::from("127.0.0.1")
+}
+
 /// 获取本机内网IP
 #[tauri::command]
 pub fn get_local_ip() -> String {
-    local_ip_address::local_ip().unwrap().to_string()
+    get_local_ip_with_retry()
 }
 
 /// 获取设备名称
@@ -266,7 +278,7 @@ pub async fn read_clipboard_image(
             .await
             .map_err(|e| format!("图片处理任务失败: {}", e))??;
 
-    let local_ip = local_ip_address::local_ip().unwrap().to_string();
+    let local_ip = get_local_ip_with_retry();
 
     // 检查是否已存在相同 sha256 + size 的图片
     if let Ok(Some(existing)) = upload_dao::find_image_by_sha256_size(&sha256_hash, size).await {
@@ -595,7 +607,7 @@ pub async fn migrate_image_sharing_dir(from: String, to: String) -> Result<(), S
 #[tauri::command]
 pub async fn share_text_to_lan(text_data: String) -> Result<(), String> {
     // 获取本地IP地址作为客户端IP
-    let local_ip = local_ip_address::local_ip().unwrap().to_string();
+    let local_ip = get_local_ip_with_retry();
 
     log::info!("来自[{}]的文本：{}", local_ip, text_data);
 
