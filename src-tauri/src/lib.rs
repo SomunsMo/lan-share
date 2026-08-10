@@ -149,18 +149,37 @@ fn restore_window_state(window: &tauri::WebviewWindow) {
     } else {
         center_on_primary(window)
     };
-    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
-    let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+    // 与 fix_normal_rect_after_show 一致：按目标显示器真实 scale 换算成逻辑尺寸后下发，
+    // 绕开 tao 缓存的 window.scale_factor()（Linux 自动启动早期其仍为旧值）。
+    let sf = target_scale_for(window, x, y);
+    let _ = window.set_position(tauri::LogicalPosition::new(x as f64 / sf, y as f64 / sf));
+    let _ = window.set_size(tauri::LogicalSize::new(w as f64 / sf, h as f64 / sf));
 }
 
-/// Windows：隐藏窗口设尺寸不更新 `WINDOWPLACEMENT.normalPosition`，
-/// 导致最大化→取消最大化后回到全屏尺寸。显示后需再设一次来修正。
-#[cfg(target_os = "windows")]
-fn fix_normal_rect_after_show(window: &tauri::WebviewWindow) {
-    if let Some(saved) = load_window_state() {
+/// Windows/Linux：隐藏窗口期间设置的尺寸不会被系统记录为"普通窗口"几何。
+/// Windows 表现为最大化→取消最大化后回到全屏尺寸（`WINDOWPLACEMENT.normalPosition` 未更新），
+/// Linux 表现为登录/显示后窗口被合成器错误置为最大化且取消后尺寸不对。
+/// 因此显示后需重设一次位置和尺寸；Linux 还需把被合成器误置的最大化状态纠正回来。
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+pub(crate) fn fix_normal_rect_after_show(window: &tauri::WebviewWindow) {
+    let saved = load_window_state();
+    #[cfg(target_os = "linux")]
+    {
+        // 本应用从不主动最大化，保存状态里 maximized 恒为 false；
+        // 若合成器（如 mutter）把"从未显示过"的窗口在 show 时误置为最大化，主动纠正。
+        let saved_maximized = saved.as_ref().map(|s| s.maximized).unwrap_or(false);
+        if window.is_maximized().unwrap_or(false) && !saved_maximized {
+            let _ = window.unmaximize();
+        }
+    }
+    if let Some(saved) = saved {
         let (x, y, w, h) = clamp_and_center(window, &saved);
-        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
-        let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+        // 用目标显示器真实 scale 把保存的物理几何换算成逻辑尺寸后下发（LogicalSize/LogicalPosition）。
+        // tao 的 set_size/set_position 对逻辑值原样转发给 GTK，合成器按真实 scale 上屏，
+        // 因此不再依赖 tao 缓存的 window.scale_factor()（只会让窗口几何正好放大/错位）。
+        let sf = target_scale_for(window, x, y);
+        let _ = window.set_position(tauri::LogicalPosition::new(x as f64 / sf, y as f64 / sf));
+        let _ = window.set_size(tauri::LogicalSize::new(w as f64 / sf, h as f64 / sf));
     }
 }
 
@@ -178,6 +197,16 @@ pub(crate) fn get_monitor_containing(
             && y >= mpos.y
             && y < mpos.y + msize.height as i32
     })
+}
+
+/// 取目标显示器（saved 位置所在显示器，找不到用主显示器）的 scale_factor。
+/// 用显示器真实 scale（而非 tao 缓存的 window.scale_factor()）换算逻辑下发，
+/// 可绕开自动启动早期 Linux 窗口 scale 尚未同步的问题。
+fn target_scale_for(window: &tauri::WebviewWindow, x: i32, y: i32) -> f64 {
+    get_monitor_containing(window, x, y)
+        .or_else(|| window.primary_monitor().ok().flatten())
+        .map(|m| m.scale_factor())
+        .unwrap_or(1.0)
 }
 
 fn clamp_and_center(window: &tauri::WebviewWindow, saved: &WindowState) -> (i32, i32, u32, u32) {
@@ -254,7 +283,7 @@ pub(crate) fn create_and_position_window(
     restore_window_state(&window);
     let _ = window.show();
 
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
     fix_normal_rect_after_show(&window);
 
     window
@@ -370,10 +399,16 @@ pub fn run() {
                 restore_window_state(&window);
                 if !is_silent {
                     let _ = window.show();
-                    #[cfg(target_os = "windows")]
+                    #[cfg(any(target_os = "windows", target_os = "linux"))]
                     fix_normal_rect_after_show(&window);
                 } else {
                     // --silent: 窗口保持隐藏，首次托盘打开时自然显示/重建
+                    // 用 tauri 的 API 设置 Accessory，让 tao 在 launched() 读到的是 Accessory，
+                    // 避免母体调用 objc 时被 tao 默认的 Regular 覆盖，导致后台应用被隐性激活、
+                    // macOS 首次打开托盘菜单即被顶掉。
+                    #[cfg(target_os = "macos")]
+                    app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                    #[cfg(not(target_os = "macos"))]
                     macos::set_dock_icon(false);
                 }
             }
@@ -408,16 +443,20 @@ pub fn run() {
         .on_menu_event(|app, event| {
             tray::handle_system_tray_menu_event(app, &event.id().0);
         })
-        .on_window_event(|window, event| {
-            match event {
-                tauri::WindowEvent::CloseRequested { .. } => {
-                    macos::set_dock_icon(false);
-                }
-                tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Moved(_) => {
-                    debounce_save_window_state(window);
-                }
-                _ => {}
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { .. } => {
+                macos::set_dock_icon(false);
             }
+            tauri::WindowEvent::Resized(_) => {
+                debounce_save_window_state(window);
+            }
+            tauri::WindowEvent::Moved(_) => {
+                debounce_save_window_state(window);
+            }
+            tauri::WindowEvent::ScaleFactorChanged { .. } => {
+                debounce_save_window_state(window);
+            }
+            _ => {}
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

@@ -10,12 +10,14 @@ import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import {useToast} from "@/components/toast/index.jsx";
 import {copyText} from "../../utils/copyText.js";
+import CircularProgress from '@mui/material/CircularProgress';
 
 function Home() {
     const { t } = useTranslation();
     const {showToast} = useToast();
     const [webUrl, setWebUrl] = useState("");
     const [serverStatus, setServerStatus] = useState(null);
+    const [statusLoading, setStatusLoading] = useState(true);
     const [qrFgColor, setQrFgColor] = useState("#213547");
     const {showDialog} = useDialog();
 
@@ -73,13 +75,15 @@ function Home() {
     };
 
     const fetchServerStatus = async () => {
-        const status = await invoke("get_server_status");
-        const ip = await invoke("get_local_ip");
-        setServerStatus(status);
-        if (status.running) {
+        try {
+            const status = await invoke("get_server_status");
+            const ip = await invoke("get_local_ip");
+            setServerStatus(status);
             setWebUrl(`http://${ip}:${status.port}/web`);
-        } else {
-            setWebUrl(`http://${ip}:${status.port}/web`);
+        } catch (err) {
+            console.error("获取服务器状态失败：", err);
+        } finally {
+            setStatusLoading(false);
         }
     }
 
@@ -105,7 +109,14 @@ function Home() {
         <HomeStyle>
             <div className="dual-panel">
                 <div className="qr-panel">
-                    {serverStatus?.running ? (
+                    {statusLoading ? (
+                        <div className="placeholder-panel">
+                            <CircularProgress size={56} thickness={4} sx={{ color: 'var(--primary)' }} />
+                            <Typography variant="body1" color="var(--on-surface-variant)" sx={{ textAlign: 'center' }}>
+                                {t('common.loading') || 'Loading...'}
+                            </Typography>
+                        </div>
+                    ) : serverStatus?.running ? (
                         <>
                             <Paper elevation={1} sx={{ p: '24px', bgcolor: 'var(--surface-container-lowest)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', width: 'fit-content', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <QRCodeSVG value={webUrl} fgColor={qrFgColor} bgColor={"transparent"} size={180} />

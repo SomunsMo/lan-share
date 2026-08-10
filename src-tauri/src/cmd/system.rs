@@ -46,10 +46,22 @@ pub struct ClearResult {
     pub image_count: u64,
 }
 
+/// 获取本机内网IP，网卡未就绪（如开机自启早期）时带重试，最多约 10 秒。
+/// 失败兜底返回 127.0.0.1，避免 panic 导致整个进程退出。
+pub fn get_local_ip_with_retry() -> String {
+    for _ in 0..10 {
+        if let Ok(ip) = local_ip_address::local_ip() {
+            return ip.to_string();
+        }
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
+    String::from("127.0.0.1")
+}
+
 /// 获取本机内网IP
 #[tauri::command]
 pub fn get_local_ip() -> String {
-    local_ip_address::local_ip().unwrap().to_string()
+    get_local_ip_with_retry()
 }
 
 /// 获取设备名称
@@ -266,7 +278,7 @@ pub async fn read_clipboard_image(
             .await
             .map_err(|e| format!("图片处理任务失败: {}", e))??;
 
-    let local_ip = local_ip_address::local_ip().unwrap().to_string();
+    let local_ip = get_local_ip_with_retry();
 
     // 检查是否已存在相同 sha256 + size 的图片
     if let Ok(Some(existing)) = upload_dao::find_image_by_sha256_size(&sha256_hash, size).await {
@@ -595,7 +607,7 @@ pub async fn migrate_image_sharing_dir(from: String, to: String) -> Result<(), S
 #[tauri::command]
 pub async fn share_text_to_lan(text_data: String) -> Result<(), String> {
     // 获取本地IP地址作为客户端IP
-    let local_ip = local_ip_address::local_ip().unwrap().to_string();
+    let local_ip = get_local_ip_with_retry();
 
     log::info!("来自[{}]的文本：{}", local_ip, text_data);
 
@@ -1018,42 +1030,138 @@ fn update_autostart_args(minimized: bool) {
 
     #[cfg(target_os = "linux")]
     {
-        let arg = "--silent";
-        let desktop_name = "lan-share.desktop";
-        let desktop_path = dirs::config_dir()
-            .map(|d| d.join("autostart").join(desktop_name));
-        if let Some(path) = desktop_path {
-            if path.exists() {
-                if let Ok(content) = std::fs::read_to_string(&path) {
-                    let exec_prefix = "Exec=";
-                    let new_content = if let Some(exec_pos) = content.find(exec_prefix) {
-                        let eol = content[exec_pos..].find('\n')
-                            .map(|p| exec_pos + p)
-                            .unwrap_or(content.len());
-                        let exec_line = &content[exec_pos..eol];
-                        if minimized {
-                            if !exec_line.contains(arg) {
-                                let new_line = format!("{} {}", exec_line, arg);
-                                Some(format!("{}{}{}", &content[..exec_pos], new_line, &content[eol..]))
-                            } else {
-                                None
-                            }
-                        } else if exec_line.contains(arg) {
-                            let parts: Vec<&str> = exec_line.split_whitespace().collect();
-                            let cleaned = parts.into_iter().filter(|p| *p != arg).collect::<Vec<_>>().join(" ");
-                            Some(format!("{}{}{}", &content[..exec_pos], cleaned, &content[eol..]))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
-                    if let Some(new_content) = new_content {
-                        let _ = std::fs::write(&path, new_content);
-                    }
+        // auto-launch 插件把 .desktop 写到 ~/.config/autostart/{productName}.desktop，
+        // 文件名取 productName（如 "LAN Share.desktop"），与硬编码的 "lan-share.desktop" 不符，
+        // 导致这里永远找不到文件、--silent 永不生效。
+        // 改为扫描 autostart 目录，按 Exec 行引用的可执行文件定位，避免命名漂移。
+        let home = match dirs::home_dir() {
+            Some(h) => h,
+            None => return,
+        };
+        let autostart_dir = home.join(".config").join("autostart");
+        let exe = match std::env::current_exe() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+        let exe_path = exe.to_string_lossy().to_string();
+        let exe_name = exe.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+
+        let path = match find_autostart_desktop(&autostart_dir, &exe_path, &exe_name) {
+            Some(p) => p,
+            None => {
+                log::warn!("未在 {:?} 中找到本程序的 autostart .desktop", autostart_dir);
+                return;
+            }
+        };
+
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Some(new_content) = rewrite_desktop_exec(&content, minimized) {
+                if let Err(e) = std::fs::write(&path, new_content) {
+                    log::error!("更新 autostart 文件 {} 失败: {}", path.display(), e);
+                } else {
+                    log::info!(
+                        "已更新 autostart Exec（{}）: {}",
+                        if minimized { "追加 --silent" } else { "移除 --silent" },
+                        path.display()
+                    );
                 }
             }
         }
+    }
+}
+
+/// 在 autostart 目录中定位 Exec 行引用指定可执行文件的 .desktop 文件。
+/// 优先匹配完整路径，其次匹配可执行文件名（如 AppImage 场景 Exec 只含 AppImage 路径）。
+#[cfg(target_os = "linux")]
+fn find_autostart_desktop(
+    autostart_dir: &std::path::Path,
+    exe_path: &str,
+    exe_name: &str,
+) -> Option<std::path::PathBuf> {
+    for needle in [exe_path, exe_name] {
+        if needle.is_empty() {
+            continue;
+        }
+        for entry in std::fs::read_dir(autostart_dir).ok()?.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("desktop") {
+                continue;
+            }
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if content.contains(needle) {
+                    return Some(path);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// 在 .desktop 内容的 Exec 行中追加/移除 `--silent` 参数。
+/// 返回修改后的完整内容；无需修改时返回 None。
+#[cfg(any(target_os = "linux", test))]
+fn rewrite_desktop_exec(content: &str, minimized: bool) -> Option<String> {
+    let arg = "--silent";
+    let exec_prefix = "Exec=";
+    let exec_pos = content.find(exec_prefix)?;
+    let eol = content[exec_pos..]
+        .find('\n')
+        .map(|p| exec_pos + p)
+        .unwrap_or(content.len());
+    let exec_line = &content[exec_pos..eol];
+    if minimized {
+        if !exec_line.contains(arg) {
+            let new_line = format!("{} {}", exec_line, arg);
+            Some(format!("{}{}{}", &content[..exec_pos], new_line, &content[eol..]))
+        } else {
+            None
+        }
+    } else if exec_line.contains(arg) {
+        let parts: Vec<&str> = exec_line.split_whitespace().collect();
+        let cleaned = parts.into_iter().filter(|p| *p != arg).collect::<Vec<_>>().join(" ");
+        Some(format!("{}{}{}", &content[..exec_pos], cleaned, &content[eol..]))
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn append_silent_to_plain_exec() {
+        let content = "[Desktop Entry]\nType=Application\nExec=/usr/bin/lan-share\nTerminal=false";
+        let out = rewrite_desktop_exec(content, true).unwrap();
+        assert!(out.contains("Exec=/usr/bin/lan-share --silent"));
+        assert_eq!(out.matches("Exec=").count(), 1);
+    }
+
+    #[test]
+    fn silent_already_present_no_change() {
+        let content = "[Desktop Entry]\nType=Application\nExec=/usr/bin/lan-share --silent\n";
+        assert!(rewrite_desktop_exec(content, true).is_none());
+    }
+
+    #[test]
+    fn remove_silent_when_present() {
+        let content = "[Desktop Entry]\nType=Application\nExec=/usr/bin/lan-share --silent\nTerminal=false";
+        let out = rewrite_desktop_exec(content, false).unwrap();
+        assert!(out.contains("Exec=/usr/bin/lan-share\n"));
+        assert!(!out.contains("--silent"));
+        assert_eq!(out.matches("Exec=").count(), 1);
+    }
+
+    #[test]
+    fn remove_silent_when_absent_no_change() {
+        let content = "[Desktop Entry]\nType=Application\nExec=/usr/bin/lan-share\n";
+        assert!(rewrite_desktop_exec(content, false).is_none());
+    }
+
+    #[test]
+    fn no_exec_line_returns_none() {
+        let content = "[Desktop Entry]\nType=Application\nName=LAN Share\n";
+        assert!(rewrite_desktop_exec(content, true).is_none());
     }
 }
 

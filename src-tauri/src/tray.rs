@@ -111,7 +111,9 @@ pub fn handle_system_tray_menu_event(app: &AppHandle, id: &str) {
     match id {
         "show" => { show_window(app, None); }
         "settings" => {
-            if app.get_webview_window("main").is_some() {
+            if let Some(window) = app.get_webview_window("main") {
+                // 静默启动时窗口隐藏，先显示/聚焦再导航，否则 navigate 事件收不到反馈
+                show_and_focus_window(&window);
                 let _ = app.emit("navigate", "/settings");
             } else {
                 show_window(app, Some("/settings".to_string()));
@@ -136,7 +138,17 @@ pub(crate) fn show_window(app: &AppHandle, initial_route: Option<String>) {
 
 /// 恢复/显示窗口并聚焦
 fn show_and_focus_window(window: &WebviewWindow) {
-    let _ = window.unminimize().or_else(|_| window.show());
+    // 对"从未显示过、仅隐藏"的窗口（--silent 静默启动时），unminimize() 是空操作、
+    // 不会真正显示窗口，必须先显式 show()。
+    if window.is_visible().unwrap_or(false) {
+        let _ = window.unminimize();
+    } else {
+        let _ = window.show();
+    }
+    // Linux：隐藏期间设置的几何不被合成器固化，show 后需重设一次，
+    // 并纠正被合成器错误置为最大化的窗口。
+    #[cfg(target_os = "linux")]
+    crate::fix_normal_rect_after_show(window);
     let _ = window.set_focus();
     #[cfg(target_os = "macos")]
     crate::macos::set_dock_icon(true);
