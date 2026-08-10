@@ -149,8 +149,11 @@ fn restore_window_state(window: &tauri::WebviewWindow) {
     } else {
         center_on_primary(window)
     };
-    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
-    let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+    // 与 fix_normal_rect_after_show 一致：按目标显示器真实 scale 换算成逻辑尺寸后下发，
+    // 绕开 tao 缓存的 window.scale_factor()（Linux 自动启动早期其仍为旧值）。
+    let sf = target_scale_for(window, x, y);
+    let _ = window.set_position(tauri::LogicalPosition::new(x as f64 / sf, y as f64 / sf));
+    let _ = window.set_size(tauri::LogicalSize::new(w as f64 / sf, h as f64 / sf));
 }
 
 /// Windows/Linux：隐藏窗口期间设置的尺寸不会被系统记录为"普通窗口"几何。
@@ -171,8 +174,12 @@ pub(crate) fn fix_normal_rect_after_show(window: &tauri::WebviewWindow) {
     }
     if let Some(saved) = saved {
         let (x, y, w, h) = clamp_and_center(window, &saved);
-        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
-        let _ = window.set_size(tauri::PhysicalSize::new(w, h));
+        // 用目标显示器真实 scale 把保存的物理几何换算成逻辑尺寸后下发（LogicalSize/LogicalPosition）。
+        // tao 的 set_size/set_position 对逻辑值原样转发给 GTK，合成器按真实 scale 上屏，
+        // 因此不再依赖 tao 缓存的 window.scale_factor()（只会让窗口几何正好放大/错位）。
+        let sf = target_scale_for(window, x, y);
+        let _ = window.set_position(tauri::LogicalPosition::new(x as f64 / sf, y as f64 / sf));
+        let _ = window.set_size(tauri::LogicalSize::new(w as f64 / sf, h as f64 / sf));
     }
 }
 
@@ -190,6 +197,16 @@ pub(crate) fn get_monitor_containing(
             && y >= mpos.y
             && y < mpos.y + msize.height as i32
     })
+}
+
+/// 取目标显示器（saved 位置所在显示器，找不到用主显示器）的 scale_factor。
+/// 用显示器真实 scale（而非 tao 缓存的 window.scale_factor()）换算逻辑下发，
+/// 可绕开自动启动早期 Linux 窗口 scale 尚未同步的问题。
+fn target_scale_for(window: &tauri::WebviewWindow, x: i32, y: i32) -> f64 {
+    get_monitor_containing(window, x, y)
+        .or_else(|| window.primary_monitor().ok().flatten())
+        .map(|m| m.scale_factor())
+        .unwrap_or(1.0)
 }
 
 fn clamp_and_center(window: &tauri::WebviewWindow, saved: &WindowState) -> (i32, i32, u32, u32) {
@@ -426,16 +443,20 @@ pub fn run() {
         .on_menu_event(|app, event| {
             tray::handle_system_tray_menu_event(app, &event.id().0);
         })
-        .on_window_event(|window, event| {
-            match event {
-                tauri::WindowEvent::CloseRequested { .. } => {
-                    macos::set_dock_icon(false);
-                }
-                tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Moved(_) => {
-                    debounce_save_window_state(window);
-                }
-                _ => {}
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { .. } => {
+                macos::set_dock_icon(false);
             }
+            tauri::WindowEvent::Resized(_) => {
+                debounce_save_window_state(window);
+            }
+            tauri::WindowEvent::Moved(_) => {
+                debounce_save_window_state(window);
+            }
+            tauri::WindowEvent::ScaleFactorChanged { .. } => {
+                debounce_save_window_state(window);
+            }
+            _ => {}
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
