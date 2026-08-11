@@ -1,5 +1,6 @@
 use crate::db::dao::config_dao;
 use crate::db::dao::upload_dao;
+use crate::http_server::sse::{fire, fire_reload, fire_root_changed, new_clear, new_image, new_image_deleted, new_text, new_text_deleted};
 use serde::Serialize;
 use std::error::Error;
 
@@ -131,6 +132,8 @@ pub async fn clear_sharing_text() -> ClearResult {
 
     log::info!("清空共享文本记录{}条，图片记录{}条", text_count, image_count);
 
+    fire(new_clear());
+
     ClearResult { text_count, image_count }
 }
 
@@ -176,13 +179,28 @@ pub async fn delete_record(id: i64, action_type: i64) -> Result<u64, String> {
 
     if action_type == 1 {
         match upload_dao::remove_text_cascade(id).await {
-            Ok(count) => Ok(count),
+            Ok(count) => {
+                fire(new_text_deleted());
+                Ok(count)
+            }
             Err(err) => {
                 log::error!("删除文本及关联复制记录失败: {}", err);
                 Err(err.to_string())
             }
         }
+    } else if action_type == 5 {
+        match upload_dao::remove(id).await {
+            Ok(count) => {
+                fire(new_image_deleted());
+                Ok(count)
+            }
+            Err(err) => {
+                log::error!("删除图片记录失败: {}", err);
+                Err(err.to_string())
+            }
+        }
     } else {
+        // 文件(2)/下载(4)等记录：不发事件（Web 无对应展示，不应误触发文件列表）
         match upload_dao::remove(id).await {
             Ok(count) => Ok(count),
             Err(err) => {
@@ -288,6 +306,7 @@ pub async fn read_clipboard_image(
 
         let content_json: serde_json::Value = serde_json::from_str(&existing.content)
             .unwrap_or_else(|_| serde_json::json!({}));
+        fire(new_image(None));
         return Ok(content_json);
     }
 
@@ -321,6 +340,8 @@ pub async fn read_clipboard_image(
         .map_err(|e| format!("更新记录内容失败: {}", e))?;
 
     log::info!("图片记录已创建, ID={}", id);
+
+    fire(new_image(None));
 
     Ok(content_json)
 }
@@ -617,6 +638,7 @@ pub async fn share_text_to_lan(text_data: String) -> Result<(), String> {
             log::info!("发现重复文本 ID={}，刷新时间，共享数+1", existing.id);
             upload_dao::bump_record(existing.id).await
                 .map_err(|e| format!("刷新记录失败: {}", e))?;
+            fire(new_text(None));
             Ok(())
         }
         Ok(None) => {
@@ -624,6 +646,7 @@ pub async fn share_text_to_lan(text_data: String) -> Result<(), String> {
             match upload_dao::add(1, &text_data, None, &local_ip, false).await {
                 Ok(_) => {
                     log::info!("文本分享成功");
+                    fire(new_text(None));
                     Ok(())
                 }
                 Err(err) => {
@@ -679,6 +702,9 @@ pub async fn set_sharing_directory(directory_path: String) -> Result<(), String>
 
     // 标记为已配置
     config::set_sharing_root_configured(true);
+
+    // 通知 Web 重置 URL dir 并重拉根目录
+    fire_root_changed();
 
     let sharing_root = config::get_sharing_root().await;
     log::info!("共享根目录已设置为: {:?}", (*sharing_root));
@@ -741,6 +767,7 @@ pub async fn set_upload_enabled(enabled: bool) -> Result<(), String> {
     }
 
     log::info!("上传设置已更新为: {}", enabled);
+    fire_reload();
     Ok(())
 }
 
@@ -766,6 +793,7 @@ pub async fn set_rename_file_enabled(enabled: bool) -> Result<(), String> {
         return Err(format!("保存配置失败: {}", e));
     }
     log::info!("重命名文件设置已更新为: {}", enabled);
+    fire_reload();
     Ok(())
 }
 
@@ -791,6 +819,7 @@ pub async fn set_rename_folder_enabled(enabled: bool) -> Result<(), String> {
         return Err(format!("保存配置失败: {}", e));
     }
     log::info!("重命名文件夹设置已更新为: {}", enabled);
+    fire_reload();
     Ok(())
 }
 
@@ -816,6 +845,7 @@ pub async fn set_delete_file_enabled(enabled: bool) -> Result<(), String> {
         return Err(format!("保存配置失败: {}", e));
     }
     log::info!("删除文件设置已更新为: {}", enabled);
+    fire_reload();
     Ok(())
 }
 
@@ -841,6 +871,7 @@ pub async fn set_delete_folder_enabled(enabled: bool) -> Result<(), String> {
         return Err(format!("保存配置失败: {}", e));
     }
     log::info!("删除文件夹设置已更新为: {}", enabled);
+    fire_reload();
     Ok(())
 }
 
@@ -901,6 +932,7 @@ pub async fn set_upload_overwrite_enabled(enabled: bool) -> Result<(), String> {
     }
 
     log::info!("上传覆盖设置已更新为: {}", enabled);
+    fire_reload();
     Ok(())
 }
 
@@ -1669,6 +1701,7 @@ pub async fn set_exclude_system_files(enabled: bool) -> Result<(), String> {
         })?;
     crate::config::config::reload_exclude_filter().await;
     log::info!("排除系统文件设置已更新为: {}", enabled);
+    fire_reload();
     Ok(())
 }
 
@@ -1697,6 +1730,7 @@ pub async fn set_exclude_patterns(patterns: Vec<String>) -> Result<(), String> {
         })?;
     crate::config::config::reload_exclude_filter().await;
     log::info!("排除规则列表已更新");
+    fire_reload();
     Ok(())
 }
 
