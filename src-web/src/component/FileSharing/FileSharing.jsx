@@ -6,6 +6,7 @@ import {formatFileSize, getFileSuffix, copyToClipboard} from "@/util/file.js";
 import {useToast} from "@/component/Toast/index.jsx";
 import {useDialog} from "@/component/Dialog/index.jsx";
 import {useTranslation} from "react-i18next";
+import {subscribe, getClientId} from "../../service/sse.js";
 import FolderIcon from '@/assets/icon/folder.svg';
 import CodeIcon from '@/assets/icon/code.svg';
 import DocIcon from '@/assets/icon/doc.svg';
@@ -204,6 +205,49 @@ function FileSharing() {
             return false;
         }
     }
+
+    const showToastRef = useRef();
+    const tRef = useRef();
+    const getCurrentDirRef = useRef();
+    const flushSharedFileListRef = useRef();
+    showToastRef.current = showToast;
+    tRef.current = t;
+    getCurrentDirRef.current = getCurrentDir;
+    flushSharedFileListRef.current = flushSharedFileList;
+
+    useEffect(() => {
+        const unsub = subscribe(async (evt) => {
+            if (evt.type === 'reload') {
+                flushSharedFileListRef.current(getCurrentDirRef.current() || '');
+                return;
+            }
+            if (evt.type === 'root_changed') {
+                // 共享根目录变更：提示 Web 用户，重置 URL dir 后重拉根目录
+                showToastRef.current({message: tRef.current('sse.toast.rootChanged'), type: 'info'});
+                const url = new URL(window.location.href);
+                url.searchParams.delete('dir');
+                window.history.pushState(null, null, url.pathname + url.search);
+                flushSharedFileListRef.current('');
+                return;
+            }
+            if (evt.kind !== 'file') return;
+            const currentDir = getCurrentDirRef.current() || '';
+            if (evt.dir !== currentDir) return;
+            const isSelf = evt.client_id && evt.client_id === getClientId();
+            const ok = await flushSharedFileListRef.current(currentDir);
+            if (!ok || isSelf) return;
+            let msg = '';
+            if (evt.action === 'upload') {
+                msg = tRef.current('sse.toast.fileUploaded', {name: evt.name || ''});
+            } else if (evt.action === 'renamed') {
+                msg = tRef.current('sse.toast.fileRenamed', {old: evt.old_name || '', new: evt.new_name || ''});
+            } else if (evt.action === 'deleted') {
+                msg = tRef.current('sse.toast.fileDeleted', {name: evt.name || ''});
+            }
+            if (msg) showToastRef.current({message: msg, type: 'info'});
+        });
+        return unsub;
+    }, []);
 
     // 添加或更新进度条
     const updateProgress = (id, title, percent, description = '', status = '') => {

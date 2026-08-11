@@ -20,6 +20,12 @@
     "languageLabel": {
       "zh-CN": "中文",
       "en": "English"
+    },
+    "sse": {
+      "disconnected": "连接已断开，{{seconds}} 秒后自动重连",
+      "reconnecting": "重连中...",
+      "retryStopped": "连接已断开，自动重试已停止，请手动重连",
+      "retryNow": "立即重连"
     }
   },
   "fileSharing": {
@@ -109,6 +115,18 @@
       "loadFailed": "获取历史文本失败: {{error}}",
       "sendFailed": "发送文本失败: {{error}}",
       "copied": "文本已复制"
+    }
+  },
+  "sse": {
+    "toast": {
+      "textNew": "收到新的文字分享",
+      "imageNew": "收到新的图片分享",
+      "fileUploaded": "收到文件 {{name}}",
+      "fileRenamed": "文件 {{old}} 已重命名为 {{new}}",
+      "fileDeleted": "文件 {{name}} 已被删除",
+      "textDeleted": "有文本共享记录被删除",
+      "imageDeleted": "有图片共享记录被删除",
+      "rootChanged": "共享根目录已被更改"
     }
   }
 }

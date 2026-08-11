@@ -20,6 +20,12 @@
     "languageLabel": {
       "zh-CN": "中文",
       "en": "English"
+    },
+    "sse": {
+      "disconnected": "Connection lost, auto reconnect in {{seconds}}s",
+      "reconnecting": "Reconnecting...",
+      "retryStopped": "Connection lost, auto retry stopped. Please reconnect manually",
+      "retryNow": "Reconnect now"
     }
   },
   "fileSharing": {
@@ -109,6 +115,18 @@
       "loadFailed": "Failed to load text history: {{error}}",
       "sendFailed": "Failed to send text: {{error}}",
       "copied": "Text copied"
+    }
+  },
+  "sse": {
+    "toast": {
+      "textNew": "New text shared",
+      "imageNew": "New image shared",
+      "fileUploaded": "Received file {{name}}",
+      "fileRenamed": "{{old}} was renamed to {{new}}",
+      "fileDeleted": "File {{name}} was deleted",
+      "textDeleted": "A text sharing record was deleted",
+      "imageDeleted": "An image sharing record was deleted",
+      "rootChanged": "Sharing root directory has been changed"
     }
   }
 }

@@ -197,8 +197,8 @@ h1, h2, h3, h4, h5, h6 {
 
 button, input[type="file"]::file-selector-button, input[type="submit"] {
     padding: 0.5em 1.5em;
-    color: var(--text-accent);
-    background-color: var(--accent);
+    color: var(--text-primary);
+    background-color: transparent;
     font-size: 0.88rem;
     border: none;
     border-radius: var(--radius);
@@ -210,7 +210,7 @@ button, input[type="file"]::file-selector-button, input[type="submit"] {
     font-weight: 500;
 
     &:hover {
-        background-color: var(--accent-hover);
+        background-color: var(--bg-hover);
     }
 
     &:active {

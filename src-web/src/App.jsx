@@ -8,6 +8,8 @@ import {DialogProvider} from "./component/Dialog/index.jsx";
 import {ToastProvider} from "./component/Toast/index.jsx";
 import {useTranslation} from "react-i18next";
 import { changeLanguage } from "./i18n.ts";
+import { startEventSource, stopEventSource } from "./service/sse.js";
+import SseStatusBanner from "./component/SseStatusBanner/index.jsx";
 
 const THEME_KEY = 'lan-share-theme';
 const isDark = () => {
@@ -39,6 +41,11 @@ function App() {
         applyTheme(theme);
     }, [theme]);
 
+    useEffect(() => {
+        startEventSource();
+        return stopEventSource;
+    }, []);
+
     const qrFgColor = React.useMemo(() => {
         if (theme === 'dark') return '#f6f6f6';
         if (theme === 'light') return '#213547';
@@ -66,6 +73,7 @@ function App() {
         <DialogProvider>
             <ToastProvider>
                 <AppStyle>
+                    <SseStatusBanner/>
                     <main>
                         <div className="topBar">
                         <button
