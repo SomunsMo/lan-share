@@ -13,6 +13,7 @@ pub enum GenericResponseBody {
     String(String),
     Bytes(Bytes),
     FileData(Vec<u8>),
+    Stream(tokio::sync::mpsc::Receiver<Bytes>),
     Empty,
 }
 
@@ -24,7 +25,7 @@ impl Body for GenericResponseBody {
 
     fn poll_frame(
         mut self: Pin<&mut Self>,
-        _cx: &mut std::task::Context<'_>,
+        cx: &mut std::task::Context<'_>,
     ) -> Poll<Option<Result<hyper::body::Frame<Self::Data>, Self::Error>>> {
         use std::mem;
 
@@ -36,6 +37,19 @@ impl Body for GenericResponseBody {
             }
         GenericResponseBody::Bytes(b) => Poll::Ready(Some(Ok(hyper::body::Frame::data(b)))),
         GenericResponseBody::FileData(v) => Poll::Ready(Some(Ok(hyper::body::Frame::data(Bytes::from(v))))),
+        GenericResponseBody::Stream(mut rx) => match rx.poll_recv(cx) {
+            Poll::Ready(Some(bytes)) => {
+                // Ready 分支也要把 rx 放回 self，否则下次 poll 命中 Empty 流提前结束
+                *self.as_mut().get_mut() = GenericResponseBody::Stream(rx);
+                Poll::Ready(Some(Ok(hyper::body::Frame::data(bytes))))
+            }
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => {
+                // Pending 时需要把 rx 放回 self，让后续 poll 能再次读取
+                *self.as_mut().get_mut() = GenericResponseBody::Stream(rx);
+                Poll::Pending
+            }
+        },
         GenericResponseBody::Empty => {
                 // 已经发送过了，返回 None 表示流结束
                 Poll::Ready(None)
@@ -139,5 +153,70 @@ pub fn get_handler(path: &str, method: &Method) -> Option<BaseHandler> {
     }
 
     None
+}
+
+#[cfg(test)]
+mod body_tests {
+    use super::*;
+    use std::pin::Pin;
+    use std::task::{Context, Poll, Wake};
+    use std::sync::Arc;
+
+    struct NoopWaker;
+
+    impl Wake for NoopWaker {
+        fn wake(self: Arc<Self>) {}
+    }
+
+    #[tokio::test]
+    async fn stream_variant_polls_channel() {
+        let (tx, rx) = tokio::sync::mpsc::channel::<Bytes>(4);
+        tx.send(Bytes::from_static(b"hello")).await.unwrap();
+        drop(tx);
+
+        let mut body = GenericResponseBody::Stream(rx);
+        let waker = Arc::new(NoopWaker).into();
+        let mut cx = Context::from_waker(&waker);
+
+        let mut pin = Pin::new(&mut body);
+        let polled = pin.as_mut().poll_frame(&mut cx);
+        match polled {
+            Poll::Ready(Some(Ok(frame))) => {
+                let data = frame.into_data().unwrap();
+                assert_eq!(data.as_ref(), b"hello");
+            }
+            other => panic!("期望数据帧，得到 {:?}", other),
+        }
+        // 再 poll 应得到 None（流结束）
+        let waker = Arc::new(NoopWaker).into();
+        let mut cx = Context::from_waker(&waker);
+        let second = pin.as_mut().poll_frame(&mut cx);
+        assert!(matches!(second, Poll::Ready(None)));
+    }
+
+    #[tokio::test]
+    async fn stream_variant_delivers_multiple_frames() {
+        // tx 保持存活，连续发送两帧，两次 poll 均应为 Ready(Some) 且数据依次正确
+        let (tx, rx) = tokio::sync::mpsc::channel::<Bytes>(4);
+        tx.send(Bytes::from_static(b"first")).await.unwrap();
+        tx.send(Bytes::from_static(b"second")).await.unwrap();
+
+        let mut body = GenericResponseBody::Stream(rx);
+
+        for expected in [&b"first"[..], &b"second"[..]] {
+            let waker = Arc::new(NoopWaker).into();
+            let mut cx = Context::from_waker(&waker);
+
+            let mut pin = Pin::new(&mut body);
+            let polled = pin.as_mut().poll_frame(&mut cx);
+            match polled {
+                Poll::Ready(Some(Ok(frame))) => {
+                    let data = frame.into_data().unwrap();
+                    assert_eq!(data.as_ref(), expected);
+                }
+                other => panic!("期望第 {:?} 帧数据，得到 {:?}", expected, other),
+            }
+        }
+    }
 }
 
