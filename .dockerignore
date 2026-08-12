@@ -1,0 +1,9 @@
+# Docker 构建上下文排除（避免把宿主 node_modules / target 传给 daemon）
+node_modules
+src/node_modules
+src-web/node_modules
+src-web/dist
+dist
+src-tauri/target
+target
+.git

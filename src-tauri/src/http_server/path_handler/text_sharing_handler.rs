@@ -52,8 +52,22 @@ pub async fn upload_text(
 
     log::info!("来自[{}]的文本：{}", client_ip, req_body.text_data);
 
-    if let Err(e) = upload_dao::add(1, &req_body.text_data, None, &client_ip, false).await {
-        log::error!("保存文本记录失败: {}", e);
+    // 检查是否存在内容完全一致的文本记录，存在则刷新时间并递增共享次数
+    match upload_dao::find_text_by_content(&req_body.text_data).await {
+        Ok(Some(existing)) => {
+            log::info!("发现重复文本 ID={}，刷新时间，共享数+1", existing.id);
+            if let Err(e) = upload_dao::bump_record(existing.id).await {
+                log::error!("刷新文本记录失败: {}", e);
+            }
+        }
+        Ok(None) => {
+            if let Err(e) = upload_dao::add(1, &req_body.text_data, None, &client_ip, false).await {
+                log::error!("保存文本记录失败: {}", e);
+            }
+        }
+        Err(e) => {
+            log::error!("查询文本记录失败: {}", e);
+        }
     }
 
     fire(new_text(client_id));
