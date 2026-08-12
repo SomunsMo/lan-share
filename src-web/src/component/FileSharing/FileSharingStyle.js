@@ -199,6 +199,12 @@ const FileSharingStyle = styled.div`
     .batchActions button {
         font-size: 0.75rem;
         padding: 7px 18px;
+        color: var(--text-accent);
+        background-color: var(--accent);
+    }
+
+    .batchActions button:hover {
+        background-color: var(--accent-hover);
     }
 
     .context-menu {

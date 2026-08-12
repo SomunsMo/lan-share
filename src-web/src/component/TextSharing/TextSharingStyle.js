@@ -140,6 +140,15 @@ const TextSharingStyle = styled.div`
         gap: 8px;
     }
 
+    .sendBtnWrapper button {
+        color: var(--text-accent);
+        background-color: var(--accent);
+    }
+
+    .sendBtnWrapper button:hover {
+        background-color: var(--accent-hover);
+    }
+
     .imageUploadBtn {
         display: inline-flex;
         align-items: center;

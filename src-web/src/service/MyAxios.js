@@ -1,4 +1,5 @@
 import originAxios from "axios";
+import { getClientId } from "./sse.js";
 
 const request = (options) => {
     return new Promise((resolve, reject) => {
@@ -15,6 +16,8 @@ const request = (options) => {
             // if (config.url !== URL_LOGIN) {
             //     config.headers.Authorization = "Bearer " + token;
             // }
+
+            config.headers['X-Lan-Client-Id'] = getClientId();
 
             return config;
         }, err => {

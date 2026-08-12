@@ -1,6 +1,7 @@
 import React, {useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo} from 'react';
 import TextSharingManagerStyle from "./style.js";
 import {invoke} from '@tauri-apps/api/core';
+import {listen} from '@tauri-apps/api/event';
 import {useTranslation} from "react-i18next";
 import {useDialog} from "@/components/dialog/index.jsx";
 import {useToast} from "@/components/toast/index.jsx";
@@ -168,6 +169,19 @@ function TextSharingManager(props) {
 
     useEffect(() => {
         loadHistory();
+    }, [loadHistory]);
+
+    useEffect(() => {
+        let unlistening;
+        const setup = async () => {
+            unlistening = await listen("lan-share:content-updated", () => {
+                loadHistory();
+            });
+        };
+        setup();
+        return () => {
+            if (unlistening) unlistening();
+        };
     }, [loadHistory]);
 
     useEffect(() => {

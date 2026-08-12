@@ -2,6 +2,7 @@ use crate::config::config::get_image_sharing_dir;
 use crate::db::dao::upload_dao;
 use crate::http_server::handler::GenericResponseBody;
 use crate::http_server::responses::{error, success_json};
+use crate::http_server::sse::{fire, new_image};
 use http_body_util::BodyExt;
 use hyper::body::Incoming;
 use hyper::{header, Request, Response, StatusCode};
@@ -107,6 +108,12 @@ pub async fn upload_image(
         .map(|addr| addr.ip().to_string())
         .unwrap_or_else(|| "Unknown IP".to_string());
 
+    let client_id = _req
+        .headers()
+        .get("X-Lan-Client-Id")
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string());
+
     let collected_body = match _req.into_body().collect().await {
         Ok(collected) => collected,
         Err(e) => return error(StatusCode::BAD_REQUEST, &format!("读取请求体失败: {}", e)),
@@ -136,6 +143,7 @@ pub async fn upload_image(
             log::error!("刷新记录失败: {}", e);
         }
         if let Ok(content_json) = serde_json::from_str::<Value>(&existing.content) {
+            fire(new_image(client_id.clone()));
             return success_json(UploadImageResponse {
                 id: existing.id,
                 path: content_json
@@ -195,6 +203,8 @@ pub async fn upload_image(
     }
 
     log::info!("图片记录已创建, ID={}", id);
+
+    fire(new_image(client_id));
 
     success_json(UploadImageResponse {
         id,

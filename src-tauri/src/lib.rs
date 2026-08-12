@@ -20,6 +20,8 @@ pub mod http_server {
     pub mod handler;
     pub mod http_server;
     pub mod responses;
+    pub mod sse;
+    pub mod sse_handler;
     pub mod path_handler {
         pub mod file_sharing_handler;
         pub mod image_sharing_handler;
@@ -414,6 +416,7 @@ pub fn run() {
             }
 
             tray::create_tray_menu(&app.handle());
+            crate::http_server::sse::init_app(app.handle().clone());
 
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = crate::config::config::init_sharing_root_from_config().await {

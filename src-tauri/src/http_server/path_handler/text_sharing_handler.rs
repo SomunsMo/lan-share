@@ -3,6 +3,7 @@
 use crate::db::dao::upload_dao;
 use crate::handler::GenericResponseBody;
 use crate::http_server::responses::{error, success_json};
+use crate::http_server::sse::{fire, new_text};
 use http_body_util::BodyExt;
 use hyper::body::Incoming;
 use hyper::{Request, Response, StatusCode};
@@ -27,6 +28,12 @@ pub async fn upload_text(
         .map(|addr| addr.ip().to_string())
         .unwrap_or_else(|| "Unknown IP".to_string());
 
+    let client_id = _req
+        .headers()
+        .get("X-Lan-Client-Id")
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string());
+
     let collected_body = match _req.into_body().collect().await {
         Ok(collected) => collected,
         Err(e) => {
@@ -49,6 +56,7 @@ pub async fn upload_text(
         log::error!("保存文本记录失败: {}", e);
     }
 
+    fire(new_text(client_id));
     success_json(())
 }
 

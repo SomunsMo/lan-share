@@ -6,6 +6,7 @@ import {useDialog} from "@/component/Dialog/index.jsx";
 import {useToast} from "@/component/Toast/index.jsx";
 import copy from "copy-to-clipboard";
 import {useTranslation} from "react-i18next";
+import {subscribe, getClientId} from "../../service/sse.js";
 
 function TextSharing() {
     const { t } = useTranslation();
@@ -40,6 +41,38 @@ function TextSharing() {
             showToast({message: t('textSharing.toast.loadFailed', {error: error.message || '未知错误'}), type: 'error'});
         })
     }
+
+    const showToastRef = useRef();
+    const tRef = useRef();
+    const flushRecordsRef = useRef();
+    showToastRef.current = showToast;
+    tRef.current = t;
+    flushRecordsRef.current = flushRecords;
+
+    useEffect(() => {
+        const unsub = subscribe((evt) => {
+            if (evt.type === 'reload') {
+                flushRecordsRef.current();
+                return;
+            }
+            if (evt.kind === 'text' || evt.kind === 'image') {
+                const isSelf = evt.client_id && evt.client_id === getClientId();
+                flushRecordsRef.current();
+                if (!isSelf && evt.action === 'upload') {
+                    showToastRef.current({
+                        message: tRef.current(evt.kind === 'text' ? 'sse.toast.textNew' : 'sse.toast.imageNew'),
+                        type: 'info',
+                    });
+                } else if (!isSelf && evt.action === 'deleted') {
+                    showToastRef.current({
+                        message: tRef.current(evt.kind === 'text' ? 'sse.toast.textDeleted' : 'sse.toast.imageDeleted'),
+                        type: 'info',
+                    });
+                }
+            }
+        });
+        return unsub;
+    }, []);
 
     const fileInputRef = useRef(null);
     const isSecureContext = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';

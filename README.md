@@ -38,6 +38,12 @@ That's it — you're sharing.
 - Share images from clipboard directly — no file saving needed
 - View shared text and image history on both desktop and web
 
+### Real-Time Sync
+- Web pages refresh automatically when files, text, or images change from any device — no manual reload needed
+- File lists update instantly on upload, rename, or delete; when the sharing root changes, browsers jump back to the new root
+- Permission settings are pushed to every open browser as soon as you change them
+- If the live connection drops, a sticky banner with a reconnect countdown appears at the top; reconnect manually anytime
+
 ### Transfer Log
 - Complete history of every file, text, and image shared
 - Filter by type (text/file/image), search by content, sort by time

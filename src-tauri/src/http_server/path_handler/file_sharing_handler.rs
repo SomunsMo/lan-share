@@ -5,6 +5,7 @@ use crate::db::dao::config_dao;
 use crate::db::dao::upload_dao;
 use crate::http_server::handler::GenericResponseBody;
 use crate::http_server::responses::{error, success_json};
+use crate::http_server::sse::{fire, new_file_deleted, new_file_renamed, new_file_upload};
 use crate::QueryParams;
 use form_urlencoded;
 use futures_util::stream::TryStreamExt;
@@ -186,6 +187,12 @@ pub async fn upload_file(
         .get::<SocketAddr>()
         .map(|addr| addr.ip().to_string())
         .unwrap_or_else(|| "Unknown IP".to_string());
+
+    let client_id = _req
+        .headers()
+        .get("X-Lan-Client-Id")
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string());
 
     // 1. 检查 Content-Type（提取到 String 中以释放 _req 的借用）
     let content_type = match _req.headers().get(header::CONTENT_TYPE)
@@ -401,6 +408,10 @@ pub async fn upload_file(
         }
     }
 
+    for filename in &uploaded {
+        fire(new_file_upload(&dir_param, filename, client_id.clone()));
+    }
+
     success_json(())
 }
 
@@ -597,6 +608,12 @@ pub async fn rename_file(
         return error(StatusCode::BAD_REQUEST, "新文件名不合法");
     }
 
+    let client_id = _req
+        .headers()
+        .get("X-Lan-Client-Id")
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string());
+
     // 拼接路径
     let root_dir = get_sharing_root().await;
     let target_dir = if dir_param.is_empty() {
@@ -645,6 +662,12 @@ pub async fn rename_file(
     match fs::rename(&old_path, &new_path).await {
         Ok(_) => {
             log::info!("重命名成功: {} -> {}", old_name, safe_new_name);
+            fire(new_file_renamed(
+                &dir_param,
+                &sanitize_filename(&old_name),
+                &safe_new_name,
+                client_id,
+            ));
             success_json(())
         }
         Err(e) => {
@@ -669,6 +692,12 @@ pub async fn delete_file(
         Some(name) if !name.is_empty() => name.clone(),
         _ => return error(StatusCode::BAD_REQUEST, "缺少必填参数：file_name"),
     };
+
+    let client_id = _req
+        .headers()
+        .get("X-Lan-Client-Id")
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string());
 
     // 拼接路径
     let root_dir = get_sharing_root().await;
@@ -732,6 +761,7 @@ pub async fn delete_file(
     match result {
         Ok(_) => {
             log::info!("删除成功: {}", safe_filename);
+            fire(new_file_deleted(&dir_param, &safe_filename, client_id));
             success_json(())
         }
         Err(e) => {
