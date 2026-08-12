@@ -170,6 +170,8 @@ lan-share/
 │   │   │   ├── http_server.rs        # TCP listener + request dispatch
 │   │   │   ├── handler.rs            # Route registry
 │   │   │   ├── responses.rs          # Response helpers
+│   │   │   ├── sse.rs                # SSE event model, broadcast + fire()
+│   │   │   ├── sse_handler.rs        # GET /api/events SSE stream endpoint
 │   │   │   └── path_handler/         # Route handlers (macro auto-registered)
 │   │   │       ├── file_sharing_handler.rs
 │   │   │       ├── text_sharing_handler.rs
@@ -189,8 +191,10 @@ lan-share/
 │   │   │   ├── Card/                 # File list card
 │   │   │   ├── Dialog/               # Modal dialog
 │   │   │   ├── Toast/                # Notifications
-│   │   │   └── ProgressBar/          # Upload progress
+│   │   │   ├── ProgressBar/          # Upload progress
+│   │   │   └── SseStatusBanner/      # Disconnect banner + reconnect countdown
 │   │   ├── service/                  # Axios instance + API methods
+│   │   │   └── sse.js                # SSE client: subscribe/subscribeStatus/retryNow
 │   │   └── util/                     # File utilities
 │   └── vite.config.js                # vite-plugin-singlefile + host:true
 │
@@ -218,6 +222,17 @@ All JSON responses follow `{ code, msg, data }`.
 | POST | `/record/copy` | Record text copy event |
 | POST | `/record/download` | Record file download event |
 | GET | `/config/permissions` | Get web permission settings |
+| GET | `/api/events` | SSE stream — real-time push of share/delete/settings events |
+
+## Real-Time Events (SSE)
+
+Web UI stays in sync with the desktop without polling, via a Server-Sent Events stream.
+
+- **Transport**: `GET /api/events` (`src-tauri/src/http_server/sse_handler.rs`) — `tokio::sync::broadcast` channel, 15s keep-alive heartbeat, auto-reload sentinel `data: {"type":"reload"}\n\n` when a client lags behind
+- **Event model** (`src-tauri/src/http_server/sse.rs`): `SseEvent { seq, kind: text|image|file, action: upload|renamed|deleted, name?, old_name?, new_name?, dir?, client_id?, ts }` — no `id` field
+- **Fire sites**: file ops push via `fire(new_file_upload/renamed/deleted)` (`path_handler/file_sharing_handler.rs`); record deletion via `fire(new_text_deleted/new_image_deleted)` + settings change via `fire_reload()/fire_root_changed()` (`cmd/system.rs`) — `fire()` also emits Tauri event `lan-share:content-updated` for the desktop app
+- **Web client** (`src-web/src/service/sse.js`): `subscribe()` (shared events), `subscribeStatus()` (conn state), `retryNow()` (manual reconnect); reconnect backoff by failure count (<=5 → 5s, <=10 → 15s, otherwise 30s, auto-retry stops after 15)
+- **Banner** (`src-web/src/component/SseStatusBanner/`): sticky top bar while disconnected, countdown + manual reconnect button; `root_changed` clears the `?dir=` URL param and reloads the root listing in `FileSharing.jsx`
 
 ## IPC Commands
 
