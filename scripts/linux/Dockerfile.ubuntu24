@@ -1,0 +1,40 @@
+# Linux (Ubuntu 24.04) 后端构建镜像
+# 只在容器内编译 Rust 后端；前端 dist 由宿主机构建后挂载进来
+FROM ubuntu:24.04
+
+# Tauri v2 Linux 系统依赖（含 wayland 剪贴板相关 dli）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    ca-certificates \
+    file \
+    pkg-config \
+    libssl-dev \
+    libsqlite3-dev \
+    libgtk-3-dev \
+    libwebkit2gtk-4.1-dev \
+    libayatana-appindicator3-dev \
+    librsvg2-dev \
+    libxdo-dev \
+    libsoup-3.0-dev \
+    libjavascriptcoregtk-4.1-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Node.js 24（与 GitHub Actions setup-node@v4 node-version 24 完全一致）
+# 根 package.json 的 packageManager=pnpm@11.3.0 要求 Node>=22.13，故用 Node 24
+RUN curl -fsSL https://npmmirror.com/mirrors/node/v24.16.0/node-v24.16.0-linux-x64.tar.xz \
+    | tar -xJ -C /usr/local --strip-components=1 \
+    && npm install -g pnpm@11.3.0 --registry=https://registry.npmmirror.com
+
+# Rust 工具链（stable，minimal profile）必须在镜像内安装（缓存卷仅含 registry 加速）
+# crates.io 用 USTC 镜像；rustup toolchain 用官方源（USTC 静态源不稳定）
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+RUN curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    --default-toolchain stable \
+    --profile minimal \
+    && printf '[source.crates-io]\nreplace-with = "ustc"\n[source.ustc]\nregistry = "sparse+https://mirrors.ustc.edu.cn/crates.io-index/"\n' \
+    > $CARGO_HOME/config.toml
+
+WORKDIR /src
