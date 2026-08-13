@@ -56,10 +56,15 @@
       "details": "Details",
       "copyLink": "Copy Link",
       "download": "Download",
+      "preview": "Preview",
       "rename": "Rename",
       "delete": "Delete",
       "open": "Open",
       "copyFileName": "Copy Name"
+    },
+    "preview": {
+      "refresh": "Refresh",
+      "close": "Close"
     },
     "toast": {
       "linkCopied": "Link copied",

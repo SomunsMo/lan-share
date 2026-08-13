@@ -56,10 +56,15 @@
       "details": "查看详情",
       "copyLink": "复制链接",
       "download": "下载",
+      "preview": "预览",
       "rename": "重命名",
       "delete": "删除",
       "open": "打开",
       "copyFileName": "复制名称"
+    },
+    "preview": {
+      "refresh": "刷新",
+      "close": "关闭"
     },
     "toast": {
       "linkCopied": "链接已复制",
