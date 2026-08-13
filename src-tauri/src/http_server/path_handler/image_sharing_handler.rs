@@ -139,7 +139,7 @@ pub async fn upload_image(
 
     if let Ok(Some(existing)) = upload_dao::find_image_by_sha256_size(&sha256_hash, size).await {
         log::info!("发现重复图片 ID={}，刷新时间", existing.id);
-        if let Err(e) = upload_dao::bump_record(existing.id).await {
+        if let Err(e) = upload_dao::record_share_event(existing.id, &client_ip).await {
             log::error!("刷新记录失败: {}", e);
         }
         if let Ok(content_json) = serde_json::from_str::<Value>(&existing.content) {
@@ -183,7 +183,7 @@ pub async fn upload_image(
         log::info!("图片已保存至: {:?}", save_path);
     }
 
-    let id = match upload_dao::add(5, "{}", None, &client_ip, false).await {
+    let id = match upload_dao::add_with_share(5, "{}", None, &client_ip, false).await {
         Ok(id) => id,
         Err(e) => {
             log::error!("插入记录失败: {}", e);
