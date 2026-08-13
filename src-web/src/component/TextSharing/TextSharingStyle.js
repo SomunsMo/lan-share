@@ -65,6 +65,10 @@ const TextSharingStyle = styled.div`
         flex-shrink: 0;
     }
 
+    .recordThumb.previewableThumb {
+        cursor: pointer;
+    }
+
     .recordBody {
         flex: 1;
         min-width: 0;

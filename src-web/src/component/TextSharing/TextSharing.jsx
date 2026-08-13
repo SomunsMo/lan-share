@@ -1,6 +1,8 @@
 import React, {useCallback, useEffect, useRef, useState, useMemo} from 'react';
 import Card from "../Card/Card.js";
 import TextSharingStyle from "./TextSharingStyle.js";
+import FilePreview from "../FilePreview/index.jsx";
+import {getFileSuffix} from "@/util/file.js";
 import {getUploadRecordsAPI, uploadTextAPI, recordCopyAPI, uploadImageAPI} from "../../service/API.js";
 import {useDialog} from "@/component/Dialog/useDialog.js";
 import {useToast} from "@/component/Toast/useToast.js";
@@ -8,6 +10,19 @@ import copy from "copy-to-clipboard";
 import {useTranslation} from "react-i18next";
 import {subscribe, getClientId} from "../../service/sse.js";
 import {track} from "@/service/taskManager.js";
+
+// 可预览的文本后缀（与后端 PREVIEW_TEXT_SUFFIXES 保持一致，须镜像修改）
+const PREVIEW_TEXT_SUFFIXES = new Set([
+    "txt", "log", "md", "markdown", "csv", "json", "xml", "yaml", "yml",
+    "ini", "cfg", "conf", "toml", "env", "html", "htm", "css", "js", "ts",
+    "py", "rs", "java", "c", "h", "cpp", "go", "sql",
+]);
+// 可预览的图片后缀（与后端 PREVIEW_IMAGE_SUFFIXES + pdf 保持一致，须镜像修改）
+const PREVIEW_IMAGE_SUFFIXES = new Set(["bmp", "png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "tiff"]);
+
+// 该后缀是否支持预览（与 FileSharing.jsx 及后端 file_sharing_handler.rs 的 is_previewable 保持一致，须镜像修改）
+const isPreviewable = (suffix) =>
+    PREVIEW_IMAGE_SUFFIXES.has(suffix) || suffix === 'pdf' || PREVIEW_TEXT_SUFFIXES.has(suffix);
 
 function TextSharing() {
     const { t } = useTranslation();
@@ -24,6 +39,11 @@ function TextSharing() {
         const type = filterType === 'text' ? 1 : 5;
         return records.filter(r => r.action_type === type);
     }, [records, filterType]);
+
+    // 预览浮层 URL（null 表示关闭）
+    const [previewUrl, setPreviewUrl] = useState(null);
+    // 正在预览的文件名
+    const [previewTitle, setPreviewTitle] = useState('');
 
     const flushRecords = useCallback(() => {
         getUploadRecordsAPI().then(res => {
@@ -279,11 +299,19 @@ function TextSharing() {
                             }
                             let meta = {};
                             try { meta = JSON.parse(v.content); } catch { /* 解析失败使用空对象 */ }
+                            const originalName = meta.original_name || '';
+                            const canPreview = originalName ? isPreviewable(getFileSuffix(originalName)) : false;
                             return (
                                 <li key={v.id} className="recordItem image">
                                     <img src={`/shared-image/${v.id}`}
-                                        alt={meta.original_name || ''}
-                                        className="recordThumb" />
+                                        alt={originalName}
+                                        className={`recordThumb${canPreview ? ' previewableThumb' : ''}`}
+                                        onClick={(e) => {
+                                            // 仅左键（event.button === 0）触发预览，右键仍走 li 的 contextmenu 下载/复制
+                                            if (e.button !== 0 || !canPreview) return;
+                                            setPreviewUrl(`/shared-image/${v.id}`);
+                                            setPreviewTitle(originalName || v.content || '');
+                                        }} />
                                     <div className="recordBody">
                                         <p className="recordHint">{isTouch ? t('imageSharing.hintMobile') : t('imageSharing.hintDesktop')}</p>
                                         <p className="metaInfo">{v.created_at?.replace(/-/g, '/')} | {v.ip}</p>
@@ -305,6 +333,10 @@ function TextSharing() {
                         hideContextMenu();
                     }}>{t('textSharing.contextMenu.copy')}</div>
                 </div>
+            )}
+
+            {previewUrl && (
+                <FilePreview url={previewUrl} title={previewTitle} onClose={() => { setPreviewUrl(null); setPreviewTitle(''); }} />
             )}
         </TextSharingStyle>
     );
