@@ -10,7 +10,7 @@ use crate::QueryParams;
 use form_urlencoded;
 use futures_util::stream::TryStreamExt;
 use http_body_util::BodyExt;
-use hyper::body::Incoming;
+use hyper::body::{Bytes, Incoming};
 use hyper::{header, Request, Response, StatusCode};
 use lan_share_http_macros::{delete, get, post, put};
 use multer::Multipart;
@@ -18,9 +18,11 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
 use tokio::fs;
 use tokio::fs::File;
+use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 
 #[derive(Serialize)]
@@ -415,33 +417,27 @@ pub async fn upload_file(
     success_json(())
 }
 
-// 预览工具（图片/PDF/纯文本）：函数当前仅供 Task 3 端点与测试使用，故允许暂时未使用
-#[allow(dead_code)]
+// 预览工具（图片/PDF/纯文本）
 const PREVIEW_IMAGE_SUFFIXES: &[&str] = &["bmp", "png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "tiff"];
-#[allow(dead_code)]
 const PREVIEW_TEXT_SUFFIXES: &[&str] = &[
     "txt", "log", "md", "markdown", "csv", "json", "xml", "yaml", "yml",
     "ini", "cfg", "conf", "toml", "env", "html", "htm", "css", "js", "ts",
     "py", "rs", "java", "c", "h", "cpp", "go", "sql",
 ];
 /// 小于该字节数的文本全量读取后转码预览，更大的走流式
-#[allow(dead_code)]
 const PREVIEW_FULL_READ_LIMIT: u64 = 5 * 1024 * 1024;
 
 /// 取小写扩展名（无扩展名返回空串）
-#[allow(dead_code)]
 fn file_ext_lower(name: &str) -> String {
     name.rsplit('.').next().unwrap_or("").to_lowercase()
 }
 
 /// 该扩展名是否支持预览（图片/PDF/纯文本）
-#[allow(dead_code)]
 fn is_previewable(ext: &str) -> bool {
     PREVIEW_IMAGE_SUFFIXES.contains(&ext) || ext == "pdf" || PREVIEW_TEXT_SUFFIXES.contains(&ext)
 }
 
 /// 编码检测：先按 BOM，再尝试 UTF-8 严格解码（无报错视为 UTF-8），否则按 GBK
-#[allow(dead_code)]
 fn detect_text_encoding(data: &[u8]) -> &'static encoding_rs::Encoding {
     if let Some((enc, _)) = encoding_rs::Encoding::for_bom(data) {
         return enc;
@@ -451,7 +447,8 @@ fn detect_text_encoding(data: &[u8]) -> &'static encoding_rs::Encoding {
 }
 
 /// 流式 GBK→UTF-8 转码：复用同一 Decoder 跨块缓冲不完整多字节序列（数据正确性纪律 3）
-#[allow(dead_code)]
+/// 供单测验证跨块解码正确性；产品流式路径在 stream_preview_file 中镜像同款循环（逐块发送，不整包累积）
+#[cfg(test)]
 fn transcode_gbk_chunks(chunks: &[&[u8]]) -> String {
     use encoding_rs::CoderResult;
     let mut decoder = encoding_rs::GBK.new_decoder();
@@ -635,6 +632,189 @@ pub async fn download_file(
         .unwrap();
 
     Ok(response)
+}
+
+/// 构造 inline 预览响应：支持直出字节流或 GBK→UTF-8 流式转码
+/// transcode 为 Some 时不允许设 Content-Length（输出长度不可预知，走 chunked）
+fn stream_preview_file(
+    file_path: PathBuf,
+    len: u64,
+    content_type: String,
+    disposition: String,
+    transcode: Option<&'static encoding_rs::Encoding>,
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
+    let (tx, rx) = tokio::sync::mpsc::channel::<Bytes>(8);
+    tokio::spawn(async move {
+        let mut file = match File::open(&file_path).await {
+            Ok(f) => f,
+            Err(_) => return, // 打开失败直接结束流（客户端将收到网络错误）
+        };
+        if let Some(enc) = transcode {
+            // 跨块复用同一 Decoder，缓冲不完整多字节序列（数据正确性纪律 3）
+            use encoding_rs::CoderResult;
+            let mut decoder = enc.new_decoder();
+            let mut buf = vec![0u8; 64 * 1024];
+            loop {
+                match file.read(&mut buf).await {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        // decode_to_string 以 String 容量为单次输出上限，先按最大输出量预留空间
+                        let mut out = String::new();
+                        if let Some(reserved) = decoder.max_utf8_buffer_length(n) {
+                            out.reserve(reserved);
+                        }
+                        let mut rest = &buf[..n];
+                        loop {
+                            let (result, consumed, _) = decoder.decode_to_string(rest, &mut out, false);
+                            rest = &rest[consumed..];
+                            match result {
+                                CoderResult::InputEmpty => break,
+                                CoderResult::OutputFull => {
+                                    // 容量耗尽时扩容后继续输出剩余字节
+                                    if let Some(reserved) = decoder.max_utf8_buffer_length(rest.len()) {
+                                        out.reserve(reserved);
+                                    }
+                                }
+                            }
+                        }
+                        if tx.send(Bytes::from(out.into_bytes())).await.is_err() {
+                            return; // 客户端已断开
+                        }
+                    }
+                    _ => return,
+                }
+            }
+            // 最后一次（可能为空）flush：last=true 输出解码缓冲残留，保证数据完整（纪律 3）
+            // 必须预留容量：残留字节被 flush 为 U+FFFD 时无容量会越界，max_utf8_buffer_length(0)
+            // 已按 pending 状态计入该替换字符的余量
+            let mut out = String::new();
+            if let Some(reserved) = decoder.max_utf8_buffer_length(0) {
+                out.reserve(reserved);
+            }
+            let _ = decoder.decode_to_string(&[], &mut out, true);
+            let _ = tx.send(Bytes::from(out.into_bytes())).await;
+        } else {
+            // 直出原字节流（UTF-8 / 图片 / PDF），Content-Length 精确
+            let mut buf = vec![0u8; 64 * 1024];
+            loop {
+                match file.read(&mut buf).await {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        if tx.send(Bytes::copy_from_slice(&buf[..n])).await.is_err() {
+                            return;
+                        }
+                    }
+                    _ => return,
+                }
+            }
+        }
+    });
+
+    let mut builder = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, content_type)
+        .header(header::CONTENT_DISPOSITION, disposition)
+        // 文件可变，不缓存，避免端口切换后展示旧内容
+        .header(header::CACHE_CONTROL, "no-store");
+    if transcode.is_none() {
+        builder = builder.header(header::CONTENT_LENGTH, len.to_string());
+    }
+    Ok(builder.body(GenericResponseBody::Stream(rx)).unwrap())
+}
+
+/// 预览共享文件（图片/PDF/纯文本），返回 inline 流供 iframe 展示
+#[get("/preview/file")]
+pub async fn preview_file(
+    _req: Request<Incoming>,
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
+    let query = match _req.uri().query() {
+        Some(q) => q,
+        None => return Ok(create_error_response(StatusCode::BAD_REQUEST, "缺少查询参数：?dir=目录&file_name=文件名")),
+    };
+    let params: HashMap<_, _> = form_urlencoded::parse(query.as_bytes())
+        .into_owned()
+        .collect();
+
+    let dir_param = params.get("dir").map(|s| s.as_str()).unwrap_or("");
+    let file_name = match params.get("file_name") {
+        Some(name) if !name.is_empty() => name,
+        _ => return Ok(create_error_response(StatusCode::BAD_REQUEST, "缺少必填参数：file_name（文件名）")),
+    };
+
+    // 消毒文件名，防止路径遍历攻击
+    let safe_file_name = sanitize_filename(file_name);
+    if safe_file_name.is_empty() {
+        return Ok(create_error_response(StatusCode::BAD_REQUEST, "无效的文件名：file_name"));
+    }
+    let root_dir = get_sharing_root().await;
+    let target_dir = if dir_param.is_empty() {
+        (*root_dir).clone()
+    } else {
+        (*root_dir).join(sanitize_path_segment(dir_param))
+    };
+    let full_file_path = target_dir.join(safe_file_name);
+
+    let metadata = match tokio::fs::metadata(&full_file_path).await {
+        Ok(meta) => meta,
+        Err(_) => return Ok(create_error_response(StatusCode::NOT_FOUND, "文件不存在")),
+    };
+    if !metadata.is_file() {
+        return Ok(create_error_response(StatusCode::BAD_REQUEST, "指定路径是目录，不支持预览"));
+    }
+
+    let ext = file_ext_lower(file_name);
+    if !is_previewable(&ext) {
+        return Ok(create_error_response(StatusCode::UNSUPPORTED_MEDIA_TYPE, "该文件类型不支持预览"));
+    }
+
+    let encoded_name: String = form_urlencoded::byte_serialize(file_name.as_bytes()).collect();
+    let disposition = format!("inline; filename*=UTF-8''{}", encoded_name);
+
+    // 图片 / PDF：直出流式，Content-Length 精确
+    if PREVIEW_IMAGE_SUFFIXES.contains(&ext.as_str()) || ext == "pdf" {
+        let content_type = mime_guess::from_path(&full_file_path)
+            .first_or_octet_stream()
+            .to_string();
+        return stream_preview_file(full_file_path, metadata.len(), content_type, disposition, None);
+    }
+
+    // 纯文本
+    if metadata.len() <= PREVIEW_FULL_READ_LIMIT {
+        // ≤5MB：全量读取 + 编码检测转码，一次性输出（Content-Length 已知）
+        let bytes = match tokio::fs::read(&full_file_path).await {
+            Ok(b) => b,
+            Err(e) => return Ok(create_error_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("文件读取失败：{}", e))),
+        };
+        let enc = detect_text_encoding(&bytes);
+        let (text, _, _) = enc.decode(&bytes);
+        let utf8_bytes = text.into_owned().into_bytes();
+        let response = Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
+            .header(header::CONTENT_DISPOSITION, disposition)
+            .header(header::CACHE_CONTROL, "no-store")
+            .header(header::CONTENT_LENGTH, utf8_bytes.len().to_string())
+            .body(GenericResponseBody::Bytes(utf8_bytes.into()))
+            .unwrap();
+        return Ok(response);
+    }
+
+    // >5MB：读头部定编码后流式（UTF-8 直出带 Content-Length；GBK 流式转码无 Content-Length）
+    let mut head = vec![0u8; 8192];
+    let mut file = match File::open(&full_file_path).await {
+        Ok(f) => f,
+        Err(e) => return Ok(create_error_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("文件读取失败：{}", e))),
+    };
+    let read_n = match file.read(&mut head).await {
+        Ok(n) => n,
+        Err(e) => return Ok(create_error_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("文件读取失败：{}", e))),
+    };
+    let enc = detect_text_encoding(&head[..read_n]);
+    if enc == encoding_rs::UTF_8 {
+        stream_preview_file(full_file_path, metadata.len(), "text/plain; charset=utf-8".to_string(), disposition, None)
+    } else {
+        stream_preview_file(full_file_path, metadata.len(), "text/plain; charset=utf-8".to_string(), disposition, Some(enc))
+    }
 }
 
 // 创建错误响应，响应体类型为 GenericResponseBody
@@ -974,5 +1154,54 @@ mod preview_tests {
         assert!(is_previewable(&file_ext_lower("photo.jpeg")));
         assert!(!is_previewable(&file_ext_lower("a.docx")));
         assert!(!is_previewable(&file_ext_lower("noext")));
+    }
+
+    #[test]
+    fn streaming_flush_handles_trailing_lead_byte() {
+        use encoding_rs::CoderResult;
+        fn run_stream(chunks: &[&[u8]]) -> String {
+            let mut decoder = encoding_rs::GBK.new_decoder();
+            let mut out_chunks: Vec<String> = Vec::new();
+            for chunk in chunks {
+                let mut out = String::new();
+                if let Some(r) = decoder.max_utf8_buffer_length(chunk.len()) {
+                    out.reserve(r);
+                }
+                let mut rest = *chunk;
+                loop {
+                    let (result, consumed, _) = decoder.decode_to_string(rest, &mut out, false);
+                    rest = &rest[consumed..];
+                    match result {
+                        CoderResult::InputEmpty => break,
+                        CoderResult::OutputFull => {
+                            if let Some(r) = decoder.max_utf8_buffer_length(rest.len()) {
+                                out.reserve(r);
+                            }
+                        }
+                    }
+                }
+                out_chunks.push(out);
+            }
+            let mut out = String::new();
+            if let Some(r) = decoder.max_utf8_buffer_length(0) {
+                out.reserve(r);
+            }
+            let _ = decoder.decode_to_string(&[], &mut out, true);
+            out_chunks.push(out);
+            out_chunks.concat()
+        }
+        let (gbk, _, _) = encoding_rs::GBK.encode("中文本尾");
+        let gbk = gbk.into_owned();
+        // 末块以孤立 lead 字节结尾（GBK 双字节序列被切断），flush 应输出替换字符且不 panic
+        let mut truncated = gbk.clone();
+        truncated.push(0x81u8);
+        let flushed = run_stream(&[&truncated[..3], &truncated[3..]]);
+        assert!(
+            flushed.ends_with('\u{FFFD}'),
+            "尾随 lead 字节应被 flush 为替换字符，实际尾部: {:?}",
+            flushed.chars().last()
+        );
+        // 正常整块场景：不产生多余替换字符
+        assert_eq!(run_stream(&[&gbk[..4], &gbk[4..]]), "中文本尾");
     }
 }
