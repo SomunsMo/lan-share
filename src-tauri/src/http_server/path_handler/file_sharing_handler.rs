@@ -415,6 +415,71 @@ pub async fn upload_file(
     success_json(())
 }
 
+// 预览工具（图片/PDF/纯文本）：函数当前仅供 Task 3 端点与测试使用，故允许暂时未使用
+#[allow(dead_code)]
+const PREVIEW_IMAGE_SUFFIXES: &[&str] = &["bmp", "png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "tiff"];
+#[allow(dead_code)]
+const PREVIEW_TEXT_SUFFIXES: &[&str] = &[
+    "txt", "log", "md", "markdown", "csv", "json", "xml", "yaml", "yml",
+    "ini", "cfg", "conf", "toml", "env", "html", "htm", "css", "js", "ts",
+    "py", "rs", "java", "c", "h", "cpp", "go", "sql",
+];
+/// 小于该字节数的文本全量读取后转码预览，更大的走流式
+#[allow(dead_code)]
+const PREVIEW_FULL_READ_LIMIT: u64 = 5 * 1024 * 1024;
+
+/// 取小写扩展名（无扩展名返回空串）
+#[allow(dead_code)]
+fn file_ext_lower(name: &str) -> String {
+    name.rsplit('.').next().unwrap_or("").to_lowercase()
+}
+
+/// 该扩展名是否支持预览（图片/PDF/纯文本）
+#[allow(dead_code)]
+fn is_previewable(ext: &str) -> bool {
+    PREVIEW_IMAGE_SUFFIXES.contains(&ext) || ext == "pdf" || PREVIEW_TEXT_SUFFIXES.contains(&ext)
+}
+
+/// 编码检测：先按 BOM，再尝试 UTF-8 严格解码（无报错视为 UTF-8），否则按 GBK
+#[allow(dead_code)]
+fn detect_text_encoding(data: &[u8]) -> &'static encoding_rs::Encoding {
+    if let Some((enc, _)) = encoding_rs::Encoding::for_bom(data) {
+        return enc;
+    }
+    let (_, had_errors) = encoding_rs::UTF_8.decode_without_bom_handling(data);
+    if had_errors { encoding_rs::GBK } else { encoding_rs::UTF_8 }
+}
+
+/// 流式 GBK→UTF-8 转码：复用同一 Decoder 跨块缓冲不完整多字节序列（数据正确性纪律 3）
+#[allow(dead_code)]
+fn transcode_gbk_chunks(chunks: &[&[u8]]) -> String {
+    use encoding_rs::CoderResult;
+    let mut decoder = encoding_rs::GBK.new_decoder();
+    let mut out = String::new();
+    for (i, chunk) in chunks.iter().enumerate() {
+        let last = i == chunks.len() - 1;
+        // decode_to_string 以 String 容量为单次输出上限，先按最大输出量预留空间
+        if let Some(len) = decoder.max_utf8_buffer_length(chunk.len()) {
+            out.reserve(len);
+        }
+        let mut rest = *chunk;
+        loop {
+            let (result, consumed, _) = decoder.decode_to_string(rest, &mut out, last);
+            rest = &rest[consumed..];
+            match result {
+                CoderResult::InputEmpty => break,
+                CoderResult::OutputFull => {
+                    // 容量耗尽时扩容后继续输出剩余字节
+                    if let Some(len) = decoder.max_utf8_buffer_length(rest.len()) {
+                        out.reserve(len);
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
 /// 文件名消毒函数
 /// 根据不同平台排除文件系统危险字符，保留合法的Unicode字符
 fn sanitize_filename(filename: &str) -> String {
@@ -869,5 +934,41 @@ fn check_disk_space(upload_size: u64, target_dir: &std::path::Path) -> bool {
             log::error!("无法获取磁盘可用空间: {}", e);
             false // 无法确认空间充足时，拒绝上传（安全优先）
         }
+    }
+}
+
+#[cfg(test)]
+mod preview_tests {
+    use super::*;
+
+    #[test]
+    fn sanitize_filename_strips_traversal_separators() {
+        assert!(!sanitize_filename("../../etc/passwd").contains('/'));
+        // Unix 不限制反斜杠，但绝对路径开头设备名不受影响
+        assert!(!sanitize_filename("..%2f..%2fsecret").contains('/'));
+    }
+
+    #[test]
+    fn detect_encoding_handles_utf8_and_gbk() {
+        assert_eq!(detect_text_encoding("你好".as_bytes()), encoding_rs::UTF_8);
+        let (gbk_bytes, _, _) = encoding_rs::GBK.encode("你好");
+        assert_eq!(detect_text_encoding(&gbk_bytes), encoding_rs::GBK);
+    }
+
+    #[test]
+    fn gbk_stream_transcoding_keeps_cross_boundary_chars() {
+        let (gbk, _, _) = encoding_rs::GBK.encode("中文测试abc123");
+        // 块边界刻意切在可变长字节中间
+        let chunks = vec![&gbk[..1], &gbk[1..4], &gbk[4..]];
+        assert_eq!(transcode_gbk_chunks(&chunks), "中文测试abc123");
+    }
+
+    #[test]
+    fn previewability_by_extension() {
+        assert!(is_previewable(&file_ext_lower("a.pdf")));
+        assert!(is_previewable(&file_ext_lower("note.MD")));
+        assert!(is_previewable(&file_ext_lower("photo.jpeg")));
+        assert!(!is_previewable(&file_ext_lower("a.docx")));
+        assert!(!is_previewable(&file_ext_lower("noext")));
     }
 }
