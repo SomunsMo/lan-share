@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DialogContext } from './useDialog';
 import {
     DialogOverlay,
     DialogCard,
@@ -9,8 +10,6 @@ import {
     DialogFooter,
     DialogButton,
 } from './DialogStyle';
-
-const DialogContext = createContext(null);
 
 let nextDialogId = 0;
 
@@ -150,10 +149,4 @@ function DialogItem({ dialog, index, closeDialog }) {
             </DialogCard>
         </DialogOverlay>
     );
-}
-
-export function useDialog() {
-    const context = useContext(DialogContext);
-    if (!context) throw new Error('useDialog must be used within a DialogProvider');
-    return context;
 }

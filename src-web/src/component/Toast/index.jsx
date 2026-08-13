@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
+import { ToastContext } from './useToast';
 import {
     ToastContainerWrapper,
     ToastItemOuter,
@@ -7,8 +8,6 @@ import {
     ToastMessage,
     ToastCloseBtn,
 } from './ToastStyle';
-
-const ToastContext = createContext(null);
 
 let nextId = 0;
 
@@ -56,12 +55,6 @@ export function ToastProvider({ children }) {
             <ToastContainer toasts={toasts} onClose={dismissToast} />
         </ToastContext.Provider>
     );
-}
-
-export function useToast() {
-    const context = useContext(ToastContext);
-    if (!context) throw new Error('useToast must be used within a ToastProvider');
-    return context;
 }
 
 function ToastContainer({ toasts, onClose }) {
