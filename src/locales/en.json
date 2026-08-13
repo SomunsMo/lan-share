@@ -117,7 +117,7 @@
       "themeSwitched": "Theme switched",
       "themeFailed": "Failed to save theme: {{error}}",
       "portInvalid": "Invalid port number, please enter a number between 1-65535",
-      "portSaved": "Port setting saved, restart to apply",
+      "portSaved": "Port changed, applied immediately",
       "portFailed": "Failed to save port: {{error}}",
       "saveFailed": "Failed to save {{name}} setting: {{error}}",
       "selectFailed": "Failed to select folder: {{error}}",
@@ -168,6 +168,11 @@
     "noPreview": "(File preview not supported)",
     "noCopyRecords": "No copy records",
     "copyRecordsTitle": "Copy Records",
+    "noShareRecords": "No share history",
+    "shareRecordsTitle": "Share History",
+    "detailLastShareIp": "Last Share IP",
+    "detailShareCount": "Share Count",
+    "detailFirstShareIp": "First Share IP",
     "copyRecordsSeq": "#",
     "tableHeader": {
       "type": "Type",
@@ -194,7 +199,7 @@
       "overwriteYes": "Overwrite"
     },
     "tagTooltip": {
-      "ip": "Source IP",
+      "ip": "First Share IP",
       "size": "File size",
       "overwrite": "Overwritten existing file on upload"
     },
@@ -211,7 +216,8 @@
       "copyPath": "Copy Path",
       "copyIp": "Copy IP",
       "deleteRecord": "Delete Record",
-      "viewCopyRecords": "View Copy Records"
+      "viewCopyRecords": "View Copy Records",
+      "viewShareRecords": "View Share History"
     }
   },
   "about": {
@@ -250,14 +256,15 @@
     "viewButton": "View",
     "detailTitle": "Message Detail",
     "detailTime": "Time",
-    "detailIp": "Source IP",
+    "detailIp": "First Share IP",
+    "detailLastShareIp": "Last Share IP",
+    "detailShareCount": "Share Count",
     "detailContent": "Content",
     "placeholder": "Type text or paste image",
     "shareButton": "Share",
     "contextMenu": {
       "viewDetail": "View Detail",
       "copyContent": "Copy Content",
-      "copyIp": "Copy IP",
       "deleteRecord": "Delete Record"
     }
   },

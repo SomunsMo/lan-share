@@ -117,7 +117,7 @@
       "themeSwitched": "主题已切换",
       "themeFailed": "保存主题设置失败: {{error}}",
       "portInvalid": "端口号无效，请输入 1-65535 之间的数字",
-      "portSaved": "端口设置已保存，重启应用后生效",
+      "portSaved": "端口已切换，立即生效",
       "portFailed": "保存端口设置失败: {{error}}",
       "saveFailed": "保存{{name}}设置失败: {{error}}",
       "selectFailed": "选择文件夹失败: {{error}}",
@@ -168,6 +168,11 @@
     "noPreview": "（不支持预览文件）",
     "noCopyRecords": "暂无复制记录",
     "copyRecordsTitle": "复制记录",
+    "noShareRecords": "暂无共享历史",
+    "shareRecordsTitle": "共享历史记录",
+    "detailLastShareIp": "最近共享 IP",
+    "detailShareCount": "总共享次数",
+    "detailFirstShareIp": "首次共享 IP",
     "copyRecordsSeq": "序号",
     "tableHeader": {
       "type": "类型",
@@ -194,7 +199,7 @@
       "overwriteYes": "覆盖"
     },
     "tagTooltip": {
-      "ip": "来源IP",
+      "ip": "首次共享 IP",
       "size": "文件体积",
       "overwrite": "上传时覆盖了原文件"
     },
@@ -211,7 +216,8 @@
       "copyPath": "复制路径",
       "copyIp": "复制 IP",
       "deleteRecord": "删除记录",
-      "viewCopyRecords": "查看复制记录"
+      "viewCopyRecords": "查看复制记录",
+      "viewShareRecords": "查看共享历史"
     }
   },
   "about": {
@@ -250,14 +256,15 @@
     "viewButton": "查看",
     "detailTitle": "消息详情",
     "detailTime": "时间",
-    "detailIp": "来源 IP",
+    "detailIp": "首次共享 IP",
+    "detailLastShareIp": "最近共享 IP",
+    "detailShareCount": "总共享次数",
     "detailContent": "内容",
     "placeholder": "输入文本或粘贴图片",
     "shareButton": "共享",
     "contextMenu": {
       "viewDetail": "查看详情",
       "copyContent": "复制内容",
-      "copyIp": "复制 IP",
       "deleteRecord": "删除记录"
     }
   },

@@ -80,8 +80,8 @@ function TextSharingManager(props) {
                                 {records.map((r, i) => (
                                     <TableRow key={r.id}>
                                         <TableCell sx={{ color: 'var(--on-surface-variant)' }}>{i + 1}</TableCell>
-                                        <TableCell sx={{ color: 'var(--on-surface)', userSelect: 'text' }}>{r.created_at.replace(/-/g, '/')}</TableCell>
-                                        <TableCell sx={{ color: 'var(--on-surface)', userSelect: 'text' }}>{r.ip}</TableCell>
+                                        <TableCell sx={{ color: 'var(--on-surface)', userSelect: 'text', cursor: 'text' }}>{r.created_at.replace(/-/g, '/')}</TableCell>
+                                        <TableCell sx={{ color: 'var(--on-surface)', userSelect: 'text', cursor: 'text' }}>{r.ip}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -159,7 +159,9 @@ function TextSharingManager(props) {
                 time: record.created_at.replace(/-/g, '/'),
                 ip: record.ip,
                 content: record.content,
-                action_type: record.action_type
+                action_type: record.action_type,
+                share_count: record.share_count,
+                last_share_ip: record.last_share_ip
             }));
             setHistory(formattedRecords);
         } catch (error) {
@@ -195,6 +197,16 @@ function TextSharingManager(props) {
             }
         };
         fetchNetworkInfo();
+
+        const setup = async () => {
+            const unlisten = await listen("lan-share:port-changed", () => {
+                fetchNetworkInfo();
+            });
+            return () => unlisten();
+        };
+        let cleanup;
+        setup().then(fn => { cleanup = fn; });
+        return () => { if (cleanup) cleanup(); };
     }, []);
 
     const shareTextViaTauri = async () => {
@@ -399,6 +411,13 @@ function TextSharingManager(props) {
                             <span style={{ color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.ip}</span>
                             <CopyButton text={item.ip} />
                         </span>
+                        <span style={{ color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('textSharing.detailLastShareIp')}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.last_share_ip || '-'}</span>
+                            {item.last_share_ip && <CopyButton text={item.last_share_ip} />}
+                        </span>
+                        <span style={{ color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('textSharing.detailShareCount')}</span>
+                        <span style={{ color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.share_count ?? 1}</span>
                         <span style={{ color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('imageSharing.detailSha256')}</span>
                         <span style={{ color: 'var(--on-surface-variant)', userSelect: 'text', fontFamily: 'monospace', fontSize: '12px', wordBreak: 'break-all' }}>{content.sha256}</span>
                         <span style={{ color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('imageSharing.detailSize')}</span>
@@ -431,6 +450,13 @@ function TextSharingManager(props) {
                             <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.ip}</span>
                             <CopyButton text={item.ip} />
                         </span>
+                        <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('textSharing.detailLastShareIp')}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.last_share_ip || '-'}</span>
+                            {item.last_share_ip && <CopyButton text={item.last_share_ip} />}
+                        </span>
+                        <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('textSharing.detailShareCount')}</span>
+                        <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.share_count ?? 1}</span>
                     </div>
                     <hr style={{ border: 'none', borderTop: '1px solid var(--outline-variant)', margin: '12px 0' }} />
                     <div style={{ maxHeight: '50vh', overflowY: 'auto', fontSize: '14px', lineHeight: 1.6, color: 'var(--on-surface)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', userSelect: 'text' }}>{item.content}</div>
@@ -542,15 +568,12 @@ function TextSharingManager(props) {
                 >
                     {contextMenu.item.action_type === 5 ? (
                         <>
-                            <div className="context-menu-item" onClick={() => { copyImageToClipboard(contextMenu.item); hideContextMenu(); }}>
-                                {t('imageSharing.contextMenu.copyImage')}
-                            </div>
                             <div className="context-menu-item" onClick={() => { viewDetail(contextMenu.item); hideContextMenu(); }}>
                                 {t('imageSharing.contextMenu.viewImage')}
                             </div>
                             <div className="context-menu-separator" />
-                            <div className="context-menu-item" onClick={() => { copyToClipboard(contextMenu.item.ip); hideContextMenu(); }}>
-                                {t('textSharing.contextMenu.copyIp')}
+                            <div className="context-menu-item" onClick={() => { copyImageToClipboard(contextMenu.item); hideContextMenu(); }}>
+                                {t('imageSharing.contextMenu.copyImage')}
                             </div>
                             <div className="context-menu-separator" />
                             <div className="context-menu-item danger" onClick={() => deleteHistoryItem(contextMenu.item)}>
@@ -565,11 +588,9 @@ function TextSharingManager(props) {
                             <div className="context-menu-item" onClick={() => { viewCopyRecords(contextMenu.item); hideContextMenu(); }}>
                                 {t('history.contextMenu.viewCopyRecords')}
                             </div>
+                            <div className="context-menu-separator" />
                             <div className="context-menu-item" onClick={() => { copyToClipboard(contextMenu.item.content); hideContextMenu(); }}>
                                 {t('textSharing.contextMenu.copyContent')}
-                            </div>
-                            <div className="context-menu-item" onClick={() => { copyToClipboard(contextMenu.item.ip); hideContextMenu(); }}>
-                                {t('textSharing.contextMenu.copyIp')}
                             </div>
                             <div className="context-menu-separator" />
                             <div className="context-menu-item danger" onClick={() => deleteHistoryItem(contextMenu.item)}>

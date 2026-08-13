@@ -1,6 +1,7 @@
 import React, {useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo} from 'react';
 import HistoryStyle from "./style.js";
 import {invoke} from '@tauri-apps/api/core';
+import {listen} from '@tauri-apps/api/event';
 import {useToast} from "../../components/toast/index.jsx";
 import {useDialog} from "../../components/dialog/index.jsx";
 import {useTranslation} from "react-i18next";
@@ -55,6 +56,16 @@ function History() {
             }
         };
         fetchServerInfo();
+
+        const setup = async () => {
+            const unlisten = await listen("lan-share:port-changed", () => {
+                fetchServerInfo();
+            });
+            return () => unlisten();
+        };
+        let cleanup;
+        setup().then(fn => { cleanup = fn; });
+        return () => { if (cleanup) cleanup(); };
     }, []);
 
     const {showToast} = useToast();
@@ -187,8 +198,8 @@ function History() {
                                 {records.map((r, i) => (
                                     <TableRow key={r.id}>
                                         <TableCell sx={{ color: 'var(--on-surface-variant)' }}>{i + 1}</TableCell>
-                                        <TableCell sx={{ color: 'var(--on-surface)', userSelect: 'text' }}>{r.created_at.replace(/-/g, '/')}</TableCell>
-                                        <TableCell sx={{ color: 'var(--on-surface)', userSelect: 'text' }}>{r.ip}</TableCell>
+                                        <TableCell sx={{ color: 'var(--on-surface)', userSelect: 'text', cursor: 'text' }}>{r.created_at.replace(/-/g, '/')}</TableCell>
+                                        <TableCell sx={{ color: 'var(--on-surface)', userSelect: 'text', cursor: 'text' }}>{r.ip}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -201,6 +212,47 @@ function History() {
             });
         } catch (error) {
             console.error('获取复制记录失败:', error);
+            showToast({message: t('common.toast.operationFailed'), type: 'error'});
+        }
+    }, [showDialog, showToast, t]);
+
+    const viewShareRecords = useCallback(async (item) => {
+        try {
+            const records = await invoke('get_share_records', {transferId: item.id});
+            if (!records || records.length === 0) {
+                showToast({message: t('history.noShareRecords'), type: 'info'});
+                return;
+            }
+            showDialog({
+                title: t('history.shareRecordsTitle'),
+                content: (
+                    <TableContainer component={Paper} sx={{ maxHeight: '50vh', boxShadow: 'none' }}>
+                        <Table size="small" stickyHeader>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell sx={{ fontWeight: 600, color: 'var(--on-surface-variant)', width: 50, whiteSpace: 'nowrap' }}>{t('history.copyRecordsSeq')}</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, color: 'var(--on-surface-variant)' }}>{t('history.tableHeader.time')}</TableCell>
+                                    <TableCell sx={{ fontWeight: 600, color: 'var(--on-surface-variant)' }}>{t('history.tableHeader.sourceIp')}</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {records.map((r, i) => (
+                                    <TableRow key={r.id}>
+                                        <TableCell sx={{ color: 'var(--on-surface-variant)' }}>{i + 1}</TableCell>
+                                        <TableCell sx={{ color: 'var(--on-surface)', userSelect: 'text', cursor: 'text' }}>{r.created_at.replace(/-/g, '/')}</TableCell>
+                                        <TableCell sx={{ color: 'var(--on-surface)', userSelect: 'text', cursor: 'text' }}>{r.ip}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                ),
+                buttons: [
+                    {label: 'common.button.confirm', value: true, primary: true},
+                ],
+            });
+        } catch (error) {
+            console.error('获取共享历史记录失败:', error);
             showToast({message: t('common.toast.operationFailed'), type: 'error'});
         }
     }, [showDialog, showToast, t]);
@@ -218,11 +270,22 @@ function History() {
                         <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.createdAt}</span>
                         <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.detailUpdatedTime')}</span>
                         <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.updatedAt}</span>
-                        <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.tableHeader.sourceIp')}</span>
+                        <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.detailFirstShareIp')}</span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.ip}</span>
                             <CopyButton text={item.ip} />
                         </span>
+                        {(item.type === 1 || item.type === 5) && (
+                            <>
+                                <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.detailLastShareIp')}</span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.last_share_ip || '-'}</span>
+                                    {item.last_share_ip && <CopyButton text={item.last_share_ip} />}
+                                </span>
+                                <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.detailShareCount')}</span>
+                                <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', userSelect: 'text' }}>{item.share_count ?? 1}</span>
+                            </>
+                        )}
                         {item.type === 2 && (
                             <>
                                 <span style={{ fontSize: '12px', color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('history.tableHeader.overwrite')}</span>
@@ -308,7 +371,9 @@ function History() {
         updatedAt: record.updated_at.replace(/-/g, '/'),
         ip: record.ip,
         content: record.content,
-        isOverwrite: record.is_overwrite === 1
+        isOverwrite: record.is_overwrite === 1,
+        share_count: record.share_count,
+        last_share_ip: record.last_share_ip
     });
 
     const getActionTypes = (filter) => {
@@ -535,6 +600,11 @@ function History() {
                     {contextMenu.item.type === 1 && (
                         <button className="context-menu-item" onClick={() => { viewCopyRecords(contextMenu.item); hideContextMenu(); }}>
                             {t('history.contextMenu.viewCopyRecords')}
+                        </button>
+                    )}
+                    {(contextMenu.item.type === 1 || contextMenu.item.type === 5) && (
+                        <button className="context-menu-item" onClick={() => { viewShareRecords(contextMenu.item); hideContextMenu(); }}>
+                            {t('history.contextMenu.viewShareRecords')}
                         </button>
                     )}
                     {contextMenu.item.type === 2 && (
