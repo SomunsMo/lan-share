@@ -279,7 +279,7 @@ pub async fn upload_file(
     let body_stream = _req
         .into_body()
         .into_data_stream()
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e));
+        .map_err(io::Error::other);
 
     let mut multipart = Multipart::new(body_stream, boundary);
 
@@ -409,7 +409,7 @@ pub async fn upload_file(
     }
 
     for filename in &uploaded {
-        fire(new_file_upload(&dir_param, filename, client_id.clone()));
+        fire(new_file_upload(dir_param, filename, client_id.clone()));
     }
 
     success_json(())
@@ -506,7 +506,7 @@ pub async fn download_file(
         let safe_path = sanitize_path_segment(dir_param);
         (*root_dir).join(safe_path)
     };
-    let full_file_path = target_dir.join(&file_name);
+    let full_file_path = target_dir.join(file_name);
 
     // 第四步：验证文件合法性
     // 1. 检查文件是否存在
@@ -663,7 +663,7 @@ pub async fn rename_file(
         Ok(_) => {
             log::info!("重命名成功: {} -> {}", old_name, safe_new_name);
             fire(new_file_renamed(
-                &dir_param,
+                dir_param,
                 &sanitize_filename(&old_name),
                 &safe_new_name,
                 client_id,
@@ -749,8 +749,8 @@ pub async fn delete_file(
         let f_path = file_path.clone();
         match tokio::task::spawn_blocking(move || trash::delete(&f_path)).await {
             Ok(Ok(())) => Ok(()),
-            Ok(Err(e)) => Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())),
-            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())),
+            Ok(Err(e)) => Err(std::io::Error::other(e.to_string())),
+            Err(e) => Err(std::io::Error::other(e.to_string())),
         }
     } else if metadata.is_dir() {
         fs::remove_dir_all(&file_path).await
@@ -761,7 +761,7 @@ pub async fn delete_file(
     match result {
         Ok(_) => {
             log::info!("删除成功: {}", safe_filename);
-            fire(new_file_deleted(&dir_param, &safe_filename, client_id));
+            fire(new_file_deleted(dir_param, &safe_filename, client_id));
             success_json(())
         }
         Err(e) => {

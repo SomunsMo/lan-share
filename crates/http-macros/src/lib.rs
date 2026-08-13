@@ -6,27 +6,24 @@ use syn::{parse_macro_input, FnArg, Ident, ItemFn, ReturnType, Type, TypePath};
 
 // 检查类型是否为特定类型
 fn is_type_matching(ty: &Type, module_segments: &[&str], target_name: &str) -> bool {
-    match ty {
-        Type::Path(TypePath { path, .. }) => {
-            if let Some(last_segment) = path.segments.last() {
-                if last_segment.ident == target_name {
-                    // 如果有模块路径，检查是否匹配
-                    if module_segments.is_empty() {
-                        return true;
-                    }
-                    // 检查完整路径是否匹配
-                    if path.segments.len() >= module_segments.len() {
-                        for (i, expected_segment) in module_segments.iter().enumerate() {
-                            if path.segments[i].ident != expected_segment {
-                                return false;
-                            }
+    if let Type::Path(TypePath { path, .. }) = ty {
+        if let Some(last_segment) = path.segments.last() {
+            if last_segment.ident == target_name {
+                // 如果有模块路径，检查是否匹配
+                if module_segments.is_empty() {
+                    return true;
+                }
+                // 检查完整路径是否匹配
+                if path.segments.len() >= module_segments.len() {
+                    for (i, expected_segment) in module_segments.iter().enumerate() {
+                        if path.segments[i].ident != expected_segment {
+                            return false;
                         }
-                        return true;
                     }
+                    return true;
                 }
             }
         }
-        _ => {}
     }
     false
 }

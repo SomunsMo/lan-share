@@ -46,7 +46,7 @@ pub fn create_tray_menu(app_handle: &AppHandle) {
         .tooltip("LAN Share")
         .on_tray_icon_event(|tray, event| {
             if let tauri::tray::TrayIconEvent::DoubleClick { .. } = event {
-                toggle_window_visibility(&tray.app_handle());
+                toggle_window_visibility(tray.app_handle());
             }
         })
         .on_menu_event(|app, event| {

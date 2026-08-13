@@ -15,7 +15,7 @@ pub fn path_normalizer(origin_path: &str) -> String {
 
     // 增加路径开头的'/'（如果没有的话）
     if !path.starts_with('/') {
-        path.insert_str(0, "/");
+        path.insert(0, '/');
     }
 
     // 返回处理后的路径

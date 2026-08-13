@@ -20,7 +20,7 @@ pub async fn init() {
     let db_path = config_dir.join("config.db");
 
     // 初始化DB文件（如果不存在则创建）
-    init_db_file(&db_path.to_str().unwrap());
+    init_db_file(db_path.to_str().unwrap());
 
     // SQL lite 数据库连接url
     let database_url = format!("sqlite:{}", db_path.display());
@@ -110,6 +110,40 @@ async fn init_table() {
 
     // 迁移旧数据（upload_record → transfer_record）
     migrate_old_data().await;
+
+    // 共享历史记录表（每次共享插入一行）
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS share_record (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            transfer_id INTEGER NOT NULL,
+            ip TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )",
+    )
+    .execute(get_pool())
+    .await
+    .unwrap();
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_share_record_transfer ON share_record(transfer_id)",
+    )
+    .execute(get_pool())
+    .await
+    .unwrap();
+
+    // 兼容旧表结构：最近一次共享 IP（先加列再回填）
+    if let Err(e) = sqlx::query("ALTER TABLE transfer_record ADD COLUMN last_share_ip TEXT").execute(get_pool()).await {
+        let msg = e.to_string().to_lowercase();
+        if !msg.contains("duplicate column") {
+            panic!("数据库迁移失败(last_share_ip): {}", e);
+        }
+    }
+    // 已有记录回填：最近共享 IP 用原 ip 兜底
+    sqlx::query("UPDATE transfer_record SET last_share_ip = ip WHERE last_share_ip IS NULL")
+        .execute(get_pool()).await.unwrap();
+
+    // 为已有的文本(1)/图片(5)记录回填一条初始共享历史
+    backfill_share_records().await;
 }
 
 /// 将旧表 upload_record 的数据迁移到新表 transfer_record
@@ -157,4 +191,30 @@ async fn migrate_old_data() {
         .unwrap();
 
     log::info!("数据迁移完成: upload_record → transfer_record");
+}
+
+/// 为已有文本(1)/图片(5)记录回填一条初始共享历史记录
+async fn backfill_share_records() {
+    // 检查 share_record 是否已有数据（避免重复回填）
+    let share_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM share_record")
+        .fetch_one(get_pool())
+        .await
+        .unwrap_or((0,));
+
+    if share_count.0 > 0 {
+        return;
+    }
+
+    // 为每条文本/图片记录回填一条初始共享记录（用记录的 ip 和创建时间）
+    let result = sqlx::query(
+        "INSERT INTO share_record (transfer_id, ip, created_at)
+         SELECT id, ip, COALESCE(created_at, datetime('now','localtime')) FROM transfer_record WHERE action_type IN (1, 5)",
+    )
+    .execute(get_pool())
+    .await;
+
+    match result {
+        Ok(res) => log::info!("已回填 {} 条初始共享历史记录", res.rows_affected()),
+        Err(e) => log::error!("回填共享历史记录失败: {}", e),
+    }
 }
