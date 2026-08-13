@@ -571,7 +571,11 @@ pub async fn download_file(
         let safe_path = sanitize_path_segment(dir_param);
         (*root_dir).join(safe_path)
     };
-    let full_file_path = target_dir.join(file_name);
+    let safe_file_name = sanitize_filename(file_name);
+    if safe_file_name.is_empty() {
+        return Ok(create_error_response(StatusCode::BAD_REQUEST, "无效的文件名：file_name"));
+    }
+    let full_file_path = target_dir.join(&safe_file_name);
 
     // 第四步：验证文件合法性
     // 1. 检查文件是否存在
