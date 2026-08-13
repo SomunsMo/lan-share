@@ -26,6 +26,18 @@
       "reconnecting": "Reconnecting...",
       "retryStopped": "Connection lost, auto retry stopped. Please reconnect manually",
       "retryNow": "Reconnect now"
+    },
+    "portChange": {
+      "banner": "Port changed, click to visit the new address",
+      "bannerGo": "Visit now",
+      "dialogTitle": "Port changed",
+      "dialogContent": "The desktop app port changed from {{oldPort}} to {{newPort}}. Go to the new address now?",
+      "goNow": "Go now",
+      "stay": "Stay on this page",
+      "waiting": "Waiting for current tasks to finish, then jump automatically",
+      "restoredTitle": "Port restored",
+      "restoredContent": "The server port has been restored, the current address keeps working",
+      "acknowledge": "Got it"
     }
   },
   "fileSharing": {

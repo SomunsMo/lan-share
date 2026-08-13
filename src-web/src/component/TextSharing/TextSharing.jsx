@@ -2,11 +2,12 @@ import React, {useCallback, useEffect, useRef, useState, useMemo} from 'react';
 import Card from "../Card/Card.js";
 import TextSharingStyle from "./TextSharingStyle.js";
 import {getUploadRecordsAPI, uploadTextAPI, recordCopyAPI, uploadImageAPI} from "../../service/API.js";
-import {useDialog} from "@/component/Dialog/index.jsx";
-import {useToast} from "@/component/Toast/index.jsx";
+import {useDialog} from "@/component/Dialog/useDialog.js";
+import {useToast} from "@/component/Toast/useToast.js";
 import copy from "copy-to-clipboard";
 import {useTranslation} from "react-i18next";
 import {subscribe, getClientId} from "../../service/sse.js";
+import {track} from "@/service/taskManager.js";
 
 function TextSharing() {
     const { t } = useTranslation();
@@ -24,11 +25,7 @@ function TextSharing() {
         return records.filter(r => r.action_type === type);
     }, [records, filterType]);
 
-    useEffect(() => {
-        flushRecords();
-    }, []);
-
-    const flushRecords = () => {
+    const flushRecords = useCallback(() => {
         getUploadRecordsAPI().then(res => {
             if (res.code !== 200) {
                 console.error("获取记录列表异常")
@@ -40,7 +37,11 @@ function TextSharing() {
             console.error("获取记录列表异常", error);
             showToast({message: t('textSharing.toast.loadFailed', {error: error.message || '未知错误'}), type: 'error'});
         })
-    }
+    }, [showToast, t]);
+
+    useEffect(() => {
+        flushRecords();
+    }, [flushRecords]);
 
     const showToastRef = useRef();
     const tRef = useRef();
@@ -97,7 +98,8 @@ function TextSharing() {
                     loadingLabel: 'imageSharing.sharing',
                     handler: async () => {
                         try {
-                            const res = await uploadImageAPI(imageFile);
+                            // track 计入活跃任务，端口切换会等图片上传完成后才跳转
+                            const res = await track(uploadImageAPI(imageFile));
                             if (res.code !== 200) {
                                 showToast({message: t('common.toast.operationFailed'), type: 'error'});
                                 return;
@@ -111,7 +113,7 @@ function TextSharing() {
                     },
                 },
             ],
-        }).then((confirmed) => {
+        }).then(() => {
             URL.revokeObjectURL(previewUrl);
         }).catch(() => {
             URL.revokeObjectURL(previewUrl);
@@ -276,7 +278,7 @@ function TextSharing() {
                                 );
                             }
                             let meta = {};
-                            try { meta = JSON.parse(v.content); } catch(e) {}
+                            try { meta = JSON.parse(v.content); } catch { /* 解析失败使用空对象 */ }
                             return (
                                 <li key={v.id} className="recordItem image">
                                     <img src={`/shared-image/${v.id}`}

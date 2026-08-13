@@ -3,10 +3,11 @@ import FileSharingStyle, {FileCard} from "./FileSharingStyle.js";
 import ProgressBar from "../ProgressBar/ProgressBar.jsx";
 import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, preUploadCheckAPI, recordDownloadAPI} from "@/service/API.js";
 import {formatFileSize, getFileSuffix, copyToClipboard} from "@/util/file.js";
-import {useToast} from "@/component/Toast/index.jsx";
-import {useDialog} from "@/component/Dialog/index.jsx";
+import {useToast} from "@/component/Toast/useToast.js";
+import {useDialog} from "@/component/Dialog/useDialog.js";
 import {useTranslation} from "react-i18next";
 import {subscribe, getClientId} from "../../service/sse.js";
+import {beginTask, endTask} from "@/service/taskManager.js";
 import FolderIcon from '@/assets/icon/folder.svg';
 import CodeIcon from '@/assets/icon/code.svg';
 import DocIcon from '@/assets/icon/doc.svg';
@@ -280,9 +281,9 @@ function FileSharing() {
 
     useEffect(() => {
 
-        let currentDir = getCurrentDir();
+        let currentDir = getCurrentDirRef.current();
         // 调接口取文件列表（含权限配置和磁盘空间）
-        flushSharedFileList(currentDir ? currentDir : "");
+        flushSharedFileListRef.current(currentDir ? currentDir : "");
 
         preprocessSharedFileList([
             {
@@ -320,6 +321,9 @@ function FileSharing() {
         fileSelectorRef.current.value = '';
 
 
+        // 整个选择批次视为一个活跃任务：端口切换将等待全部文件上传完成后再跳转
+        beginTask();
+        try {
         // 逐个上传文件，避免并发问题
         for (const file of files) {
             // 为每个文件创建唯一的进度ID（在try外部声明，catch中可复用）
@@ -421,6 +425,9 @@ function FileSharing() {
 
                 showToast({message: `文件 ${file.name} 上传失败: ${errorMsg}`, type: 'error'});
             }
+        }
+        } finally {
+            endTask();
         }
     }
 

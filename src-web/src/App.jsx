@@ -10,14 +10,9 @@ import {useTranslation} from "react-i18next";
 import { changeLanguage } from "./i18n.ts";
 import { startEventSource, stopEventSource } from "./service/sse.js";
 import SseStatusBanner from "./component/SseStatusBanner/index.jsx";
+import PortChangedBanner from "./component/PortChangedBanner/index.jsx";
 
 const THEME_KEY = 'lan-share-theme';
-const isDark = () => {
-    const html = document.documentElement;
-    if (html.classList.contains('dark')) return true;
-    if (html.classList.contains('light')) return false;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-};
 
 function App() {
     const { t, i18n } = useTranslation();
@@ -74,6 +69,7 @@ function App() {
             <ToastProvider>
                 <AppStyle>
                     <SseStatusBanner/>
+                    <PortChangedBanner/>
                     <main>
                         <div className="topBar">
                         <button
