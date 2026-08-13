@@ -20,10 +20,13 @@ pub fn get_config_dir() -> &'static PathBuf {
     CONFIG_DIR.get().unwrap()
 }
 
-/// 当前HTTP服务运行端口（启动时设定，重启后才变更）
-pub static RUNNING_HTTP_PORT: OnceLock<u16> = OnceLock::new();
-pub fn get_running_http_port() -> &'static u16 {
-    RUNNING_HTTP_PORT.get().unwrap_or(&6633)
+/// 当前HTTP服务运行端口（可随时更新，端口热切换时更新）
+pub static RUNNING_HTTP_PORT: StdRwLock<u16> = StdRwLock::new(6633);
+pub fn get_running_http_port() -> u16 {
+    *RUNNING_HTTP_PORT.read().unwrap()
+}
+pub fn set_running_http_port(port: u16) {
+    *RUNNING_HTTP_PORT.write().unwrap() = port;
 }
 
 /// 配置的HTTP端口（在init中从DB读取，供setup同步使用）
@@ -33,7 +36,13 @@ pub fn get_configured_http_port() -> &'static u16 {
 }
 
 /// 被占用的端口号（setup同步检测后设置，前端发app-ready时读取并通知）
-pub static OCCUPIED_PORT: OnceLock<u16> = OnceLock::new();
+pub static OCCUPIED_PORT: StdRwLock<Option<u16>> = StdRwLock::new(None);
+pub fn get_occupied_port() -> Option<u16> {
+    *OCCUPIED_PORT.read().unwrap()
+}
+pub fn set_occupied_port(port: Option<u16>) {
+    *OCCUPIED_PORT.write().unwrap() = port;
+}
 
 /// 托盘图标模式（"color" | "template"），在main::init中从DB读取，供setup同步使用
 pub static TRAY_ICON_MODE: OnceLock<String> = OnceLock::new();

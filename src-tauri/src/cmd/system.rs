@@ -1,8 +1,9 @@
 use crate::db::dao::config_dao;
 use crate::db::dao::upload_dao;
-use crate::http_server::sse::{fire, fire_reload, fire_root_changed, new_clear, new_image, new_image_deleted, new_text, new_text_deleted};
+use crate::http_server::sse::{fire, fire_port_changed, fire_reload, fire_root_changed, new_clear, new_image, new_image_deleted, new_text, new_text_deleted};
 use serde::Serialize;
 use std::error::Error;
+use tauri::Emitter;
 
 #[derive(Serialize)]
 pub struct PaginatedResult {
@@ -301,7 +302,7 @@ pub async fn read_clipboard_image(
     // 检查是否已存在相同 sha256 + size 的图片
     if let Ok(Some(existing)) = upload_dao::find_image_by_sha256_size(&sha256_hash, size).await {
         log::info!("发现重复图片 ID={}，刷新时间", existing.id);
-        upload_dao::bump_record(existing.id).await
+        upload_dao::record_share_event(existing.id, &local_ip).await
             .map_err(|e| format!("刷新记录失败: {}", e))?;
 
         let content_json: serde_json::Value = serde_json::from_str(&existing.content)
@@ -325,8 +326,8 @@ pub async fn read_clipboard_image(
         log::info!("图片文件已存在: {:?}", save_path);
     }
 
-    // 插入 DB 记录
-    let id = upload_dao::add(5, "{}", None, &local_ip, false).await
+    // 插入 DB 记录（含首次共享历史）
+    let id = upload_dao::add_with_share(5, "{}", None, &local_ip, false).await
         .map_err(|e| format!("插入记录失败: {}", e))?;
 
     let content_json = serde_json::json!({
@@ -385,7 +386,7 @@ pub async fn copy_image_to_clipboard(image_path: String) -> Result<(), String> {
             bytes: std::borrow::Cow::Owned(bytes),
         }).map_err(|e| format!("设置剪贴板图片失败: {}", e))?;
         log::info!("图片已复制到剪贴板: {:?}", full_path);
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -636,14 +637,14 @@ pub async fn share_text_to_lan(text_data: String) -> Result<(), String> {
     match upload_dao::find_text_by_content(&text_data).await {
         Ok(Some(existing)) => {
             log::info!("发现重复文本 ID={}，刷新时间，共享数+1", existing.id);
-            upload_dao::bump_record(existing.id).await
+            upload_dao::record_share_event(existing.id, &local_ip).await
                 .map_err(|e| format!("刷新记录失败: {}", e))?;
             fire(new_text(None));
             Ok(())
         }
         Ok(None) => {
-            // 不存在相同内容，新增记录
-            match upload_dao::add(1, &text_data, None, &local_ip, false).await {
+            // 不存在相同内容，新增记录（含首次共享历史）
+            match upload_dao::add_with_share(1, &text_data, None, &local_ip, false).await {
                 Ok(_) => {
                     log::info!("文本分享成功");
                     fire(new_text(None));
@@ -1216,17 +1217,17 @@ pub async fn get_http_port() -> Result<u16, String> {
 /// 获取当前HTTP服务正在运行的端口
 #[tauri::command]
 pub fn get_running_port() -> u16 {
-    *crate::config::config::get_running_http_port()
+    crate::config::config::get_running_http_port()
 }
 
 /// 获取HTTP服务器运行状态（前端主动查询）
 #[tauri::command]
 pub fn get_server_status() -> ServerStatus {
-    let port = *crate::config::config::get_running_http_port();
-    match crate::config::config::OCCUPIED_PORT.get() {
+    let port = crate::config::config::get_running_http_port();
+    match crate::config::config::get_occupied_port() {
         Some(p) => ServerStatus {
             running: false,
-            port: *p,
+            port: p,
             reason: "port_occupied".to_string(),
         },
         None => ServerStatus {
@@ -1237,20 +1238,36 @@ pub fn get_server_status() -> ServerStatus {
     }
 }
 
-/// 设置HTTP服务端口
+/// 设置HTTP服务端口（验证可用后立即热切换，无需重启应用）
 #[tauri::command]
-pub async fn set_http_port(port: u16) -> Result<(), String> {
+pub async fn set_http_port(app: tauri::AppHandle, port: u16) -> Result<(), String> {
     // u16类型范围是 0-65535，所以不用判断是否超出
     if port < 1 {
         return Err("端口号必须在 1-65535 之间".to_string());
     }
 
+    if port == crate::config::config::get_running_http_port() {
+        return Ok(());
+    }
+
+    // 先绑定新端口验证可用（成功即持有该端口，后续直接复用，杜绝"检测与占用之间被抢占"的竞态）
+    let listener = crate::http_server::http_server::bind_listener(port)
+        .await
+        .map_err(|e| format!("端口 {} 无法使用: {}", port, e))?;
+
+    // 验证通过后再保存配置，保存失败则丢弃 listener 回滚，不改变运行状态
     if let Err(e) = config_dao::set_config("http_port", &port.to_string()).await {
         log::error!("保存HTTP端口设置到数据库失败: {}", e);
         return Err(format!("保存配置失败: {}", e));
     }
 
-    log::info!("HTTP端口设置已更新为: {}", port);
+    // 先起新服务再停旧服务，无缝切换；同时清除历史占用标记
+    crate::http_server::http_server::run_on(listener, port);
+    crate::config::config::set_occupied_port(None);
+
+    log::info!("HTTP服务端口已切换为: {}", port);
+    let _ = app.emit("lan-share:port-changed", port);
+    fire_port_changed(port);
     Ok(())
 }
 
@@ -1323,6 +1340,18 @@ pub async fn get_copy_records(source_id: i64) -> Result<Vec<crate::db::entity::T
         Ok(records) => Ok(records),
         Err(err) => {
             log::error!("获取复制记录失败: {}", err);
+            Err(err.to_string())
+        }
+    }
+}
+
+/// 获取指定记录的共享历史记录
+#[tauri::command]
+pub async fn get_share_records(transfer_id: i64) -> Result<Vec<crate::db::entity::ShareRecord>, String> {
+    match upload_dao::list_share_records(transfer_id).await {
+        Ok(records) => Ok(records),
+        Err(err) => {
+            log::error!("获取共享历史记录失败: {}", err);
             Err(err.to_string())
         }
     }

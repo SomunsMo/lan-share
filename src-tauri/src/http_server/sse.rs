@@ -211,6 +211,14 @@ pub fn fire_root_changed() {
     }
 }
 
+/// 端口热切换：通知 Web 端携新端口跳转（type 哨兵帧，非共享事件）
+pub fn fire_port_changed(port: u16) {
+    let frame = format!("data: {{\"type\":\"port_changed\",\"port\":{}}}\n\n", port);
+    if EVENT_TX.send(frame).is_err() {
+        log::warn!("SSE 广播发送失败（无订阅者或溢出）");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
