@@ -93,10 +93,10 @@ function About() {
             <Dialog open={showUpdateDialog} onClose={() => setShowUpdateDialog(false)} maxWidth="sm" fullWidth>
                 <DialogTitle>{t('about.update.title')}</DialogTitle>
                 <DialogContent dividers>
-                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1, userSelect: 'text' }}>
+                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1, userSelect: 'text', cursor: 'text' }}>
                         {t('about.update.newVersion', { version: updateResult?.latest_version })}
                     </Typography>
-                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'var(--on-surface-variant)', userSelect: 'text' }}>
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'var(--on-surface-variant)', userSelect: 'text', cursor: 'text' }}>
                         {updateResult?.release_notes || t('about.update.noReleaseNotes')}
                     </Typography>
                 </DialogContent>

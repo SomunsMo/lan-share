@@ -103,8 +103,10 @@
 }
 
 body { margin: 0; padding: 0; }
-*,*::before,*::after { box-sizing: border-box; user-select: none; }
-input, textarea, [contenteditable] { user-select: auto; }
+*,*::before,*::after { box-sizing: border-box; user-select: none; -webkit-user-select: none; cursor: default; }
+input, textarea, [contenteditable] { user-select: auto; -webkit-user-select: auto; cursor: text; }
+/* 可复制的数据内容（显式开启了 userSelect: text 的白名单）恢复文本光标 */
+[style*="user-select: text"] { cursor: text; }
 
 html.dark {
     /* Derived from seeds — different lightness for dark bg */
