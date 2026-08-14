@@ -69,7 +69,10 @@
       "loading": "Loading…",
       "empty": "Empty file",
       "loadFailed": "Failed to load text",
-      "audioFailed": "Failed to load audio"
+      "audioFailed": "Failed to load audio",
+      "excelFailed": "Failed to load spreadsheet",
+      "excelEmpty": "Empty sheet",
+      "excelTooLarge": "File exceeds 10MB, please download"
     },
     "toast": {
       "linkCopied": "Link copied",

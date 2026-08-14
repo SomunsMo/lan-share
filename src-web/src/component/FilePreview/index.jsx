@@ -4,6 +4,7 @@ import {PreviewOverlay, PreviewCard, PreviewToolbar, PreviewTitle, PreviewAction
 import TextPreview from './TextPreview';
 import ImagePreview from './ImagePreview';
 import AudioPreview from './AudioPreview';
+import ExcelPreview from './ExcelPreview';
 
 function FilePreview({url, title, type = 'pdf', onClose}) {
     const {t} = useTranslation();
@@ -43,6 +44,8 @@ function FilePreview({url, title, type = 'pdf', onClose}) {
                 return <ImagePreview url={url} reloadKey={reloadKey} />;
             case 'audio':
                 return <AudioPreview url={url} reloadKey={reloadKey} />;
+            case 'excel':
+                return <ExcelPreview url={url} reloadKey={reloadKey} />;
             case 'pdf':
             default:
                 return <PreviewFrame key={reloadKey} src={url} title={title} />;

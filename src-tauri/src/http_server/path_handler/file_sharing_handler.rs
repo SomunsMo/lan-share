@@ -417,7 +417,7 @@ pub async fn upload_file(
     success_json(())
 }
 
-// 预览工具（图片/PDF/纯文本）
+// 预览工具（图片/PDF/纯文本/音频/Excel）
 const PREVIEW_IMAGE_SUFFIXES: &[&str] = &["bmp", "png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "tiff"];
 const PREVIEW_TEXT_SUFFIXES: &[&str] = &[
     "txt", "log", "md", "markdown", "csv", "json", "xml", "yaml", "yml",
@@ -428,18 +428,23 @@ const PREVIEW_TEXT_SUFFIXES: &[&str] = &[
 const PREVIEW_FULL_READ_LIMIT: u64 = 5 * 1024 * 1024;
 /// 浏览器原生可靠播放的音频后缀（wma/ape 等编码不在列）
 const PREVIEW_AUDIO_SUFFIXES: &[&str] = &["mp3", "wav", "ogg", "opus", "flac", "m4a", "aac"];
+/// Excel 表格后缀（前端 exceljs 解析渲染；仅支持 xlsx，xls 老格式不支持）
+const PREVIEW_EXCEL_SUFFIXES: &[&str] = &["xlsx"];
+/// Excel 预览上限：超过则拒绝（防御 SheetJS 解析大文件卡顿）
+const PREVIEW_EXCEL_MAX_SIZE: u64 = 10 * 1024 * 1024;
 
 /// 取小写扩展名（无扩展名返回空串）
 fn file_ext_lower(name: &str) -> String {
     name.rsplit('.').next().unwrap_or("").to_lowercase()
 }
 
-/// 该扩展名是否支持预览（图片/PDF/纯文本/音频）
+/// 该扩展名是否支持预览（图片/PDF/纯文本/音频/Excel）
 fn is_previewable(ext: &str) -> bool {
     PREVIEW_IMAGE_SUFFIXES.contains(&ext)
         || ext == "pdf"
         || PREVIEW_TEXT_SUFFIXES.contains(&ext)
         || PREVIEW_AUDIO_SUFFIXES.contains(&ext)
+        || PREVIEW_EXCEL_SUFFIXES.contains(&ext)
 }
 
 /// 解析单段 Range 请求，返回闭区间 (start, end)。无法满足（非 bytes 单元 / 语法非法 / start 越界 / 空文件）返回 None，上层回退 200 全量。
@@ -835,6 +840,21 @@ pub async fn preview_file(
         let range_header = _req.headers().get(header::RANGE).and_then(|v| v.to_str().ok());
         let range = parse_range_header(range_header, metadata.len());
         return stream_preview_file(full_file_path, metadata.len(), content_type, disposition, range, None);
+    }
+
+    // Excel（xlsx）：限制 ≤10MB，直出流式，前端 exceljs 全量 fetch 解析
+    if PREVIEW_EXCEL_SUFFIXES.contains(&ext.as_str()) {
+        if metadata.len() > PREVIEW_EXCEL_MAX_SIZE {
+            return Ok(create_error_response(StatusCode::PAYLOAD_TOO_LARGE, "Excel 文件过大，请下载后查看"));
+        }
+        return stream_preview_file(
+            full_file_path,
+            metadata.len(),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet".to_string(),
+            disposition,
+            None,
+            None,
+        );
     }
 
     // 纯文本
@@ -1241,6 +1261,16 @@ mod preview_tests {
         }
         assert!(!is_previewable("wma"));
         assert!(!is_previewable("ape"));
+    }
+
+    #[test]
+    fn excel_extensions_previewable() {
+        for ext in PREVIEW_EXCEL_SUFFIXES {
+            assert!(is_previewable(ext), "Excel 后缀应可预览: {}", ext);
+        }
+        assert!(!is_previewable("xls"));
+        assert!(!is_previewable("docx"));
+        assert_eq!(PREVIEW_EXCEL_MAX_SIZE, 10 * 1024 * 1024);
     }
 
     #[test]

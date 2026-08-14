@@ -69,7 +69,10 @@
       "loading": "加载中…",
       "empty": "文件为空",
       "loadFailed": "文本加载失败",
-      "audioFailed": "音频加载失败"
+      "audioFailed": "音频加载失败",
+      "excelFailed": "表格加载失败",
+      "excelEmpty": "该表为空",
+      "excelTooLarge": "文件超过 10MB，请下载后查看"
     },
     "toast": {
       "linkCopied": "链接已复制",
