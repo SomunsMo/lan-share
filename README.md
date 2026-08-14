@@ -10,7 +10,7 @@
 ![Tauri](https://img.shields.io/badge/Tauri-2-ffc131?logo=tauri&logoColor=black)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-![Home Page Preview](docs/img/preview-home.png)
+![Home Page Preview](docs/img/preview_home_en.png)
 
 ## How It Works
 
@@ -74,6 +74,7 @@ That's it — you're sharing.
 
 | Question | Answer |
 |----------|--------|
+| Why does the app use about 100 MB of memory | That's the WebView rendering the desktop window. Closing the window releases all of the WebView's resources immediately — only the Rust background service keeps running, which uses very little when you're not sharing |
 | Do I need an internet connection | No. Everything works over your local network only |
 | Which devices can access my files | Any device with a browser — phones, tablets, laptops, smart TVs. No app installation needed |
 | Is my data safe | Your data never leaves your local network. The HTTP server is only reachable from within your LAN |
