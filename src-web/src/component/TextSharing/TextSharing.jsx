@@ -2,7 +2,8 @@ import React, {useCallback, useEffect, useRef, useState, useMemo} from 'react';
 import Card from "../Card/Card.js";
 import TextSharingStyle from "./TextSharingStyle.js";
 import FilePreview from "../FilePreview/index.jsx";
-import {getFileSuffix} from "@/util/file.js";
+import {isPreviewable} from "../FilePreview/PreviewType.js";
+import {getFileSuffix, copyToClipboard} from "@/util/file.js";
 import {getUploadRecordsAPI, uploadTextAPI, recordCopyAPI, uploadImageAPI} from "../../service/API.js";
 import {useDialog} from "@/component/Dialog/useDialog.js";
 import {useToast} from "@/component/Toast/useToast.js";
@@ -10,19 +11,6 @@ import copy from "copy-to-clipboard";
 import {useTranslation} from "react-i18next";
 import {subscribe, getClientId} from "../../service/sse.js";
 import {track} from "@/service/taskManager.js";
-
-// 可预览的文本后缀（与后端 PREVIEW_TEXT_SUFFIXES 保持一致，须镜像修改）
-const PREVIEW_TEXT_SUFFIXES = new Set([
-    "txt", "log", "md", "markdown", "csv", "json", "xml", "yaml", "yml",
-    "ini", "cfg", "conf", "toml", "env", "html", "htm", "css", "js", "ts",
-    "py", "rs", "java", "c", "h", "cpp", "go", "sql",
-]);
-// 可预览的图片后缀（与后端 PREVIEW_IMAGE_SUFFIXES + pdf 保持一致，须镜像修改）
-const PREVIEW_IMAGE_SUFFIXES = new Set(["bmp", "png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "tiff"]);
-
-// 该后缀是否支持预览（与 FileSharing.jsx 及后端 file_sharing_handler.rs 的 is_previewable 保持一致，须镜像修改）
-const isPreviewable = (suffix) =>
-    PREVIEW_IMAGE_SUFFIXES.has(suffix) || suffix === 'pdf' || PREVIEW_TEXT_SUFFIXES.has(suffix);
 
 function TextSharing() {
     const { t } = useTranslation();
@@ -44,6 +32,10 @@ function TextSharing() {
     const [previewUrl, setPreviewUrl] = useState(null);
     // 正在预览的文件名
     const [previewTitle, setPreviewTitle] = useState('');
+    // 当前预览类型（image/text/pdf/audio），用于 FilePreview 渲染分支
+    const [previewType, setPreviewType] = useState(null);
+    const [imageMenu, setImageMenu] = useState({visible: false, x: 0, y: 0, id: null, name: '', canPreview: false});
+    const longPressTimerRef = useRef(null);
 
     const flushRecords = useCallback(() => {
         getUploadRecordsAPI().then(res => {
@@ -234,14 +226,47 @@ function TextSharing() {
         setContextMenu({ visible: false, x: 0, y: 0, content: '', actionType: null });
     };
 
+    const closeImageMenu = () => {
+        setImageMenu({visible: false, x: 0, y: 0, id: null, name: '', canPreview: false});
+    };
+
+    const showImageMenu = (e, v) => {
+        e.preventDefault();
+        e.stopPropagation();
+        let meta = {};
+        try { meta = JSON.parse(v.content); } catch { /* 解析失败使用空对象 */ }
+        const originalName = meta.original_name || '';
+        const canPreview = originalName ? isPreviewable(getFileSuffix(originalName)) : false;
+        const cx = e.clientX || (e.touches && e.touches[0]?.clientX) || 0;
+        const cy = e.clientY || (e.touches && e.touches[0]?.clientY) || 0;
+        const x = Math.min(cx, window.innerWidth - 140);
+        const y = Math.min(cy, window.innerHeight - 120);
+        setImageMenu({visible: true, x, y, id: v.id, name: originalName, canPreview});
+    };
+
+    const startImageLongPress = (e, v) => {
+        longPressTimerRef.current = setTimeout(() => showImageMenu(e, v), 500);
+    };
+
+    const clearImageLongPress = () => {
+        if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; }
+    };
+
+    const copyImageLink = (id) => {
+        const link = `${window.location.origin}/shared-image/${id}`;
+        copyToClipboard(link);
+        showToast({message: t('fileSharing.toast.linkCopied'), type: 'success'});
+    };
+
     useEffect(() => {
         const handleClick = (e) => {
-            if (!contextMenu.visible) return;
             if (e.target.closest('.context-menu')) return;
-            hideContextMenu();
+            if (contextMenu.visible) hideContextMenu();
+            if (imageMenu.visible) closeImageMenu();
         };
         const handleScroll = () => {
             if (contextMenu.visible) hideContextMenu();
+            if (imageMenu.visible) closeImageMenu();
         };
         document.addEventListener('click', handleClick);
         window.addEventListener('scroll', handleScroll, true);
@@ -249,7 +274,7 @@ function TextSharing() {
             document.removeEventListener('click', handleClick);
             window.removeEventListener('scroll', handleScroll, true);
         };
-    }, [contextMenu.visible]);
+    }, [contextMenu.visible, imageMenu.visible]);
 
     const copyText = (text, id) => {
         if (id != null) {
@@ -302,7 +327,11 @@ function TextSharing() {
                             const originalName = meta.original_name || '';
                             const canPreview = originalName ? isPreviewable(getFileSuffix(originalName)) : false;
                             return (
-                                <li key={v.id} className="recordItem image">
+                                <li key={v.id} className="recordItem image"
+                                    onContextMenu={(e) => showImageMenu(e, v)}
+                                    onTouchStart={(e) => startImageLongPress(e, v)}
+                                    onTouchEnd={() => clearImageLongPress()}
+                                    onTouchMove={() => clearImageLongPress()}>
                                     <img src={`/shared-image/${v.id}`}
                                         alt={originalName}
                                         className={`recordThumb${canPreview ? ' previewableThumb' : ''}`}
@@ -311,6 +340,7 @@ function TextSharing() {
                                             if (e.button !== 0 || !canPreview) return;
                                             setPreviewUrl(`/shared-image/${v.id}`);
                                             setPreviewTitle(originalName || v.content || '');
+                                            setPreviewType('image');
                                         }} />
                                     <div className="recordBody">
                                         <p className="recordHint">{isTouch ? t('imageSharing.hintMobile') : t('imageSharing.hintDesktop')}</p>
@@ -335,8 +365,30 @@ function TextSharing() {
                 </div>
             )}
 
+            {imageMenu.visible && (
+                <div className="context-menu" style={{left: imageMenu.x, top: imageMenu.y}} onClick={(e) => e.stopPropagation()}>
+                    {imageMenu.canPreview ? (
+                        <div className="context-menu-item" onClick={() => {
+                            setPreviewUrl(`/shared-image/${imageMenu.id}`);
+                            setPreviewTitle(imageMenu.name || '');
+                            setPreviewType('image');
+                            closeImageMenu();
+                        }}>{t('fileSharing.action.preview')}</div>
+                    ) : (
+                        <div className="context-menu-item" onClick={() => {
+                            copyImageLink(imageMenu.id);
+                            closeImageMenu();
+                        }}>{t('fileSharing.action.copyLink')}</div>
+                    )}
+                </div>
+            )}
+
             {previewUrl && (
-                <FilePreview url={previewUrl} title={previewTitle} onClose={() => { setPreviewUrl(null); setPreviewTitle(''); }} />
+                <FilePreview url={previewUrl} title={previewTitle} type={previewType} onClose={() => {
+                    setPreviewUrl(null);
+                    setPreviewTitle('');
+                    setPreviewType(null);
+                }} />
             )}
         </TextSharingStyle>
     );

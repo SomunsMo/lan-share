@@ -26,7 +26,7 @@ export const PreviewCard = styled.div`
   width: min(80vw, 1200px);
   height: 85vh;
   max-width: 95vw;
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 10px;
   overflow: hidden;
   display: flex;
@@ -40,7 +40,7 @@ export const PreviewToolbar = styled.div`
   justify-content: space-between;
   padding: 0 16px;
   height: 44px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border);
   flex: none;
 `;
 
@@ -60,18 +60,22 @@ export const PreviewActions = styled.div`
 `;
 
 export const PreviewButton = styled.button`
-  border: 1px solid #ccc;
-  background: #f5f5f5;
-  border-radius: 6px;
-  padding: 4px 12px;
-  font-size: 13px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--accent);
+  border-radius: var(--radius);
+  padding: 3px 10px;
+  font-size: 0.75rem;
   cursor: pointer;
-  &:hover { background: #ebebeb; }
+  &:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--accent);
+  }
 `;
 
 export const PreviewFrame = styled.iframe`
   flex: 1;
   width: 100%;
   border: 0;
-  background: #fff;
+  background: var(--bg-card);
 `;

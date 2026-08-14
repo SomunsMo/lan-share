@@ -64,7 +64,12 @@
     },
     "preview": {
       "refresh": "Refresh",
-      "close": "Close"
+      "close": "Close",
+      "reset": "Reset",
+      "loading": "Loading…",
+      "empty": "Empty file",
+      "loadFailed": "Failed to load text",
+      "audioFailed": "Failed to load audio"
     },
     "toast": {
       "linkCopied": "Link copied",

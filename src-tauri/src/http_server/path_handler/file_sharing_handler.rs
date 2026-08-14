@@ -426,15 +426,49 @@ const PREVIEW_TEXT_SUFFIXES: &[&str] = &[
 ];
 /// 小于该字节数的文本全量读取后转码预览，更大的走流式
 const PREVIEW_FULL_READ_LIMIT: u64 = 5 * 1024 * 1024;
+/// 浏览器原生可靠播放的音频后缀（wma/ape 等编码不在列）
+const PREVIEW_AUDIO_SUFFIXES: &[&str] = &["mp3", "wav", "ogg", "opus", "flac", "m4a", "aac"];
 
 /// 取小写扩展名（无扩展名返回空串）
 fn file_ext_lower(name: &str) -> String {
     name.rsplit('.').next().unwrap_or("").to_lowercase()
 }
 
-/// 该扩展名是否支持预览（图片/PDF/纯文本）
+/// 该扩展名是否支持预览（图片/PDF/纯文本/音频）
 fn is_previewable(ext: &str) -> bool {
-    PREVIEW_IMAGE_SUFFIXES.contains(&ext) || ext == "pdf" || PREVIEW_TEXT_SUFFIXES.contains(&ext)
+    PREVIEW_IMAGE_SUFFIXES.contains(&ext)
+        || ext == "pdf"
+        || PREVIEW_TEXT_SUFFIXES.contains(&ext)
+        || PREVIEW_AUDIO_SUFFIXES.contains(&ext)
+}
+
+/// 解析单段 Range 请求，返回闭区间 (start, end)。无法满足（非 bytes 单元 / 语法非法 / start 越界 / 空文件）返回 None，上层回退 200 全量。
+fn parse_range_header(value: Option<&str>, total: u64) -> Option<(u64, u64)> {
+    if total == 0 {
+        return None;
+    }
+    let value = value?.trim().strip_prefix("bytes=")?;
+    let (start_s, end_s) = value.split_once('-')?;
+    let (start, end) = if start_s.is_empty() {
+        let suffix: u64 = end_s.parse().ok()?;
+        if suffix == 0 {
+            return None;
+        }
+        let start = total.saturating_sub(suffix);
+        (start, total - 1)
+    } else {
+        let start: u64 = start_s.parse().ok()?;
+        let end: u64 = if end_s.is_empty() {
+            total - 1
+        } else {
+            end_s.parse().ok()?
+        };
+        (start, end)
+    };
+    if start >= total || start > end {
+        return None;
+    }
+    Some((start, end.min(total - 1)))
 }
 
 /// 编码检测：先按 BOM，再尝试 UTF-8 严格解码（无报错视为 UTF-8），否则按 GBK
@@ -635,20 +669,28 @@ pub async fn download_file(
 }
 
 /// 构造 inline 预览响应：支持直出字节流或 GBK→UTF-8 流式转码
-/// transcode 为 Some 时不允许设 Content-Length（输出长度不可预知，走 chunked）
+/// transcode 为 Some 时不允许设 Content-Length（输出长度不可预知，走 chunked）；范围请求时不转码
 fn stream_preview_file(
     file_path: PathBuf,
     len: u64,
     content_type: String,
     disposition: String,
+    range: Option<(u64, u64)>,
     transcode: Option<&'static encoding_rs::Encoding>,
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Bytes>(8);
+    let range_len = range.map(|(s, e)| e - s + 1);
     tokio::spawn(async move {
         let mut file = match File::open(&file_path).await {
             Ok(f) => f,
             Err(_) => return, // 打开失败直接结束流（客户端将收到网络错误）
         };
+        if let Some((s, _)) = range {
+            use tokio::io::AsyncSeekExt;
+            if file.seek(std::io::SeekFrom::Start(s)).await.is_err() {
+                return;
+            }
+        }
         if let Some(enc) = transcode {
             // 跨块复用同一 Decoder，缓冲不完整多字节序列（数据正确性纪律 3）
             use encoding_rs::CoderResult;
@@ -694,15 +736,18 @@ fn stream_preview_file(
             let _ = decoder.decode_to_string(&[], &mut out, true);
             let _ = tx.send(Bytes::from(out.into_bytes())).await;
         } else {
-            // 直出原字节流（UTF-8 / 图片 / PDF），Content-Length 精确
+            // 直出原字节流（图片 / PDF / 音频 / UTF-8 文本），Content-Length 精确；range 时只读区间
             let mut buf = vec![0u8; 64 * 1024];
-            loop {
-                match file.read(&mut buf).await {
+            let mut remaining = range_len.unwrap_or(u64::MAX);
+            while remaining > 0 {
+                let to_read = buf.len().min(remaining as usize);
+                match file.read(&mut buf[..to_read]).await {
                     Ok(0) => break,
                     Ok(n) => {
                         if tx.send(Bytes::copy_from_slice(&buf[..n])).await.is_err() {
                             return;
                         }
+                        remaining -= n as u64;
                     }
                     _ => return,
                 }
@@ -711,13 +756,25 @@ fn stream_preview_file(
     });
 
     let mut builder = Response::builder()
-        .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, content_type)
         .header(header::CONTENT_DISPOSITION, disposition)
         // 文件可变，不缓存，避免端口切换后展示旧内容
         .header(header::CACHE_CONTROL, "no-store");
-    if transcode.is_none() {
-        builder = builder.header(header::CONTENT_LENGTH, len.to_string());
+    match range {
+        Some((s, e)) => {
+            builder = builder
+                .status(StatusCode::PARTIAL_CONTENT)
+                .header(header::CONTENT_RANGE, format!("bytes {}-{}/{}", s, e, len));
+            if transcode.is_none() {
+                builder = builder.header(header::CONTENT_LENGTH, range_len.unwrap_or(len).to_string());
+            }
+        }
+        None => {
+            builder = builder.status(StatusCode::OK);
+            if transcode.is_none() {
+                builder = builder.header(header::CONTENT_LENGTH, len.to_string());
+            }
+        }
     }
     Ok(builder.body(GenericResponseBody::Stream(rx)).unwrap())
 }
@@ -770,12 +827,14 @@ pub async fn preview_file(
     let encoded_name: String = form_urlencoded::byte_serialize(file_name.as_bytes()).collect();
     let disposition = format!("inline; filename*=UTF-8''{}", encoded_name);
 
-    // 图片 / PDF：直出流式，Content-Length 精确
-    if PREVIEW_IMAGE_SUFFIXES.contains(&ext.as_str()) || ext == "pdf" {
+    // 图片 / PDF / 音频：直出流式，Content-Length 精确；支持单段 Range（音频拖进度）
+    if PREVIEW_IMAGE_SUFFIXES.contains(&ext.as_str()) || ext == "pdf" || PREVIEW_AUDIO_SUFFIXES.contains(&ext.as_str()) {
         let content_type = mime_guess::from_path(&full_file_path)
             .first_or_octet_stream()
             .to_string();
-        return stream_preview_file(full_file_path, metadata.len(), content_type, disposition, None);
+        let range_header = _req.headers().get(header::RANGE).and_then(|v| v.to_str().ok());
+        let range = parse_range_header(range_header, metadata.len());
+        return stream_preview_file(full_file_path, metadata.len(), content_type, disposition, range, None);
     }
 
     // 纯文本
@@ -811,9 +870,16 @@ pub async fn preview_file(
     };
     let enc = detect_text_encoding(&head[..read_n]);
     if enc == encoding_rs::UTF_8 {
-        stream_preview_file(full_file_path, metadata.len(), "text/plain; charset=utf-8".to_string(), disposition, None)
+        stream_preview_file(
+            full_file_path,
+            metadata.len(),
+            "text/plain; charset=utf-8".to_string(),
+            disposition,
+            parse_range_header(_req.headers().get(header::RANGE).and_then(|v| v.to_str().ok()), metadata.len()),
+            None,
+        )
     } else {
-        stream_preview_file(full_file_path, metadata.len(), "text/plain; charset=utf-8".to_string(), disposition, Some(enc))
+        stream_preview_file(full_file_path, metadata.len(), "text/plain; charset=utf-8".to_string(), disposition, None, Some(enc))
     }
 }
 
@@ -1154,6 +1220,27 @@ mod preview_tests {
         assert!(is_previewable(&file_ext_lower("photo.jpeg")));
         assert!(!is_previewable(&file_ext_lower("a.docx")));
         assert!(!is_previewable(&file_ext_lower("noext")));
+    }
+
+    #[test]
+    fn range_header_parsing() {
+        assert_eq!(parse_range_header(Some("bytes=0-99"), 1000), Some((0, 99)));
+        assert_eq!(parse_range_header(Some("bytes=100-"), 1000), Some((100, 999)));
+        assert_eq!(parse_range_header(Some("bytes=-50"), 1000), Some((950, 999)));
+        assert_eq!(parse_range_header(Some("bytes=-0"), 1000), None);
+        assert_eq!(parse_range_header(None, 1000), None);
+        assert_eq!(parse_range_header(Some("bytes=5000-"), 1000), None);
+        assert_eq!(parse_range_header(Some("bytes=10-5"), 1000), None);
+        assert_eq!(parse_range_header(Some("items=0-9"), 1000), None);
+    }
+
+    #[test]
+    fn audio_extensions_previewable() {
+        for ext in PREVIEW_AUDIO_SUFFIXES {
+            assert!(is_previewable(ext), "音频后缀应可预览: {}", ext);
+        }
+        assert!(!is_previewable("wma"));
+        assert!(!is_previewable("ape"));
     }
 
     #[test]

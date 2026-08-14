@@ -9,6 +9,7 @@ import {useTranslation} from "react-i18next";
 import {subscribe, getClientId} from "../../service/sse.js";
 import {beginTask, endTask} from "@/service/taskManager.js";
 import FilePreview from "../FilePreview/index.jsx";
+import {getPreviewType, isPreviewable} from "../FilePreview/PreviewType.js";
 import FolderIcon from '@/assets/icon/folder.svg';
 import CodeIcon from '@/assets/icon/code.svg';
 import DocIcon from '@/assets/icon/doc.svg';
@@ -81,19 +82,6 @@ const fileTypeMap = new Map([
     [FILE_TYPE.config, new Set(["ini", "cfg", "conf", "config", "env", "log", "toml", "lock"])],
 ]);
 
-// 可预览的文本后缀（与后端 PREVIEW_TEXT_SUFFIXES 保持一致，须镜像修改）
-const PREVIEW_TEXT_SUFFIXES = new Set([
-    "txt", "log", "md", "markdown", "csv", "json", "xml", "yaml", "yml",
-    "ini", "cfg", "conf", "toml", "env", "html", "htm", "css", "js", "ts",
-    "py", "rs", "java", "c", "h", "cpp", "go", "sql",
-]);
-// 可预览的图片后缀（与后端 PREVIEW_IMAGE_SUFFIXES + pdf 保持一致，须镜像修改）
-const PREVIEW_IMAGE_SUFFIXES = new Set(["bmp", "png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "tiff"]);
-
-// 该后缀是否支持预览（与后端 file_sharing_handler.rs 的 is_previewable 保持一致）
-const isPreviewable = (suffix) =>
-    PREVIEW_IMAGE_SUFFIXES.has(suffix) || suffix === 'pdf' || PREVIEW_TEXT_SUFFIXES.has(suffix);
-
 // 根据文件后缀返回对应的图标
 const getFileIcon = (suffix) => {
     let fileType = null;
@@ -152,6 +140,8 @@ function FileSharing() {
     const [previewUrl, setPreviewUrl] = useState(null);
     // 正在预览的文件名
     const [previewTitle, setPreviewTitle] = useState('');
+    // 正在预览的文件类型（text/image/audio/pdf）
+    const [previewType, setPreviewType] = useState(null);
 
     // 移动端检测
     const [isMobile, setIsMobile] = useState(false);
@@ -482,14 +472,17 @@ function FileSharing() {
         showToast({message: ok ? t('fileSharing.toast.linkCopied') : t('fileSharing.toast.linkCopyFailed'), type: ok ? 'success' : 'error'});
     }
 
-    // 打开文件预览浮层（用 URLSearchParams 避免 URL 拼接歧义）
+    // 打开文件预览浮层（用 URLSearchParams 避免 URL 拼接歧义；type 由后缀推导）
     const openPreview = (v) => {
         if (v.is_dir) return;
+        const type = getPreviewType(v.suffix);
+        if (!type) return;
         const dir = getCurrentDir();
         const params = new URLSearchParams();
         if (dir) params.set('dir', dir);
         params.set('file_name', v.name);
         setPreviewUrl(`/preview/file?${params.toString()}`);
+        setPreviewType(type);
         setPreviewTitle(v.name);
     };
 
@@ -899,6 +892,14 @@ function FileSharing() {
                                     {t('fileSharing.action.open')}
                                 </div>
                             )}
+                            {!item.is_dir && isPreviewable(item.suffix) && (
+                                <div
+                                    className="context-menu-item"
+                                    onClick={() => { openPreview(item); hideContextMenu(); }}
+                                >
+                                    {t('fileSharing.action.preview')}
+                                </div>
+                            )}
                             <div
                                 className="context-menu-item"
                                 onClick={() => {
@@ -955,7 +956,7 @@ function FileSharing() {
                     );
                 })()}
                 {previewUrl && (
-                    <FilePreview url={previewUrl} title={previewTitle} onClose={() => { setPreviewUrl(null); setPreviewTitle(''); }} />
+                    <FilePreview url={previewUrl} title={previewTitle} type={previewType} onClose={() => { setPreviewUrl(null); setPreviewTitle(''); setPreviewType(null); }} />
                 )}
             </FileSharingStyle>
         </FileCard>
