@@ -20,9 +20,9 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::io;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::{Duration, UNIX_EPOCH};
@@ -227,6 +227,45 @@ impl Stream for UploadStallGuard {
     }
 }
 
+/// 上传临时文件守卫：commit 之前（含写失败 / 停滞 / 断连 / flush 失败）一律删除临时文件，
+/// 杜绝半截文件以最终文件名残留。commit 成功后不再清理。
+/// 必须先于 `File` 声明：Rust 按声明逆序 drop，先关句柄再删文件，Windows 才能删成功。
+struct TempUploadGuard {
+    temp_path: PathBuf,
+    final_path: PathBuf,
+    committed: bool,
+}
+
+impl TempUploadGuard {
+    fn new(temp_path: PathBuf, final_path: PathBuf) -> Self {
+        Self { temp_path, final_path, committed: false }
+    }
+
+    /// 原子提交：同目录 rename 覆盖，POSIX 与 Windows(MoveFileExW + REPLACE_EXISTING) 均为原子替换
+    async fn commit(&mut self) -> std::io::Result<()> {
+        tokio::fs::rename(&self.temp_path, &self.final_path).await?;
+        self.committed = true;
+        Ok(())
+    }
+}
+
+impl Drop for TempUploadGuard {
+    fn drop(&mut self) {
+        if !self.committed {
+            // drop 中无法 await，用同步删除；此时 File 句柄已随逆序 drop 关闭
+            let _ = std::fs::remove_file(&self.temp_path);
+        }
+    }
+}
+
+/// 生成上传临时文件路径 `<原名>.<pid>.<序号>.part`：带 pid 与进程内序号，
+/// 同名文件并发上传互不干扰（原实现直接写最终名，并发会互相截断）
+fn temp_upload_path(dir: &Path, filename: &str) -> PathBuf {
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let seq = SEQ.fetch_add(1, Ordering::Relaxed);
+    dir.join(format!("{}.{}.{}.part", filename, std::process::id(), seq))
+}
+
 /// 上传被共享的文件
 #[post("/upload/file")]
 pub async fn upload_file(
@@ -396,10 +435,10 @@ pub async fn upload_file(
                     None => return error(StatusCode::BAD_REQUEST, "Missing filename"),
                 };
                 let safe_filename = sanitize_filename(&filename);
-                let file_path = target_dir.join(&safe_filename);
+                let final_path = target_dir.join(&safe_filename);
 
                 // 检查同名文件是否存在，若存在且上传覆盖已禁用则返回错误
-                let file_existed = file_path.exists();
+                let file_existed = final_path.exists();
                 if file_existed && !overwrite_enabled {
                     return error(
                         StatusCode::CONFLICT,
@@ -407,8 +446,12 @@ pub async fn upload_file(
                     );
                 }
 
-                // 直接创建文件并写入（边解析边写，无锁竞争）
-                let mut file = match File::create(&file_path).await {
+                // 先写临时文件再原子改名：上传中途失败不会毁掉同名原文件，
+                // 也不会让半截文件占据最终文件名（守卫先于 File 声明以保证逆序 drop 顺序）
+                let temp_path = temp_upload_path(&target_dir, &safe_filename);
+                let mut guard = TempUploadGuard::new(temp_path.clone(), final_path);
+
+                let mut file = match File::create(&temp_path).await {
                     Ok(f) => f,
                     Err(e) => {
                         return error(
@@ -423,8 +466,6 @@ pub async fn upload_file(
                     match field.chunk().await {
                         Ok(Some(chunk)) => {
                             if let Err(e) = file.write_all(&chunk).await {
-                                // 清理未写完的文件
-                                let _ = tokio::fs::remove_file(&file_path).await;
                                 // 检查是否是磁盘空间不足
                                 if !check_disk_space(1, &target_dir) {
                                     return error(
@@ -440,6 +481,7 @@ pub async fn upload_file(
                         }
                         Ok(None) => break, // 文件写入完毕
                         Err(e) => {
+                            // 停滞/断连在此收敛，守卫负责删除临时文件
                             if stalled.load(Ordering::Relaxed) {
                                 log::warn!(
                                     "上传停滞超时，放弃 '{}'（{} 秒无数据）",
@@ -459,9 +501,8 @@ pub async fn upload_file(
                     }
                 }
 
-                // 刷新并记录上传结果
+                // 刷新后必须先关闭句柄再改名：Windows 不允许 rename 打开中的文件
                 if let Err(e) = file.flush().await {
-                    let _ = tokio::fs::remove_file(&file_path).await;
                     if !check_disk_space(1, &target_dir) {
                         return error(
                             StatusCode::INSUFFICIENT_STORAGE,
@@ -471,6 +512,15 @@ pub async fn upload_file(
                     return error(
                         StatusCode::INTERNAL_SERVER_ERROR,
                         &format!("Failed to flush file '{}': {}", safe_filename, e),
+                    );
+                }
+                drop(file);
+
+                // 原子提交：此前失败均已由守卫清理临时文件
+                if let Err(e) = guard.commit().await {
+                    return error(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        &format!("Failed to save file '{}': {}", safe_filename, e),
                     );
                 }
                 uploaded.push(safe_filename);
@@ -1499,5 +1549,54 @@ mod upload_tests {
             stalled.load(Ordering::Relaxed),
             "停滞标志未穿透 multer（将退化成 400）"
         );
+    }
+
+    /// 未 commit 就析构（写失败 / 停滞 / 断连 / flush 失败）必须清掉临时文件，
+    /// 且不得产生最终文件 —— 避免半截文件占据最终文件名
+    #[tokio::test]
+    async fn temp_guard_discards_partial_file_when_dropped_uncommitted() {
+        let dir = std::env::temp_dir().join(format!("lan-share-guard-a-{}", std::process::id()));
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        let final_path = dir.join("target.bin");
+        let temp_path = temp_upload_path(&dir, "target.bin");
+        tokio::fs::write(&temp_path, b"partial").await.unwrap();
+
+        {
+            let _guard = TempUploadGuard::new(temp_path.clone(), final_path.clone());
+        }
+
+        assert!(!temp_path.exists(), "未提交时临时文件应被清理");
+        assert!(!final_path.exists(), "未提交时不应产生最终文件");
+        tokio::fs::remove_dir_all(&dir).await.ok();
+    }
+
+    /// commit 走同目录 rename 覆盖：原文件被完整替换，临时文件消失
+    #[tokio::test]
+    async fn temp_guard_commit_atomically_replaces_existing_file() {
+        let dir = std::env::temp_dir().join(format!("lan-share-guard-b-{}", std::process::id()));
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        let final_path = dir.join("target.bin");
+        let temp_path = temp_upload_path(&dir, "target.bin");
+        tokio::fs::write(&final_path, b"old-content").await.unwrap();
+        tokio::fs::write(&temp_path, b"new-content").await.unwrap();
+
+        let mut guard = TempUploadGuard::new(temp_path.clone(), final_path.clone());
+        guard.commit().await.unwrap();
+        drop(guard);
+
+        assert_eq!(tokio::fs::read(&final_path).await.unwrap(), b"new-content");
+        assert!(!temp_path.exists(), "提交后临时文件应已消失");
+        tokio::fs::remove_dir_all(&dir).await.ok();
+    }
+
+    /// 临时文件名需带进程与序号，保证同名文件并发上传互不覆盖
+    #[test]
+    fn temp_upload_paths_are_unique_per_call() {
+        let dir = Path::new("/tmp");
+        let a = temp_upload_path(dir, "same.bin");
+        let b = temp_upload_path(dir, "same.bin");
+        assert_ne!(a, b);
+        assert!(a.to_string_lossy().ends_with(".part"));
+        assert!(a.to_string_lossy().contains("same.bin."));
     }
 }
