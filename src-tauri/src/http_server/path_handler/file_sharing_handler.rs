@@ -9,6 +9,7 @@ use crate::http_server::sse::{fire, new_file_deleted, new_file_renamed, new_file
 use crate::QueryParams;
 use form_urlencoded;
 use futures_util::stream::TryStreamExt;
+use futures_util::Stream;
 use http_body_util::BodyExt;
 use hyper::body::{Bytes, Incoming};
 use hyper::{header, Request, Response, StatusCode};
@@ -16,14 +17,20 @@ use lan_share_http_macros::{delete, get, post, put};
 use multer::Multipart;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::future::Future;
 use std::io;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::time::UNIX_EPOCH;
+use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::task::{Context, Poll};
+use std::time::{Duration, UNIX_EPOCH};
 use tokio::fs;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
+use tokio::time::Sleep;
 
 #[derive(Serialize)]
 struct FileInfoItem {
@@ -162,6 +169,64 @@ pub async fn get_file_list(
     })
 }
 
+/// 上传停滞超时：距上一个数据块超过该秒数仍未收到新数据，判定客户端失联
+/// （半开 TCP：合盖休眠 / Wi-Fi 掉线 / 代理静默丢弃，均无 FIN 到达，连接会永久挂起）
+const UPLOAD_IDLE_TIMEOUT_SECS: u64 = 30;
+
+/// 上传停滞检测流：透传上游数据块，若 idle 窗口内上游始终 Pending 则产出
+/// `io::ErrorKind::TimedOut`。正常传输的块间隔是毫秒级，30s 窗口不会误杀。
+/// 内部流用 `Pin<Box<..>>` 持有使结构体天然 Unpin，无需引入 pin-project。
+/// 触发时置位 `stalled`：multer 的 StreamBuffer 会把流错误转成自身的 crate::Error
+/// （仅保留 Display 文本，丢失具体类型），因此无法靠 downcast 区分停滞与其它读错误。
+struct UploadStallGuard {
+    inner: Pin<Box<dyn Stream<Item = Result<Bytes, io::Error>> + Send>>,
+    sleep: Pin<Box<Sleep>>,
+    idle: Duration,
+    stalled: Arc<AtomicBool>,
+}
+
+impl UploadStallGuard {
+    fn new(
+        inner: impl Stream<Item = Result<Bytes, io::Error>> + Send + 'static,
+        idle: Duration,
+        stalled: Arc<AtomicBool>,
+    ) -> Self {
+        Self {
+            inner: Box::pin(inner),
+            sleep: Box::pin(tokio::time::sleep(idle)),
+            idle,
+            stalled,
+        }
+    }
+}
+
+impl Stream for UploadStallGuard {
+    type Item = Result<Bytes, io::Error>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        // 上游与定时器共用同一个 waker，谁先就绪谁唤醒本轮 poll
+        if let Poll::Ready(item) = this.inner.as_mut().poll_next(cx) {
+            // 仅在真正收到数据时重置窗口。若每次 poll 都重置，定时器自身唤醒后会
+            // 把截止时间推到未来，永远等不到超时
+            if matches!(item, Some(Ok(_))) {
+                this.sleep.as_mut().reset(tokio::time::Instant::now() + this.idle);
+            }
+            return Poll::Ready(item);
+        }
+        match this.sleep.as_mut().poll(cx) {
+            Poll::Ready(()) => {
+                this.stalled.store(true, Ordering::Relaxed);
+                Poll::Ready(Some(Err(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    format!("上传停滞：{} 秒未收到数据", UPLOAD_IDLE_TIMEOUT_SECS),
+                ))))
+            }
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
 /// 上传被共享的文件
 #[post("/upload/file")]
 pub async fn upload_file(
@@ -277,11 +342,16 @@ pub async fn upload_file(
         }
     }
 
-    // 4. 所有校验通过后才消费 body
-    let body_stream = _req
-        .into_body()
-        .into_data_stream()
-        .map_err(io::Error::other);
+    // 4. 所有校验通过后才消费 body；停滞检测包在数据流外层，客户端失联时主动放弃
+    // stalled 标志跨 multer 边界回传停滞状态（其内部会吞掉流错误的具体类型）
+    let stalled = Arc::new(AtomicBool::new(false));
+    let body_stream = UploadStallGuard::new(
+        _req.into_body()
+            .into_data_stream()
+            .map_err(io::Error::other),
+        Duration::from_secs(UPLOAD_IDLE_TIMEOUT_SECS),
+        Arc::clone(&stalled),
+    );
 
     let mut multipart = Multipart::new(body_stream, boundary);
 
@@ -300,6 +370,12 @@ pub async fn upload_file(
             Ok(Some(f)) => f,
             Ok(None) => break, // 解析完毕
             Err(e) => {
+                if stalled.load(Ordering::Relaxed) {
+                    return error(
+                        StatusCode::REQUEST_TIMEOUT,
+                        &format!("上传停滞超时：{} 秒未收到数据", UPLOAD_IDLE_TIMEOUT_SECS),
+                    );
+                }
                 return error(
                     StatusCode::BAD_REQUEST,
                     &format!("Multipart parse error: {}", e),
@@ -364,6 +440,17 @@ pub async fn upload_file(
                         }
                         Ok(None) => break, // 文件写入完毕
                         Err(e) => {
+                            if stalled.load(Ordering::Relaxed) {
+                                log::warn!(
+                                    "上传停滞超时，放弃 '{}'（{} 秒无数据）",
+                                    safe_filename,
+                                    UPLOAD_IDLE_TIMEOUT_SECS
+                                );
+                                return error(
+                                    StatusCode::REQUEST_TIMEOUT,
+                                    &format!("上传停滞超时：{} 秒未收到数据", UPLOAD_IDLE_TIMEOUT_SECS),
+                                );
+                            }
                             return error(
                                 StatusCode::BAD_REQUEST,
                                 &format!("Failed to read chunk for '{}': {}", safe_filename, e),
@@ -1320,5 +1407,97 @@ mod preview_tests {
         );
         // 正常整块场景：不产生多余替换字符
         assert_eq!(run_stream(&[&gbk[..4], &gbk[4..]]), "中文本尾");
+    }
+}
+
+#[cfg(test)]
+mod upload_tests {
+    use super::*;
+    use futures_util::StreamExt;
+
+    /// 上游吐两块数据后永久静默（模拟半开 TCP：合盖 / Wi-Fi 掉线，无 FIN 到达）
+    #[tokio::test]
+    async fn stall_guard_times_out_when_upstream_goes_silent() {
+        let upstream = futures_util::stream::iter(vec![
+            Ok(Bytes::from_static(b"chunk-1")),
+            Ok(Bytes::from_static(b"chunk-2")),
+        ])
+        .chain(futures_util::stream::pending::<Result<Bytes, io::Error>>());
+
+        let stalled = Arc::new(AtomicBool::new(false));
+        let mut guard =
+            UploadStallGuard::new(upstream, Duration::from_millis(50), Arc::clone(&stalled));
+        // 有数据时必须原样透传，不能被停滞检测吞掉
+        assert_eq!(guard.next().await.unwrap().unwrap(), "chunk-1");
+        assert_eq!(guard.next().await.unwrap().unwrap(), "chunk-2");
+        assert!(!stalled.load(Ordering::Relaxed), "有数据时不应置位停滞标志");
+        // 上游不再产生数据：窗口到期后应产出超时错误
+        let err = guard.next().await.unwrap().unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::TimedOut);
+        assert!(stalled.load(Ordering::Relaxed), "超时后应置位停滞标志");
+    }
+
+    /// 慢速但持续的上传（每 20ms 一块）总耗时超过单个窗口，
+    /// 只要数据不断到达就不应被判停滞 —— 校验窗口是按块重置而非固定总时长
+    #[tokio::test]
+    async fn stall_guard_resets_window_on_every_chunk() {
+        let upstream = futures_util::stream::unfold(0u32, |i| async move {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            if i >= 5 {
+                return None;
+            }
+            Some((Ok(Bytes::from_static(b"x")), i + 1))
+        });
+
+        let stalled = Arc::new(AtomicBool::new(false));
+        let mut guard =
+            UploadStallGuard::new(upstream, Duration::from_millis(50), Arc::clone(&stalled));
+        let mut received = 0usize;
+        while let Some(item) = guard.next().await {
+            assert!(item.is_ok(), "持续有数据时不应触发停滞超时");
+            received += 1;
+        }
+        assert_eq!(received, 5);
+        assert!(!stalled.load(Ordering::Relaxed), "正常结束的流不应置位停滞标志");
+    }
+
+    /// 端到端校验：停滞经 multer 包装后仍能通过 stalled 标志判定 —— 决定返回 408 还是 400
+    #[tokio::test]
+    async fn stall_flag_survives_multer_wrapping() {
+        let boundary = "lan-share-test-boundary";
+        let head = format!(
+            "--{b}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.bin\"\r\n\r\n",
+            b = boundary
+        );
+        // 字段头完整但数据未收尾（缺 closing boundary），随后上游永久静默
+        let upstream = futures_util::stream::iter(vec![Ok(Bytes::from(head + "partial-data"))])
+            .chain(futures_util::stream::pending::<Result<Bytes, io::Error>>());
+
+        let stalled = Arc::new(AtomicBool::new(false));
+        let mut multipart = Multipart::new(
+            UploadStallGuard::new(upstream, Duration::from_millis(50), Arc::clone(&stalled)),
+            boundary,
+        );
+
+        let mut field = multipart.next_field().await.unwrap().unwrap();
+        // 数据块可能因缺收尾边界而延后吐出，故循环取块直到出错
+        let mut failed = false;
+        for _ in 0..8 {
+            match field.chunk().await {
+                Ok(_) => continue,
+                Err(_) => {
+                    failed = true;
+                    break;
+                }
+            }
+        }
+
+        assert!(failed, "上游静默后应产生读错误");
+        // multer 的 StreamBuffer 会把流错误转成自身类型并丢失具体类型，
+        // 因此判定必须依赖 stalled 标志而非错误 downcast
+        assert!(
+            stalled.load(Ordering::Relaxed),
+            "停滞标志未穿透 multer（将退化成 400）"
+        );
     }
 }
