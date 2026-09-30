@@ -570,6 +570,13 @@ const PREVIEW_EXCEL_SUFFIXES: &[&str] = &["xlsx"];
 /// Excel 预览上限：超过则拒绝（防御 SheetJS 解析大文件卡顿）
 const PREVIEW_EXCEL_MAX_SIZE: u64 = 10 * 1024 * 1024;
 
+/// 流式读取块大小：每块都要付一次 tokio::fs 的 spawn_blocking 往返（channel 发送 +
+/// blocking 线程唤醒 + read 系统调用 + 回信 + task 唤醒），单次约 3–5µs 且同时占用
+/// async worker 与 blocking 线程两个核。块越大，同样字节数的往返次数越少。
+/// 16GB 文件在 64KB 下是 26 万次，256KB 下降到 6.5 万次。
+/// read() 有多少数据就返回多少，不会为凑满一块而等待，故不影响首字节延迟。
+const STREAM_CHUNK_SIZE: usize = 256 * 1024;
+
 /// 取小写扩展名（无扩展名返回空串）
 fn file_ext_lower(name: &str) -> String {
     name.rsplit('.').next().unwrap_or("").to_lowercase()
@@ -817,7 +824,7 @@ fn stream_preview_file(
             // 跨块复用同一 Decoder，缓冲不完整多字节序列（数据正确性纪律 3）
             use encoding_rs::CoderResult;
             let mut decoder = enc.new_decoder();
-            let mut buf = vec![0u8; 64 * 1024];
+            let mut buf = vec![0u8; STREAM_CHUNK_SIZE];
             loop {
                 match file.read(&mut buf).await {
                     Ok(0) => break,
@@ -859,7 +866,7 @@ fn stream_preview_file(
             let _ = tx.send(Bytes::from(out.into_bytes())).await;
         } else {
             // 直出原字节流（图片 / PDF / 音频 / UTF-8 文本），Content-Length 精确；range 时只读区间
-            let mut buf = vec![0u8; 64 * 1024];
+            let mut buf = vec![0u8; STREAM_CHUNK_SIZE];
             let mut remaining = range_len.unwrap_or(u64::MAX);
             while remaining > 0 {
                 let to_read = buf.len().min(remaining as usize);
