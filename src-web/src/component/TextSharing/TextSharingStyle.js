@@ -44,6 +44,10 @@ const TextSharingStyle = styled.div`
 
     .recordItem.text {
         cursor: pointer;
+        /* 单击即复制，禁用划选避免与点击复制冲突 */
+        user-select: none;
+        /* 避免移动端双击缩放，保证单击复制即时生效 */
+        touch-action: manipulation;
         flex-direction: column;
         align-items: stretch;
         gap: 2px;

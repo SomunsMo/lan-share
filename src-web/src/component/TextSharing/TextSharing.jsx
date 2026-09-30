@@ -314,10 +314,15 @@ function TextSharing() {
                             if (v.action_type === 1) {
                                 return (
                                     <li key={v.id} className="recordItem text"
-                                        onDoubleClick={() => copyText(v.content, v.id)}
+                                        onClick={(e) => {
+                                            // 仅主键左键触发复制，右键/Ctrl+单击（macOS 次键）仍走 contextmenu
+                                            if (e.button !== 0 || e.ctrlKey) return;
+                                            copyText(v.content, v.id);
+                                        }}
                                         onContextMenu={(e) => showContextMenu(e, v.content, v.id, 1)}
                                         onMouseEnter={() => { if (contextMenu.visible) hideContextMenu(); }}>
                                         <p className="recordContent">{v.content}</p>
+                                        <p className="recordHint">{t('textSharing.hint')}</p>
                                         <p className="metaInfo">{v.created_at.replace(/-/g, '/')} | {v.ip}</p>
                                     </li>
                                 );

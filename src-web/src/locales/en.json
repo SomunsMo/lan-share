@@ -133,6 +133,7 @@
   },
   "textSharing": {
     "sendBtn": "Share Text",
+    "hint": "Click text to copy it to the clipboard",
     "contextMenu": {
       "copy": "Copy"
     },

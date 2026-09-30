@@ -133,6 +133,7 @@
   },
   "textSharing": {
     "sendBtn": "共享文本",
+    "hint": "单击文本即可复制到剪贴板",
     "contextMenu": {
       "copy": "复制"
     },
