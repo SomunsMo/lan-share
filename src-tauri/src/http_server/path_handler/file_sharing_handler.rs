@@ -775,39 +775,19 @@ pub async fn download_file(
         return Ok(error_response);
     }
 
-    // 第五步：打开文件并读取内容
-    let file_content = match tokio::fs::read(&full_file_path).await {
-        Ok(content) => content,
-        Err(e) => {
-            let error_response = create_error_response(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                &format!("文件读取失败：{}", e),
-            );
-            return Ok(error_response);
-        }
-    };
-
-    // 第六步：构建下载响应
-    let response = Response::builder()
-        .status(StatusCode::OK)
-        // 触发浏览器下载弹窗（文件名使用原始文件名）
-        .header(
-            header::CONTENT_DISPOSITION,
-            format!("attachment; filename=\"{}\"", file_name),
-        )
-        // 传递文件大小（用于下载进度显示）
-        .header(header::CONTENT_LENGTH, metadata.len().to_string())
-        // 自动推断 MIME 类型（优化浏览器行为）
-        .header(
-            header::CONTENT_TYPE,
-            mime_guess::from_path(&full_file_path)
-                .first_or_octet_stream()
-                .to_string(),
-        )
-        .body(GenericResponseBody::Bytes(file_content.into()))
-        .unwrap();
-
-    Ok(response)
+    // 第五步：流式输出（常量内存，与文件大小无关），并支持单段 Range 断点续传
+    // 复用预览通道：直出原始字节、Content-Length 精确、读盘被 socket 背压反压限速
+    let content_type = mime_guess::from_path(&full_file_path)
+        .first_or_octet_stream()
+        .to_string();
+    // 文件名按 RFC 5987 百分号编码（与预览一致），避免引号/控制字符破坏响应头
+    let encoded_name: String = form_urlencoded::byte_serialize(file_name.as_bytes()).collect();
+    let disposition = format!("attachment; filename*=UTF-8''{}", encoded_name);
+    let range = parse_range_header(
+        _req.headers().get(header::RANGE).and_then(|v| v.to_str().ok()),
+        metadata.len(),
+    );
+    stream_preview_file(full_file_path, metadata.len(), content_type, disposition, range, None)
 }
 
 /// 构造 inline 预览响应：支持直出字节流或 GBK→UTF-8 流式转码
