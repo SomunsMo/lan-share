@@ -79,6 +79,7 @@ pub async fn upload_text(
 pub async fn upload_records(
     _req: Request<Incoming>,
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
-    let records = upload_dao::list_by_types(&[1, 5]).await.unwrap();
+    // Web 端不参与置顶排序，保持按更新时间倒序
+    let records = upload_dao::list_by_types(&[1, 5], false).await.unwrap();
     success_json(records)
 }

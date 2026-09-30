@@ -138,13 +138,25 @@ pub async fn clear_sharing_text() -> ClearResult {
     ClearResult { text_count, image_count }
 }
 
-/// 获取文本和图片共享历史记录
+/// 获取文本和图片共享历史记录（置顶记录排在最前）
 #[tauri::command]
 pub async fn get_text_sharing_history() -> Result<Vec<crate::db::entity::TransferRecord>, String> {
-    match upload_dao::list_by_types(&[1, 5]).await {
+    match upload_dao::list_by_types(&[1, 5], true).await {
         Ok(records) => Ok(records),
         Err(err) => {
             log::error!("获取文本共享历史记录失败: {}", err);
+            Err(err.to_string())
+        }
+    }
+}
+
+/// 置顶/取消置顶指定记录
+#[tauri::command]
+pub async fn set_record_pinned(id: i64, pinned: bool) -> Result<u64, String> {
+    match upload_dao::set_pinned(id, pinned).await {
+        Ok(count) => Ok(count),
+        Err(err) => {
+            log::error!("设置记录置顶状态失败: {}", err);
             Err(err.to_string())
         }
     }

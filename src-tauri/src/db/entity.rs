@@ -22,6 +22,8 @@ pub struct TransferRecord {
     pub(crate) updated_at: String,
     pub(crate) share_count: i64,
     pub(crate) last_share_ip: String,
+    /// 置顶时间，NULL 表示未置顶
+    pub(crate) pinned_at: Option<String>,
 }
 
 // 共享历史记录表（每次共享一行）

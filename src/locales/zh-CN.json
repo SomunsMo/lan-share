@@ -251,7 +251,8 @@
     "pageDesc": "共享文本或图片后，局域网内其他设备可通过浏览器查看或复制",
     "deleteCascadeWarning": "删除该记录会导致相关的复制记录也会被删除",
     "clearButton": "清空",
-    "recentTitle": "最近共享",
+    "recordsTitle": "共享记录",
+    "pinnedBadge": "已置顶",
     "copyButton": "复制",
     "viewButton": "查看",
     "detailTitle": "消息详情",
@@ -265,6 +266,8 @@
     "contextMenu": {
       "viewDetail": "查看详情",
       "copyContent": "复制内容",
+      "pin": "置顶",
+      "unpin": "取消置顶",
       "deleteRecord": "删除记录"
     }
   },

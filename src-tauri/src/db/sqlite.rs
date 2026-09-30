@@ -144,6 +144,14 @@ async fn init_table() {
 
     // 为已有的文本(1)/图片(5)记录回填一条初始共享历史
     backfill_share_records().await;
+
+    // 兼容旧表结构：置顶时间（NULL 表示未置顶，无需回填）
+    if let Err(e) = sqlx::query("ALTER TABLE transfer_record ADD COLUMN pinned_at DATETIME").execute(get_pool()).await {
+        let msg = e.to_string().to_lowercase();
+        if !msg.contains("duplicate column") {
+            panic!("数据库迁移失败(pinned_at): {}", e);
+        }
+    }
 }
 
 /// 将旧表 upload_record 的数据迁移到新表 transfer_record

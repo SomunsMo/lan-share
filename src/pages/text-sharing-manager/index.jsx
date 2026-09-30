@@ -26,6 +26,9 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import CircularProgress from '@mui/material/CircularProgress';
 
+// 右键菜单置顶项文案，下标即置顶状态：0 未置顶 / 1 已置顶
+const PIN_MENU_LABEL = ['textSharing.contextMenu.pin', 'textSharing.contextMenu.unpin'];
+
 function TextSharingManager(props) {
     const { t } = useTranslation();
     const {showDialog} = useDialog();
@@ -161,13 +164,33 @@ function TextSharingManager(props) {
                 content: record.content,
                 action_type: record.action_type,
                 share_count: record.share_count,
-                last_share_ip: record.last_share_ip
+                last_share_ip: record.last_share_ip,
+                pinned_at: record.pinned_at
             }));
             setHistory(formattedRecords);
         } catch (error) {
             console.error('获取文本共享历史记录失败:', error);
         }
     }, []);
+
+    const togglePin = useCallback(async (item) => {
+        hideContextMenu();
+        try {
+            await invoke('set_record_pinned', {id: item.id, pinned: !item.pinned_at});
+            loadHistory();
+        } catch (error) {
+            console.error('设置置顶状态失败:', error);
+            showToast({message: t('common.toast.operationFailed'), type: 'error'});
+        }
+    }, [hideContextMenu, loadHistory, showToast, t]);
+
+    // 右键菜单「置顶/取消置顶」项，文本与图片卡片共用
+    // 文案按下标取：0 = 未置顶（显示"置顶"），1 = 已置顶（显示"取消置顶"）
+    const pinMenuItem = (item) => (
+        <div className="context-menu-item" onClick={() => togglePin(item)}>
+            {t(PIN_MENU_LABEL[Number(!!item.pinned_at)])}
+        </div>
+    );
 
     useEffect(() => {
         loadHistory();
@@ -512,7 +535,7 @@ function TextSharingManager(props) {
             </div>
 
             <div className="history-section">
-                <Typography variant="h6" fontSize="1.5rem" fontWeight={600} sx={{ color: 'var(--on-surface)', mb: 1.5 }}>{t('textSharing.recentTitle')}</Typography>
+                <Typography variant="h6" fontSize="1.5rem" fontWeight={600} sx={{ color: 'var(--on-surface)', mb: 1.5 }}>{t('textSharing.recordsTitle')}</Typography>
                 <div className="history-scroll" ref={historyContainerRef}>
                     <div className="history-grid">
                     {history.map((item) => (
@@ -522,6 +545,13 @@ function TextSharingManager(props) {
                             onClick={() => viewDetail(item)}
                             onContextMenu={(e) => showContextMenu(e, item)}
                         >
+                            {item.pinned_at && (
+                                <span className="card-pin" title={t('textSharing.pinnedBadge')}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                        <path d="M16 9V4h1a1 1 0 0 0 0-2H7a1 1 0 0 0 0 2h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z"/>
+                                    </svg>
+                                </span>
+                            )}
                             <div className="card-header">
                                 <span className="card-ip">{item.ip}</span>
                                 <span className="card-time">{item.time}</span>
@@ -575,6 +605,7 @@ function TextSharingManager(props) {
                             <div className="context-menu-item" onClick={() => { copyImageToClipboard(contextMenu.item); hideContextMenu(); }}>
                                 {t('imageSharing.contextMenu.copyImage')}
                             </div>
+                            {pinMenuItem(contextMenu.item)}
                             <div className="context-menu-separator" />
                             <div className="context-menu-item danger" onClick={() => deleteHistoryItem(contextMenu.item)}>
                                 {t('textSharing.contextMenu.deleteRecord')}
@@ -592,6 +623,7 @@ function TextSharingManager(props) {
                             <div className="context-menu-item" onClick={() => { copyToClipboard(contextMenu.item.content); hideContextMenu(); }}>
                                 {t('textSharing.contextMenu.copyContent')}
                             </div>
+                            {pinMenuItem(contextMenu.item)}
                             <div className="context-menu-separator" />
                             <div className="context-menu-item danger" onClick={() => deleteHistoryItem(contextMenu.item)}>
                                 {t('textSharing.contextMenu.deleteRecord')}

@@ -251,7 +251,8 @@
     "pageDesc": "Shared text or images can be viewed or copied by other devices on the LAN via browser",
     "deleteCascadeWarning": "Deleting this record will also delete related copy records",
     "clearButton": "Clear",
-    "recentTitle": "Recent Text Shares",
+    "recordsTitle": "Shared Records",
+    "pinnedBadge": "Pinned",
     "copyButton": "Copy",
     "viewButton": "View",
     "detailTitle": "Message Detail",
@@ -265,6 +266,8 @@
     "contextMenu": {
       "viewDetail": "View Detail",
       "copyContent": "Copy Content",
+      "pin": "Pin",
+      "unpin": "Unpin",
       "deleteRecord": "Delete Record"
     }
   },

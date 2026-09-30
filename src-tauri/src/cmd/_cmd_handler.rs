@@ -6,6 +6,7 @@ pub fn get_cmd_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
         system::get_local_ip,
         system::clear_sharing_text,
         system::get_text_sharing_history,
+        system::set_record_pinned,
         system::delete_record,
         system::peek_clipboard_image,
         system::read_clipboard_image,
