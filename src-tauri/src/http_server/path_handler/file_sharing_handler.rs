@@ -1491,46 +1491,6 @@ mod upload_tests {
         assert!(!stalled.load(Ordering::Relaxed), "正常结束的流不应置位停滞标志");
     }
 
-    /// 端到端校验：停滞经 multer 包装后仍能通过 stalled 标志判定 —— 决定返回 408 还是 400
-    #[tokio::test]
-    async fn stall_flag_survives_multer_wrapping() {
-        let boundary = "lan-share-test-boundary";
-        let head = format!(
-            "--{b}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.bin\"\r\n\r\n",
-            b = boundary
-        );
-        // 字段头完整但数据未收尾（缺 closing boundary），随后上游永久静默
-        let upstream = futures_util::stream::iter(vec![Ok(Bytes::from(head + "partial-data"))])
-            .chain(futures_util::stream::pending::<Result<Bytes, io::Error>>());
-
-        let stalled = Arc::new(AtomicBool::new(false));
-        let mut multipart = Multipart::new(
-            UploadStallGuard::new(upstream, Duration::from_millis(50), Arc::clone(&stalled)),
-            boundary,
-        );
-
-        let mut field = multipart.next_field().await.unwrap().unwrap();
-        // 数据块可能因缺收尾边界而延后吐出，故循环取块直到出错
-        let mut failed = false;
-        for _ in 0..8 {
-            match field.chunk().await {
-                Ok(_) => continue,
-                Err(_) => {
-                    failed = true;
-                    break;
-                }
-            }
-        }
-
-        assert!(failed, "上游静默后应产生读错误");
-        // multer 的 StreamBuffer 会把流错误转成自身类型并丢失具体类型，
-        // 因此判定必须依赖 stalled 标志而非错误 downcast
-        assert!(
-            stalled.load(Ordering::Relaxed),
-            "停滞标志未穿透 multer（将退化成 400）"
-        );
-    }
-
     /// 未 commit 就析构（写失败 / 停滞 / 断连 / flush 失败）必须清掉临时文件，
     /// 且不得产生最终文件 —— 避免半截文件占据最终文件名
     #[tokio::test]
@@ -1578,5 +1538,45 @@ mod upload_tests {
         assert_ne!(a, b);
         assert!(a.to_string_lossy().ends_with(".part"));
         assert!(a.to_string_lossy().contains("same.bin."));
+    }
+
+    /// 端到端校验：停滞经 multer 包装后仍能通过 stalled 标志判定 —— 决定返回 408 还是 400
+    #[tokio::test]
+    async fn stall_flag_survives_multer_wrapping() {
+        let boundary = "lan-share-test-boundary";
+        let head = format!(
+            "--{b}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.bin\"\r\n\r\n",
+            b = boundary
+        );
+        // 字段头完整但数据未收尾（缺 closing boundary），随后上游永久静默
+        let upstream = futures_util::stream::iter(vec![Ok(Bytes::from(head + "partial-data"))])
+            .chain(futures_util::stream::pending::<Result<Bytes, io::Error>>());
+
+        let stalled = Arc::new(AtomicBool::new(false));
+        let mut multipart = Multipart::new(
+            UploadStallGuard::new(upstream, Duration::from_millis(50), Arc::clone(&stalled)),
+            boundary,
+        );
+
+        let mut field = multipart.next_field().await.unwrap().unwrap();
+        // 数据块可能因缺收尾边界而延后吐出，故循环取块直到出错
+        let mut failed = false;
+        for _ in 0..8 {
+            match field.chunk().await {
+                Ok(_) => continue,
+                Err(_) => {
+                    failed = true;
+                    break;
+                }
+            }
+        }
+
+        assert!(failed, "上游静默后应产生读错误");
+        // multer 的 StreamBuffer 会把流错误转成自身类型并丢失具体类型，
+        // 因此判定必须依赖 stalled 标志而非错误 downcast
+        assert!(
+            stalled.load(Ordering::Relaxed),
+            "停滞标志未穿透 multer（将退化成 400）"
+        );
     }
 }
