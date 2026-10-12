@@ -141,6 +141,7 @@
     "hintMobile": "长按图片后可选择下载图片"
   },
   "textSharing": {
+    "clearBtn": "清空待共享文本",
     "sendBtn": "共享文本",
     "hint": "单击文本即可复制到剪贴板",
     "contextMenu": {
@@ -149,6 +150,7 @@
     "toast": {
       "loadFailed": "获取历史文本失败: {{error}}",
       "sendFailed": "发送文本失败: {{error}}",
+      "draftCleared": "已清空待共享文本",
       "copied": "文本已复制"
     }
   },

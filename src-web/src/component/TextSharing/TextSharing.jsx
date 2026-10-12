@@ -12,12 +12,38 @@ import {useTranslation} from "react-i18next";
 import {subscribe, getClientId} from "../../service/sse.js";
 import {track} from "@/service/taskManager.js";
 
+// 待共享文本的本地草稿键
+const DRAFT_KEY = 'lan-share-text-draft';
+
+// 读取本地草稿（防止刷新/切页丢失待共享内容）
+const loadDraft = () => {
+    try {
+        return localStorage.getItem(DRAFT_KEY) || "";
+    } catch (e) {
+        console.warn('读取文本草稿失败:', e);
+        return "";
+    }
+};
+
+// 写入本地草稿，内容为空时移除
+const saveDraft = (text) => {
+    try {
+        if (text) {
+            localStorage.setItem(DRAFT_KEY, text);
+        } else {
+            localStorage.removeItem(DRAFT_KEY);
+        }
+    } catch (e) {
+        console.warn('保存文本草稿失败:', e);
+    }
+};
+
 function TextSharing() {
     const { t } = useTranslation();
     const {showToast} = useToast();
     const {showDialog} = useDialog();
     const isTouch = useMemo(() => 'ontouchstart' in window || navigator.maxTouchPoints > 0, []);
-    const [uploadText, setUploadText] = useState("");
+    const [uploadText, setUploadText] = useState(loadDraft);
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, content: '', id: null, actionType: null });
     const [records, setRecords] = useState([]);
     const [filterType, setFilterType] = useState('all');
@@ -199,6 +225,20 @@ function TextSharing() {
         setUploadText(e.target.value);
     }
 
+    // 草稿防抖落盘，避免每次输入都写 localStorage
+    useEffect(() => {
+        const timer = setTimeout(() => saveDraft(uploadText), 300);
+        return () => clearTimeout(timer);
+    }, [uploadText]);
+
+    // 清空待共享文本
+    const clearDraft = () => {
+        if (!uploadText) return;
+        setUploadText("");
+        saveDraft("");
+        showToast({message: t('textSharing.toast.draftCleared'), type: 'info'});
+    }
+
     const sendText = () => {
         uploadTextAPI(uploadText)
             .then(res => {
@@ -298,10 +338,19 @@ function TextSharing() {
                             <polyline points="21 15 16 10 5 21"/>
                         </svg>
                     </label>
+                    <button className="clearDraftBtn" onClick={clearDraft}
+                            title={t('textSharing.clearBtn')} aria-label={t('textSharing.clearBtn')}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+                            <line x1="18" y1="9" x2="12" y2="15"/>
+                            <line x1="12" y1="9" x2="18" y2="15"/>
+                        </svg>
+                    </button>
                 </div>
             </Card>
 
-            <Card>
+            <Card className="textCard recordCard">
                 <div className="recordFilter">
                     <button className={filterType === 'all' ? 'active' : ''} onClick={() => setFilterType('all')}>{t('recordList.filter.all')}</button>
                     <button className={filterType === 'text' ? 'active' : ''} onClick={() => setFilterType('text')}>{t('recordList.filter.text')}</button>

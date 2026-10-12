@@ -141,6 +141,7 @@
     "hintMobile": "Long-press image to download"
   },
   "textSharing": {
+    "clearBtn": "Clear draft text",
     "sendBtn": "Share Text",
     "hint": "Click text to copy it to the clipboard",
     "contextMenu": {
@@ -149,6 +150,7 @@
     "toast": {
       "loadFailed": "Failed to load text history: {{error}}",
       "sendFailed": "Failed to send text: {{error}}",
+      "draftCleared": "Draft text cleared",
       "copied": "Text copied"
     }
   },
