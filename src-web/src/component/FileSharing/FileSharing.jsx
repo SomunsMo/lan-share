@@ -641,11 +641,20 @@ function FileSharing() {
 
     // 长按计时器
     const longPressTimerRef = useRef(null);
+    // 长按是否已触发菜单（用于抑制随之而来的单击）
+    const longPressFiredRef = useRef(false);
+    // 抑制标记的复位计时器
+    const longPressResetTimerRef = useRef(null);
 
     // 触摸开始（移动端长按）
     const handleTouchStart = (e, item) => {
         longPressTimerRef.current = setTimeout(() => {
             const touch = e.touches[0];
+            longPressFiredRef.current = true;
+            if (longPressResetTimerRef.current) clearTimeout(longPressResetTimerRef.current);
+            longPressResetTimerRef.current = setTimeout(() => {
+                longPressFiredRef.current = false;
+            }, 800);
             setContextMenu({
                 visible: true,
                 x: touch.clientX,
@@ -661,6 +670,30 @@ function FileSharing() {
             clearTimeout(longPressTimerRef.current);
             longPressTimerRef.current = null;
         }
+    };
+
+    // 移动端单击文件项直接打开（桌面端保持双击）
+    const handleItemClick = (e, item) => {
+        if (!isMobile) return;
+        // 点击操作按钮或勾选框时不触发打开
+        if (e.target.closest('button') || e.target.closest('input')) return;
+        // 长按弹出菜单后紧随的这次点击不作为打开操作
+        if (longPressFiredRef.current) {
+            longPressFiredRef.current = false;
+            return;
+        }
+        itemDoubleClickHandler(item);
+    };
+
+    // 移动端单击“返回上级”直接返回（桌面端保持双击）
+    const handleGoBackClick = () => {
+        if (!isMobile) return;
+        // 长按弹出菜单后紧随的这次点击不作为返回操作
+        if (longPressFiredRef.current) {
+            longPressFiredRef.current = false;
+            return;
+        }
+        goBackToParentDir();
     };
 
     // 点击其他文件项或组件外区域时隐藏菜单，点击文件列表空白区域不关闭
@@ -757,7 +790,7 @@ function FileSharing() {
                         </thead>
                         <tbody>
                         {getCurrentDir() && (
-                            <tr className={"fileItem goBackItem"} onDoubleClick={goBackToParentDir}>
+                            <tr className={"fileItem goBackItem"} onDoubleClick={goBackToParentDir} onClick={handleGoBackClick}>
                                 <td></td>
                                 <td colSpan={4}>
                                     <span className={"goBackLabel"}>{t('fileSharing.goBack')}</span>
@@ -768,6 +801,7 @@ function FileSharing() {
                             return (
                                 <tr className={"fileItem"} key={v.name + i}
                                     onDoubleClick={() => itemDoubleClickHandler(v)}
+                                    onClick={(e) => handleItemClick(e, v)}
                                     onContextMenu={(e) => showContextMenu(e, v)}
                                     onMouseEnter={() => {
                                         if (contextMenu.visible && contextMenu.item && contextMenu.item.name !== v.name) {
