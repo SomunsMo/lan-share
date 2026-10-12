@@ -2,7 +2,8 @@
   "common": {
     "button": {
       "cancel": "Cancel",
-      "confirm": "Confirm"
+      "confirm": "Confirm",
+      "close": "Close"
     },
     "toast": {
       "operationFailed": "Operation failed",
@@ -38,7 +39,15 @@
       "restoredTitle": "Port restored",
       "restoredContent": "The server port has been restored, the current address keeps working",
       "acknowledge": "Got it"
-    }
+    },
+    "qrTitle": "QR code of this page"
+  },
+  "nav": {
+    "title": "Navigation",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "textSharing": "Text & Image",
+    "fileSharing": "Files"
   },
   "fileSharing": {
     "diskSpace": "Storage",

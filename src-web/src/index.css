@@ -172,7 +172,9 @@ body {
     display: flex;
     width: 100%;
     min-width: 320px;
+    /* 与根容器一致用 svh，避免 body 比应用容器更高产生多余滚动；dvh 会随地址栏变化 */
     min-height: 100vh;
+    min-height: 100svh;
     margin: 0;
     padding: 0;
     background-color: var(--bg-page);

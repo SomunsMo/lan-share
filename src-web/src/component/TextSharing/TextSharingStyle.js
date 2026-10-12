@@ -25,6 +25,10 @@ const TextSharingStyle = styled.div`
         flex: 1;
         min-height: 0;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        /* 明确声明支持纵向平移，修复部分安卓浏览器刷新后列表收不到触摸滚动的问题 */
+        touch-action: pan-y;
+        overscroll-behavior: contain;
         cursor: default;
     }
 

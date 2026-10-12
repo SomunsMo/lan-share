@@ -286,10 +286,10 @@ function TextSharing() {
 
     return (
         <TextSharingStyle>
-            <Card>
+            <Card className="textCard">
                 <textarea id="textInput" value={uploadText} onChange={uploadTextOnChange} onPaste={handlePaste}></textarea>
                 <div className="sendBtnWrapper">
-                    <button onClick={sendText}>{t('textSharing.sendBtn')}</button>
+                    <button className="sendBtn" onClick={sendText}>{t('textSharing.sendBtn')}</button>
                     <label className="imageUploadBtn" title={t('imageSharing.uploadImageBtn')}>
                         <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleFileInputChange} />
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

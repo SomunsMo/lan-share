@@ -2,7 +2,8 @@
   "common": {
     "button": {
       "cancel": "取消",
-      "confirm": "确定"
+      "confirm": "确定",
+      "close": "关闭"
     },
     "toast": {
       "operationFailed": "操作失败",
@@ -38,7 +39,15 @@
       "restoredTitle": "端口已恢复",
       "restoredContent": "服务端已改回原端口，当前页面地址保持可用",
       "acknowledge": "知道了"
-    }
+    },
+    "qrTitle": "本页面二维码"
+  },
+  "nav": {
+    "title": "导航",
+    "openMenu": "打开菜单",
+    "closeMenu": "关闭菜单",
+    "textSharing": "图文共享",
+    "fileSharing": "文件共享"
   },
   "fileSharing": {
     "diskSpace": "存储空间",

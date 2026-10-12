@@ -3,6 +3,7 @@ import FileSharingStyle, {FileCard} from "./FileSharingStyle.js";
 import ProgressBar from "../ProgressBar/ProgressBar.jsx";
 import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, preUploadCheckAPI, recordDownloadAPI} from "@/service/API.js";
 import {formatFileSize, getFileSuffix, copyToClipboard} from "@/util/file.js";
+import {withRouteHash} from "@/util/route.js";
 import {useToast} from "@/component/Toast/useToast.js";
 import {useDialog} from "@/component/Dialog/useDialog.js";
 import {useTranslation} from "react-i18next";
@@ -236,7 +237,7 @@ function FileSharing() {
                 showToastRef.current({message: tRef.current('sse.toast.rootChanged'), type: 'info'});
                 const url = new URL(window.location.href);
                 url.searchParams.delete('dir');
-                window.history.pushState(null, null, url.pathname + url.search);
+                window.history.pushState(null, null, withRouteHash(url.pathname + url.search));
                 flushSharedFileListRef.current('');
                 return;
             }
@@ -471,7 +472,7 @@ function FileSharing() {
         if (await flushSharedFileList(newDir)) {
             console.log("写入新路径");
             // 向url写入参数，但不刷新页面
-            window.history.pushState(null, null, `?dir=${newDir}`);
+            window.history.pushState(null, null, withRouteHash(`?dir=${newDir}`));
         } else {
             console.error("请求新文件夹失败");
         }
@@ -584,7 +585,7 @@ function FileSharing() {
         const parentDir = lastSlashIndex > 0 ? currentDir.substring(0, lastSlashIndex) : '';
 
         if (await flushSharedFileList(parentDir)) {
-            window.history.pushState(null, null, parentDir ? `?dir=${parentDir}` : window.location.pathname);
+            window.history.pushState(null, null, withRouteHash(parentDir ? `?dir=${parentDir}` : window.location.pathname));
             setSelectedFiles(new Set());
         }
     }

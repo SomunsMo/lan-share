@@ -1,9 +1,8 @@
 import React, {useEffect, useState} from 'react';
 import AppStyle from "./AppStyle.js";
 import FileSharing from "./component/FileSharing/index.js";
-import {QRCodeSVG} from "qrcode.react";
 import TextSharing from "./component/TextSharing/TextSharing.jsx";
-import BarcodeIconSvg from './assets/icon/barcode.svg';
+import QrCodeButton from "./component/QrCode/index.jsx";
 import {DialogProvider} from "./component/Dialog/index.jsx";
 import {ToastProvider} from "./component/Toast/index.jsx";
 import {useTranslation} from "react-i18next";
@@ -11,11 +10,15 @@ import { changeLanguage } from "./i18n.ts";
 import { startEventSource, stopEventSource } from "./service/sse.js";
 import SseStatusBanner from "./component/SseStatusBanner/index.jsx";
 import PortChangedBanner from "./component/PortChangedBanner/index.jsx";
+import SideNav from "./component/SideNav/index.jsx";
+import {ROUTE_TEXT, ROUTE_FILES} from "./util/route.js";
+import {useHashRoute} from "./util/useHashRoute.js";
 
 const THEME_KEY = 'lan-share-theme';
 
 function App() {
     const { t, i18n } = useTranslation();
+    const [route, navigate] = useHashRoute();
     const [theme, setTheme] = useState(() => {
         try {
             const saved = localStorage.getItem(THEME_KEY);
@@ -60,10 +63,6 @@ function App() {
 
     const themeLabel = {system: t('web.themeLabel.system'), light: t('web.themeLabel.light'), dark: t('web.themeLabel.dark')};
 
-    const getQrCodeUrl = () => {
-        return window.location.href.split('?')[0];
-    };
-
     return (
         <DialogProvider>
             <ToastProvider>
@@ -71,61 +70,60 @@ function App() {
                     <SseStatusBanner/>
                     <PortChangedBanner/>
                     <main>
-                        <div className="topBar">
-                        <button
-                            className="theme-toggle-btn"
-                            onClick={cycleTheme}
-                            title={t('web.themeTitle')}
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-                                 style={{display: theme === 'dark' ? 'none' : 'block'}}>
-                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                            </svg>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                 strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-                                 style={{display: theme === 'dark' ? 'block' : 'none'}}>
-                                <circle cx="12" cy="12" r="5"/>
-                                <line x1="12" y1="1" x2="12" y2="3"/>
-                                <line x1="12" y1="21" x2="12" y2="23"/>
-                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                                <line x1="1" y1="12" x2="3" y2="12"/>
-                                <line x1="21" y1="12" x2="23" y2="12"/>
-                                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                            </svg>
-                            <span style={{fontSize: '0.78rem', marginLeft: '4px'}}>{themeLabel[theme]}</span>
-                        </button>
-                        <select
-                            className="lang-selector"
-                            defaultValue={i18n.language}
-                            onChange={(e) => changeLanguage(e.target.value)}
-                        >
-                            <option value="zh-CN">{t('web.languageLabel.zh-CN')}</option>
-                            <option value="en">{t('web.languageLabel.en')}</option>
-                        </select>
+                        <div className="topLeftBar">
+                            <SideNav route={route} onNavigate={navigate} footer={(
+                                <>
+                                    <button
+                                        className="theme-toggle-btn"
+                                        onClick={cycleTheme}
+                                        title={t('web.themeTitle')}
+                                    >
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                             strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+                                             style={{display: theme === 'dark' ? 'none' : 'block'}}>
+                                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                                        </svg>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                             strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+                                             style={{display: theme === 'dark' ? 'block' : 'none'}}>
+                                            <circle cx="12" cy="12" r="5"/>
+                                            <line x1="12" y1="1" x2="12" y2="3"/>
+                                            <line x1="12" y1="21" x2="12" y2="23"/>
+                                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                                            <line x1="1" y1="12" x2="3" y2="12"/>
+                                            <line x1="21" y1="12" x2="23" y2="12"/>
+                                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                                        </svg>
+                                        <span style={{fontSize: '0.78rem', marginLeft: '4px'}}>{themeLabel[theme]}</span>
+                                    </button>
+                                    <select
+                                        className="lang-selector"
+                                        defaultValue={i18n.language}
+                                        onChange={(e) => changeLanguage(e.target.value)}
+                                    >
+                                        <option value="zh-CN">{t('web.languageLabel.zh-CN')}</option>
+                                        <option value="en">{t('web.languageLabel.en')}</option>
+                                    </select>
+                                </>
+                            )}/>
+                            <QrCodeButton fgColor={qrFgColor}/>
                         </div>
                         <h1 className="appTitle">LAN Share</h1>
                         <p className="appSubtitle">{t('web.subtitle')}</p>
-                        <div className="qrCodeArea">
-                            <img className="qrIcon" src={BarcodeIconSvg} alt="QR Code"/>
-                            <div className="qrPopupContainer">
-                                <div className="qrContentWrapper">
-                                    <QRCodeSVG className="qrImage" value={getQrCodeUrl()} fgColor={qrFgColor} bgColor={"transparent"}/>
-                                    <p className="qrUrlDisplay">{getQrCodeUrl()}</p>
-                                </div>
-                            </div>
-                        </div>
                     </main>
 
                     <div className="content">
-                        <div className="textRow">
-                            <TextSharing/>
-                        </div>
-                        <div className="fileRow">
-                            <FileSharing/>
-                        </div>
+                        {route === ROUTE_FILES ? (
+                            <div className="fileRow">
+                                <FileSharing/>
+                            </div>
+                        ) : (
+                            <div className="textRow">
+                                <TextSharing/>
+                            </div>
+                        )}
                     </div>
                 </AppStyle>
             </ToastProvider>

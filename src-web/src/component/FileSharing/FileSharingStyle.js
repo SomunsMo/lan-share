@@ -2,7 +2,7 @@ import styled from "@emotion/styled";
 import Card from "../Card/Card.js";
 
 export const FileCard = styled(Card)`
-    max-height: calc(75vh * 1.5);
+    width: 100%;
 `;
 
 const FileSharingStyle = styled.div`
@@ -65,11 +65,15 @@ const FileSharingStyle = styled.div`
     }
 
     .fileList {
-        min-height: 300px;
+        flex: 1;
+        min-height: 0;
         margin-bottom: 12px;
         overflow-x: auto;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
+        /* 明确声明支持纵向平移，修复部分安卓浏览器刷新后列表收不到触摸滚动的问题 */
+        touch-action: pan-y;
+        overscroll-behavior: contain;
     }
 
     .fileTable {
