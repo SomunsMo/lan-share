@@ -290,6 +290,18 @@ const FileSharingStyle = styled.div`
         .fileTable td:nth-child(5) {
             display: none;
         }
+
+        /* 单元格隐藏后 colgroup 里对应的 col 仍然存在，还占着 160px/80px/25% 的宽度，
+           于是名称列撑不满、hover 背景也只盖到名称列那一段，这里把 col 一起去掉并让名称列自适应 */
+        .fileTable col:nth-child(3),
+        .fileTable col:nth-child(4),
+        .fileTable col:nth-child(5) {
+            display: none;
+        }
+
+        .fileTable col:nth-child(2) {
+            width: auto;
+        }
     }
 `;
 
