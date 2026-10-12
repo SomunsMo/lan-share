@@ -308,6 +308,19 @@ function FileSharing() {
 
     }, []);
 
+    // 浏览器前进/后退（移动端手势返回、PC 鼠标侧键）：URL 里的 ?dir= 已经变了，
+    // 按新目录重新拉取列表，并清空跨目录无效的选中项
+    useEffect(() => {
+        const handlePopState = () => {
+            const dir = getCurrentDirRef.current() || '';
+            setSelectedFiles(new Set());
+            setContextMenu({visible: false, x: 0, y: 0, item: null});
+            flushSharedFileListRef.current(dir);
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
     // 移动端检测
     useEffect(() => {
         const mq = window.matchMedia('(max-width: 767px)');
