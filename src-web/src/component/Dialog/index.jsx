@@ -117,6 +117,11 @@ function DialogItem({ dialog, index, closeDialog }) {
     return (
         <DialogOverlay
             $zIndex={9000 + index}
+            $exiting={dialog.exiting}
+            // 点击遮罩（卡片外区域）等同取消，调用方按假值处理
+            onClick={(e) => {
+                if (e.target === e.currentTarget) closeDialog(dialog.id, null);
+            }}
         >
             <DialogCard $exiting={dialog.exiting}>
                 {dialog.title && <DialogHeader>{dialog.title}</DialogHeader>}

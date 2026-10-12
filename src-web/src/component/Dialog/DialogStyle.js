@@ -29,6 +29,12 @@ export const DialogOverlay = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+
+  ${props => props.$exiting && `
+    animation: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  `}
 `;
 
 export const DialogCard = styled.div`
