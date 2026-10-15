@@ -19,11 +19,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 仅 main 分支走发布路径：按 main 的版本号定位待填充的 release 草稿。
+      # 仅默认分支走发布路径：按默认分支的版本号定位待填充的 release 草稿。
       # 其他分支只是用来编译验证跨平台产物，不校验版本、不接触 release。
       - name: Check release draft
         id: check
-        if: github.ref_name == 'main'
+        if: github.ref_name == github.event.repository.default_branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
