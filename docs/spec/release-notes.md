@@ -34,31 +34,30 @@
 
 ## 输出格式
 
-- 开头一行标题：`## v1.1.0 → v1.1.1`
-- 空行后按分组顺序输出二级标题 `### Features` / `### Fixes` / `### Performance` / `### Internal`
+- 开头一行标题：`## v1.1.1 Release Notes`
+- 空行后按分组顺序输出二级标题，英文在前、括号附中文：
+  `### Features（新功能）` / `### Fixes（修复）` / `### Performance（性能）` / `### Internal（内部变更）`
 - 条目用 `-` 列表，组内无条目的小标题不输出
-- 结尾附统计：`- N commits, M items`（N 取命令实际条数，M 为输出条目数）
+- 不输出 commits / items 统计行，不写总结段落
 - 全程包在一个 ```markdown 代码块内
 
 ## 示例
 
 ```markdown
-## v1.1.0 → v1.1.1
+## v1.1.1 Release Notes
 
-### Features
+### Features（新功能）
 
 - Split web pages with hash routing and a collapsible side nav  
   网页按 hash 路由拆分为多个页面，并支持折叠式侧边导航
 
-### Fixes
+### Fixes（修复）
 
 - Let the file name column fill the table on narrow screens  
   窄屏下文件名列自动撑满表格宽度
 
-### Internal
+### Internal（内部变更）
 
 - Fill release draft binaries instead of generating a release on tag push  
   改为在打 tag 时填充已存在的草稿 release，不再新建
-
-- 5 commits, 3 items
 ```
