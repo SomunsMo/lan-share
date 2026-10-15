@@ -1,15 +1,63 @@
-name: Build All Platforms
+name: Build All Platforms and Fill Release Draft
 
 on:
-  workflow_dispatch:            # 手动触发
-  push:
-    tags: ["v*"]                # 推送 tag 时自动触发（如 v1.0.0）
+  workflow_dispatch:            # 仅手动触发
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  validate:
+    name: Validate version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.check.outputs.tag }}
+      fill: ${{ steps.check.outputs.fill }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 仅 main 分支走发布路径：按 main 的版本号定位待填充的 release 草稿。
+      # 其他分支只是用来编译验证跨平台产物，不校验版本、不接触 release。
+      - name: Check release draft
+        id: check
+        if: github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CARGO_VERSION=$(grep '^version' src-tauri/Cargo.toml | head -1 | sed -n 's/.*"\(.*\)".*/\1/p')
+          TAURI_VERSION=$(python3 -c "import json;print(json.load(open('src-tauri/tauri.conf.json'))['version'])")
+          if [ -z "$CARGO_VERSION" ] || [ -z "$TAURI_VERSION" ]; then
+            echo "::error::无法读取版本号（Cargo.toml='${CARGO_VERSION}' tauri.conf.json='${TAURI_VERSION}'）"
+            exit 1
+          fi
+          if [ "$CARGO_VERSION" != "$TAURI_VERSION" ]; then
+            echo "::error::Cargo.toml (${CARGO_VERSION}) 与 tauri.conf.json (${TAURI_VERSION}) 版本号不一致"
+            exit 1
+          fi
+
+          TAG="v${CARGO_VERSION}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+          if ! IS_DRAFT=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null); then
+            echo "未找到 ${TAG} 的 release，本次只构建，不填充。"
+            echo "fill=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$IS_DRAFT" != "true" ]; then
+            echo "::warning::${TAG} 已发布，release 资产不可变，本次只构建，不填充。"
+            echo "fill=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "找到草稿 ${TAG}，构建完成后将填充二进制。"
+          echo "fill=true" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: validate
     strategy:
       matrix:
         include:
@@ -40,12 +88,16 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+      # 填充 release 时以 tag 为准构建，保证产物与 tag 指向的 commit 一致；
+      # 其余情况构建触发时所选的 ref
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.tag || github.ref }}
 
       # --- Node.js + pnpm ---
+      # 不指定 version：pnpm/action-setup 会自动读取 package.json 的 packageManager 字段，
+      # 避免与此处写死的版本冲突（ERR_PNPM_BAD_PM_VERSION）
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11.3.0
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
@@ -171,58 +223,14 @@ jobs:
           if-no-files-found: warn
 
   release:
-    name: Create GitHub Release
+    name: Fill release draft
     runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [validate, build]
+    if: needs.validate.outputs.fill == 'true'
     permissions:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Validate version consistency
-        run: |
-          CARGO_VERSION=$(grep '^version' src-tauri/Cargo.toml | head -1 | sed -n 's/.*"\(.*\)".*/\1/p')
-          TAG_VERSION="${{ github.ref_name }}"
-          TAG_VERSION_CLEAN="${TAG_VERSION#v}"
-          # Strip pre-release suffix for comparison (e.g., "1.0.2-test.1" -> "1.0.2")
-          TAG_VERSION_BASE="${TAG_VERSION_CLEAN%%-*}"
-          if [ "$CARGO_VERSION" != "$TAG_VERSION_BASE" ]; then
-            echo "::error::Tag '${TAG_VERSION}' does not match Cargo.toml version '${CARGO_VERSION}'"
-            echo "Please update src-tauri/Cargo.toml version to ${TAG_VERSION_BASE} before pushing the tag."
-            exit 1
-          fi
-          echo "Version consistency verified: v${CARGO_VERSION} (tag: ${TAG_VERSION})"
-
-      - name: Generate changelog
-        run: |
-          CURRENT_TAG="${{ github.ref_name }}"
-          PREVIOUS_TAG=$(git tag --sort=-version:refname --list 'v*' | grep -v "^${CURRENT_TAG}$" | head -n 1)
-          {
-            echo "# ${CURRENT_TAG}"
-            echo ""
-            if [ -z "$PREVIOUS_TAG" ]; then
-              echo "> First release of LAN Share."
-              echo ""
-              git log --pretty=format:"- %s (\`%h\`)" --no-merges
-            else
-              echo "> Changes since \`${PREVIOUS_TAG}\`"
-              echo ""
-              COMMIT_COUNT=$(git rev-list --count --no-merges ${PREVIOUS_TAG}..HEAD)
-              echo "**${COMMIT_COUNT} commits** since the previous release."
-              echo ""
-              COMMITS=$(git log --pretty=format:"- %s (\`%h\`)" --no-merges ${PREVIOUS_TAG}..HEAD)
-              if [ -z "$COMMITS" ]; then
-                echo "(no changes since previous tag)"
-              else
-                echo "$COMMITS"
-              fi
-            fi
-          } > /tmp/changelog.md
-
       - uses: actions/download-artifact@v4
         with:
           path: all-artifacts
@@ -282,14 +290,12 @@ jobs:
           echo "=== Release assets ==="
           ls -lh release-assets/
 
-      - uses: softprops/action-gh-release@v2
+      # 只传 tag_name 与 files：标题、notes、prerelease 沿用你在网页草稿里填的内容。
+      # draft 显式传 true，否则 action 上传完会自动把草稿发布出去。
+      - uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          body_path: /tmp/changelog.md
+          tag_name: ${{ needs.validate.outputs.tag }}
           files: release-assets/*
-          draft: false
-          prerelease: false
-          make_latest: true
+          draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,6 +1,7 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import HomeStyle from "./style.js";
 import {invoke} from "@tauri-apps/api/core";
+import {listen} from "@tauri-apps/api/event";
 import {QRCodeSVG} from "qrcode.react";
 import {open} from '@tauri-apps/plugin-dialog';
 import {useDialog} from "@/components/dialog/index.jsx";
@@ -86,6 +87,21 @@ function Home() {
             setStatusLoading(false);
         }
     }
+
+    useEffect(() => {
+        const setup = async () => {
+            const unlisten = await listen("lan-share:port-changed", () => {
+                setStatusLoading(true);
+                fetchServerStatus().catch(e => {
+                    console.error("端口变更后刷新服务器状态失败：", e);
+                });
+            });
+            return () => unlisten();
+        };
+        let cleanup;
+        setup().then(fn => { cleanup = fn; });
+        return () => { if (cleanup) cleanup(); };
+    }, []);
 
     const [deviceName, setDeviceName] = useState("");
     useEffect(() => {

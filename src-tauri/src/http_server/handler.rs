@@ -127,14 +127,14 @@ pub fn register_handler(handler: BaseHandler) {
     let mut registry = HANDLER_REGISTRY.write().unwrap();
     registry
         .entry(path)
-        .or_insert_with(Vec::new)
+        .or_default()
         .push(handler);
     log::info!("Registered handler for path: {}", path);
 }
 
 // 获取处理器
 pub fn get_handler(path: &str, method: &Method) -> Option<BaseHandler> {
-    let path: &str = &*path_normalizer(path);
+    let path: &str = &path_normalizer(path);
 
     let registry = HANDLER_REGISTRY.read().unwrap();
 

@@ -9,19 +9,28 @@ use crate::http_server::sse::{fire, new_file_deleted, new_file_renamed, new_file
 use crate::QueryParams;
 use form_urlencoded;
 use futures_util::stream::TryStreamExt;
+use futures_util::Stream;
 use http_body_util::BodyExt;
-use hyper::body::Incoming;
+use hyper::body::{Bytes, Incoming};
 use hyper::{header, Request, Response, StatusCode};
 use lan_share_http_macros::{delete, get, post, put};
 use multer::Multipart;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::future::Future;
 use std::io;
 use std::net::SocketAddr;
-use std::time::UNIX_EPOCH;
+use std::path::{Path, PathBuf};
+use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::Arc;
+use std::task::{Context, Poll};
+use std::time::{Duration, UNIX_EPOCH};
 use tokio::fs;
 use tokio::fs::File;
+use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
+use tokio::time::Sleep;
 
 #[derive(Serialize)]
 struct FileInfoItem {
@@ -160,6 +169,103 @@ pub async fn get_file_list(
     })
 }
 
+/// 上传停滞超时：距上一个数据块超过该秒数仍未收到新数据，判定客户端失联
+/// （半开 TCP：合盖休眠 / Wi-Fi 掉线 / 代理静默丢弃，均无 FIN 到达，连接会永久挂起）
+const UPLOAD_IDLE_TIMEOUT_SECS: u64 = 30;
+
+/// 上传停滞检测流：透传上游数据块，若 idle 窗口内上游始终 Pending 则产出
+/// `io::ErrorKind::TimedOut`。正常传输的块间隔是毫秒级，30s 窗口不会误杀。
+/// 内部流用 `Pin<Box<..>>` 持有使结构体天然 Unpin，无需引入 pin-project。
+/// 触发时置位 `stalled`：multer 的 StreamBuffer 会把流错误转成自身的 crate::Error
+/// （仅保留 Display 文本，丢失具体类型），因此无法靠 downcast 区分停滞与其它读错误。
+struct UploadStallGuard {
+    inner: Pin<Box<dyn Stream<Item = Result<Bytes, io::Error>> + Send>>,
+    sleep: Pin<Box<Sleep>>,
+    idle: Duration,
+    stalled: Arc<AtomicBool>,
+}
+
+impl UploadStallGuard {
+    fn new(
+        inner: impl Stream<Item = Result<Bytes, io::Error>> + Send + 'static,
+        idle: Duration,
+        stalled: Arc<AtomicBool>,
+    ) -> Self {
+        Self {
+            inner: Box::pin(inner),
+            sleep: Box::pin(tokio::time::sleep(idle)),
+            idle,
+            stalled,
+        }
+    }
+}
+
+impl Stream for UploadStallGuard {
+    type Item = Result<Bytes, io::Error>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        // 上游与定时器共用同一个 waker，谁先就绪谁唤醒本轮 poll
+        if let Poll::Ready(item) = this.inner.as_mut().poll_next(cx) {
+            // 仅在真正收到数据时重置窗口。若每次 poll 都重置，定时器自身唤醒后会
+            // 把截止时间推到未来，永远等不到超时
+            if matches!(item, Some(Ok(_))) {
+                this.sleep.as_mut().reset(tokio::time::Instant::now() + this.idle);
+            }
+            return Poll::Ready(item);
+        }
+        match this.sleep.as_mut().poll(cx) {
+            Poll::Ready(()) => {
+                this.stalled.store(true, Ordering::Relaxed);
+                Poll::Ready(Some(Err(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    format!("上传停滞：{} 秒未收到数据", UPLOAD_IDLE_TIMEOUT_SECS),
+                ))))
+            }
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+/// 上传临时文件守卫：commit 之前（含写失败 / 停滞 / 断连 / flush 失败）一律删除临时文件，
+/// 杜绝半截文件以最终文件名残留。commit 成功后不再清理。
+/// 必须先于 `File` 声明：Rust 按声明逆序 drop，先关句柄再删文件，Windows 才能删成功。
+struct TempUploadGuard {
+    temp_path: PathBuf,
+    final_path: PathBuf,
+    committed: bool,
+}
+
+impl TempUploadGuard {
+    fn new(temp_path: PathBuf, final_path: PathBuf) -> Self {
+        Self { temp_path, final_path, committed: false }
+    }
+
+    /// 原子提交：同目录 rename 覆盖，POSIX 与 Windows(MoveFileExW + REPLACE_EXISTING) 均为原子替换
+    async fn commit(&mut self) -> std::io::Result<()> {
+        tokio::fs::rename(&self.temp_path, &self.final_path).await?;
+        self.committed = true;
+        Ok(())
+    }
+}
+
+impl Drop for TempUploadGuard {
+    fn drop(&mut self) {
+        if !self.committed {
+            // drop 中无法 await，用同步删除；此时 File 句柄已随逆序 drop 关闭
+            let _ = std::fs::remove_file(&self.temp_path);
+        }
+    }
+}
+
+/// 生成上传临时文件路径 `<原名>.<pid>.<序号>.part`：带 pid 与进程内序号，
+/// 同名文件并发上传互不干扰（原实现直接写最终名，并发会互相截断）
+fn temp_upload_path(dir: &Path, filename: &str) -> PathBuf {
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let seq = SEQ.fetch_add(1, Ordering::Relaxed);
+    dir.join(format!("{}.{}.{}.part", filename, std::process::id(), seq))
+}
+
 /// 上传被共享的文件
 #[post("/upload/file")]
 pub async fn upload_file(
@@ -275,11 +381,16 @@ pub async fn upload_file(
         }
     }
 
-    // 4. 所有校验通过后才消费 body
-    let body_stream = _req
-        .into_body()
-        .into_data_stream()
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e));
+    // 4. 所有校验通过后才消费 body；停滞检测包在数据流外层，客户端失联时主动放弃
+    // stalled 标志跨 multer 边界回传停滞状态（其内部会吞掉流错误的具体类型）
+    let stalled = Arc::new(AtomicBool::new(false));
+    let body_stream = UploadStallGuard::new(
+        _req.into_body()
+            .into_data_stream()
+            .map_err(io::Error::other),
+        Duration::from_secs(UPLOAD_IDLE_TIMEOUT_SECS),
+        Arc::clone(&stalled),
+    );
 
     let mut multipart = Multipart::new(body_stream, boundary);
 
@@ -298,6 +409,12 @@ pub async fn upload_file(
             Ok(Some(f)) => f,
             Ok(None) => break, // 解析完毕
             Err(e) => {
+                if stalled.load(Ordering::Relaxed) {
+                    return error(
+                        StatusCode::REQUEST_TIMEOUT,
+                        &format!("上传停滞超时：{} 秒未收到数据", UPLOAD_IDLE_TIMEOUT_SECS),
+                    );
+                }
                 return error(
                     StatusCode::BAD_REQUEST,
                     &format!("Multipart parse error: {}", e),
@@ -318,10 +435,10 @@ pub async fn upload_file(
                     None => return error(StatusCode::BAD_REQUEST, "Missing filename"),
                 };
                 let safe_filename = sanitize_filename(&filename);
-                let file_path = target_dir.join(&safe_filename);
+                let final_path = target_dir.join(&safe_filename);
 
                 // 检查同名文件是否存在，若存在且上传覆盖已禁用则返回错误
-                let file_existed = file_path.exists();
+                let file_existed = final_path.exists();
                 if file_existed && !overwrite_enabled {
                     return error(
                         StatusCode::CONFLICT,
@@ -329,8 +446,12 @@ pub async fn upload_file(
                     );
                 }
 
-                // 直接创建文件并写入（边解析边写，无锁竞争）
-                let mut file = match File::create(&file_path).await {
+                // 先写临时文件再原子改名：上传中途失败不会毁掉同名原文件，
+                // 也不会让半截文件占据最终文件名（守卫先于 File 声明以保证逆序 drop 顺序）
+                let temp_path = temp_upload_path(&target_dir, &safe_filename);
+                let mut guard = TempUploadGuard::new(temp_path.clone(), final_path);
+
+                let mut file = match File::create(&temp_path).await {
                     Ok(f) => f,
                     Err(e) => {
                         return error(
@@ -345,8 +466,6 @@ pub async fn upload_file(
                     match field.chunk().await {
                         Ok(Some(chunk)) => {
                             if let Err(e) = file.write_all(&chunk).await {
-                                // 清理未写完的文件
-                                let _ = tokio::fs::remove_file(&file_path).await;
                                 // 检查是否是磁盘空间不足
                                 if !check_disk_space(1, &target_dir) {
                                     return error(
@@ -362,6 +481,18 @@ pub async fn upload_file(
                         }
                         Ok(None) => break, // 文件写入完毕
                         Err(e) => {
+                            // 停滞/断连在此收敛，守卫负责删除临时文件
+                            if stalled.load(Ordering::Relaxed) {
+                                log::warn!(
+                                    "上传停滞超时，放弃 '{}'（{} 秒无数据）",
+                                    safe_filename,
+                                    UPLOAD_IDLE_TIMEOUT_SECS
+                                );
+                                return error(
+                                    StatusCode::REQUEST_TIMEOUT,
+                                    &format!("上传停滞超时：{} 秒未收到数据", UPLOAD_IDLE_TIMEOUT_SECS),
+                                );
+                            }
                             return error(
                                 StatusCode::BAD_REQUEST,
                                 &format!("Failed to read chunk for '{}': {}", safe_filename, e),
@@ -370,9 +501,8 @@ pub async fn upload_file(
                     }
                 }
 
-                // 刷新并记录上传结果
+                // 刷新后必须先关闭句柄再改名：Windows 不允许 rename 打开中的文件
                 if let Err(e) = file.flush().await {
-                    let _ = tokio::fs::remove_file(&file_path).await;
                     if !check_disk_space(1, &target_dir) {
                         return error(
                             StatusCode::INSUFFICIENT_STORAGE,
@@ -382,6 +512,15 @@ pub async fn upload_file(
                     return error(
                         StatusCode::INTERNAL_SERVER_ERROR,
                         &format!("Failed to flush file '{}': {}", safe_filename, e),
+                    );
+                }
+                drop(file);
+
+                // 原子提交：此前失败均已由守卫清理临时文件
+                if let Err(e) = guard.commit().await {
+                    return error(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        &format!("Failed to save file '{}': {}", safe_filename, e),
                     );
                 }
                 uploaded.push(safe_filename);
@@ -409,10 +548,116 @@ pub async fn upload_file(
     }
 
     for filename in &uploaded {
-        fire(new_file_upload(&dir_param, filename, client_id.clone()));
+        fire(new_file_upload(dir_param, filename, client_id.clone()));
     }
 
     success_json(())
+}
+
+// 预览工具（图片/PDF/纯文本/音频/Excel）
+const PREVIEW_IMAGE_SUFFIXES: &[&str] = &["bmp", "png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "tiff"];
+const PREVIEW_TEXT_SUFFIXES: &[&str] = &[
+    "txt", "log", "md", "markdown", "csv", "json", "xml", "yaml", "yml",
+    "ini", "cfg", "conf", "toml", "env", "html", "htm", "css", "js", "ts",
+    "py", "rs", "java", "c", "h", "cpp", "go", "sql",
+];
+/// 小于该字节数的文本全量读取后转码预览，更大的走流式
+const PREVIEW_FULL_READ_LIMIT: u64 = 5 * 1024 * 1024;
+/// 浏览器原生可靠播放的音频后缀（wma/ape 等编码不在列）
+const PREVIEW_AUDIO_SUFFIXES: &[&str] = &["mp3", "wav", "ogg", "opus", "flac", "m4a", "aac"];
+/// Excel 表格后缀（前端 exceljs 解析渲染；仅支持 xlsx，xls 老格式不支持）
+const PREVIEW_EXCEL_SUFFIXES: &[&str] = &["xlsx"];
+/// Excel 预览上限：超过则拒绝（防御 SheetJS 解析大文件卡顿）
+const PREVIEW_EXCEL_MAX_SIZE: u64 = 10 * 1024 * 1024;
+
+/// 流式读取块大小：每块都要付一次 tokio::fs 的 spawn_blocking 往返（channel 发送 +
+/// blocking 线程唤醒 + read 系统调用 + 回信 + task 唤醒），单次约 3–5µs 且同时占用
+/// async worker 与 blocking 线程两个核。块越大，同样字节数的往返次数越少。
+/// 16GB 文件在 64KB 下是 26 万次，256KB 下降到 6.5 万次。
+/// read() 有多少数据就返回多少，不会为凑满一块而等待，故不影响首字节延迟。
+const STREAM_CHUNK_SIZE: usize = 256 * 1024;
+
+/// 取小写扩展名（无扩展名返回空串）
+fn file_ext_lower(name: &str) -> String {
+    name.rsplit('.').next().unwrap_or("").to_lowercase()
+}
+
+/// 该扩展名是否支持预览（图片/PDF/纯文本/音频/Excel）
+fn is_previewable(ext: &str) -> bool {
+    PREVIEW_IMAGE_SUFFIXES.contains(&ext)
+        || ext == "pdf"
+        || PREVIEW_TEXT_SUFFIXES.contains(&ext)
+        || PREVIEW_AUDIO_SUFFIXES.contains(&ext)
+        || PREVIEW_EXCEL_SUFFIXES.contains(&ext)
+}
+
+/// 解析单段 Range 请求，返回闭区间 (start, end)。无法满足（非 bytes 单元 / 语法非法 / start 越界 / 空文件）返回 None，上层回退 200 全量。
+fn parse_range_header(value: Option<&str>, total: u64) -> Option<(u64, u64)> {
+    if total == 0 {
+        return None;
+    }
+    let value = value?.trim().strip_prefix("bytes=")?;
+    let (start_s, end_s) = value.split_once('-')?;
+    let (start, end) = if start_s.is_empty() {
+        let suffix: u64 = end_s.parse().ok()?;
+        if suffix == 0 {
+            return None;
+        }
+        let start = total.saturating_sub(suffix);
+        (start, total - 1)
+    } else {
+        let start: u64 = start_s.parse().ok()?;
+        let end: u64 = if end_s.is_empty() {
+            total - 1
+        } else {
+            end_s.parse().ok()?
+        };
+        (start, end)
+    };
+    if start >= total || start > end {
+        return None;
+    }
+    Some((start, end.min(total - 1)))
+}
+
+/// 编码检测：先按 BOM，再尝试 UTF-8 严格解码（无报错视为 UTF-8），否则按 GBK
+fn detect_text_encoding(data: &[u8]) -> &'static encoding_rs::Encoding {
+    if let Some((enc, _)) = encoding_rs::Encoding::for_bom(data) {
+        return enc;
+    }
+    let (_, had_errors) = encoding_rs::UTF_8.decode_without_bom_handling(data);
+    if had_errors { encoding_rs::GBK } else { encoding_rs::UTF_8 }
+}
+
+/// 流式 GBK→UTF-8 转码：复用同一 Decoder 跨块缓冲不完整多字节序列（数据正确性纪律 3）
+/// 供单测验证跨块解码正确性；产品流式路径在 stream_preview_file 中镜像同款循环（逐块发送，不整包累积）
+#[cfg(test)]
+fn transcode_gbk_chunks(chunks: &[&[u8]]) -> String {
+    use encoding_rs::CoderResult;
+    let mut decoder = encoding_rs::GBK.new_decoder();
+    let mut out = String::new();
+    for (i, chunk) in chunks.iter().enumerate() {
+        let last = i == chunks.len() - 1;
+        // decode_to_string 以 String 容量为单次输出上限，先按最大输出量预留空间
+        if let Some(len) = decoder.max_utf8_buffer_length(chunk.len()) {
+            out.reserve(len);
+        }
+        let mut rest = *chunk;
+        loop {
+            let (result, consumed, _) = decoder.decode_to_string(rest, &mut out, last);
+            rest = &rest[consumed..];
+            match result {
+                CoderResult::InputEmpty => break,
+                CoderResult::OutputFull => {
+                    // 容量耗尽时扩容后继续输出剩余字节
+                    if let Some(len) = decoder.max_utf8_buffer_length(rest.len()) {
+                        out.reserve(len);
+                    }
+                }
+            }
+        }
+    }
+    out
 }
 
 /// 文件名消毒函数
@@ -506,7 +751,11 @@ pub async fn download_file(
         let safe_path = sanitize_path_segment(dir_param);
         (*root_dir).join(safe_path)
     };
-    let full_file_path = target_dir.join(&file_name);
+    let safe_file_name = sanitize_filename(file_name);
+    if safe_file_name.is_empty() {
+        return Ok(create_error_response(StatusCode::BAD_REQUEST, "无效的文件名：file_name"));
+    }
+    let full_file_path = target_dir.join(&safe_file_name);
 
     // 第四步：验证文件合法性
     // 1. 检查文件是否存在
@@ -533,39 +782,249 @@ pub async fn download_file(
         return Ok(error_response);
     }
 
-    // 第五步：打开文件并读取内容
-    let file_content = match tokio::fs::read(&full_file_path).await {
-        Ok(content) => content,
-        Err(e) => {
-            let error_response = create_error_response(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                &format!("文件读取失败：{}", e),
-            );
-            return Ok(error_response);
+    // 第五步：流式输出（常量内存，与文件大小无关），并支持单段 Range 断点续传
+    // 复用预览通道：直出原始字节、Content-Length 精确、读盘被 socket 背压反压限速
+    let content_type = mime_guess::from_path(&full_file_path)
+        .first_or_octet_stream()
+        .to_string();
+    // 文件名按 RFC 5987 百分号编码（与预览一致），避免引号/控制字符破坏响应头
+    let encoded_name: String = form_urlencoded::byte_serialize(file_name.as_bytes()).collect();
+    let disposition = format!("attachment; filename*=UTF-8''{}", encoded_name);
+    let range = parse_range_header(
+        _req.headers().get(header::RANGE).and_then(|v| v.to_str().ok()),
+        metadata.len(),
+    );
+    stream_preview_file(full_file_path, metadata.len(), content_type, disposition, range, None)
+}
+
+/// 构造 inline 预览响应：支持直出字节流或 GBK→UTF-8 流式转码
+/// transcode 为 Some 时不允许设 Content-Length（输出长度不可预知，走 chunked）；范围请求时不转码
+fn stream_preview_file(
+    file_path: PathBuf,
+    len: u64,
+    content_type: String,
+    disposition: String,
+    range: Option<(u64, u64)>,
+    transcode: Option<&'static encoding_rs::Encoding>,
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
+    let (tx, rx) = tokio::sync::mpsc::channel::<Bytes>(8);
+    let range_len = range.map(|(s, e)| e - s + 1);
+    tokio::spawn(async move {
+        let mut file = match File::open(&file_path).await {
+            Ok(f) => f,
+            Err(_) => return, // 打开失败直接结束流（客户端将收到网络错误）
+        };
+        if let Some((s, _)) = range {
+            use tokio::io::AsyncSeekExt;
+            if file.seek(std::io::SeekFrom::Start(s)).await.is_err() {
+                return;
+            }
         }
+        if let Some(enc) = transcode {
+            // 跨块复用同一 Decoder，缓冲不完整多字节序列（数据正确性纪律 3）
+            use encoding_rs::CoderResult;
+            let mut decoder = enc.new_decoder();
+            let mut buf = vec![0u8; STREAM_CHUNK_SIZE];
+            loop {
+                match file.read(&mut buf).await {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        // decode_to_string 以 String 容量为单次输出上限，先按最大输出量预留空间
+                        let mut out = String::new();
+                        if let Some(reserved) = decoder.max_utf8_buffer_length(n) {
+                            out.reserve(reserved);
+                        }
+                        let mut rest = &buf[..n];
+                        loop {
+                            let (result, consumed, _) = decoder.decode_to_string(rest, &mut out, false);
+                            rest = &rest[consumed..];
+                            match result {
+                                CoderResult::InputEmpty => break,
+                                CoderResult::OutputFull => {
+                                    // 容量耗尽时扩容后继续输出剩余字节
+                                    if let Some(reserved) = decoder.max_utf8_buffer_length(rest.len()) {
+                                        out.reserve(reserved);
+                                    }
+                                }
+                            }
+                        }
+                        if tx.send(Bytes::from(out.into_bytes())).await.is_err() {
+                            return; // 客户端已断开
+                        }
+                    }
+                    _ => return,
+                }
+            }
+            // 最后一次（可能为空）flush：last=true 输出解码缓冲残留，保证数据完整（纪律 3）
+            // 必须预留容量：残留字节被 flush 为 U+FFFD 时无容量会越界，max_utf8_buffer_length(0)
+            // 已按 pending 状态计入该替换字符的余量
+            let mut out = String::new();
+            if let Some(reserved) = decoder.max_utf8_buffer_length(0) {
+                out.reserve(reserved);
+            }
+            let _ = decoder.decode_to_string(&[], &mut out, true);
+            let _ = tx.send(Bytes::from(out.into_bytes())).await;
+        } else {
+            // 直出原字节流（图片 / PDF / 音频 / UTF-8 文本），Content-Length 精确；range 时只读区间
+            let mut buf = vec![0u8; STREAM_CHUNK_SIZE];
+            let mut remaining = range_len.unwrap_or(u64::MAX);
+            while remaining > 0 {
+                let to_read = buf.len().min(remaining as usize);
+                match file.read(&mut buf[..to_read]).await {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        if tx.send(Bytes::copy_from_slice(&buf[..n])).await.is_err() {
+                            return;
+                        }
+                        remaining -= n as u64;
+                    }
+                    _ => return,
+                }
+            }
+        }
+    });
+
+    let mut builder = Response::builder()
+        .header(header::CONTENT_TYPE, content_type)
+        .header(header::CONTENT_DISPOSITION, disposition)
+        // 文件可变，不缓存，避免端口切换后展示旧内容
+        .header(header::CACHE_CONTROL, "no-store");
+    match range {
+        Some((s, e)) => {
+            builder = builder
+                .status(StatusCode::PARTIAL_CONTENT)
+                .header(header::CONTENT_RANGE, format!("bytes {}-{}/{}", s, e, len));
+            if transcode.is_none() {
+                builder = builder.header(header::CONTENT_LENGTH, range_len.unwrap_or(len).to_string());
+            }
+        }
+        None => {
+            builder = builder.status(StatusCode::OK);
+            if transcode.is_none() {
+                builder = builder.header(header::CONTENT_LENGTH, len.to_string());
+            }
+        }
+    }
+    Ok(builder.body(GenericResponseBody::Stream(rx)).unwrap())
+}
+
+/// 预览共享文件（图片/PDF/纯文本），返回 inline 流供 iframe 展示
+#[get("/preview/file")]
+pub async fn preview_file(
+    _req: Request<Incoming>,
+) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
+    let query = match _req.uri().query() {
+        Some(q) => q,
+        None => return Ok(create_error_response(StatusCode::BAD_REQUEST, "缺少查询参数：?dir=目录&file_name=文件名")),
+    };
+    let params: HashMap<_, _> = form_urlencoded::parse(query.as_bytes())
+        .into_owned()
+        .collect();
+
+    let dir_param = params.get("dir").map(|s| s.as_str()).unwrap_or("");
+    let file_name = match params.get("file_name") {
+        Some(name) if !name.is_empty() => name,
+        _ => return Ok(create_error_response(StatusCode::BAD_REQUEST, "缺少必填参数：file_name（文件名）")),
     };
 
-    // 第六步：构建下载响应
-    let response = Response::builder()
-        .status(StatusCode::OK)
-        // 触发浏览器下载弹窗（文件名使用原始文件名）
-        .header(
-            header::CONTENT_DISPOSITION,
-            format!("attachment; filename=\"{}\"", file_name),
-        )
-        // 传递文件大小（用于下载进度显示）
-        .header(header::CONTENT_LENGTH, metadata.len().to_string())
-        // 自动推断 MIME 类型（优化浏览器行为）
-        .header(
-            header::CONTENT_TYPE,
-            mime_guess::from_path(&full_file_path)
-                .first_or_octet_stream()
-                .to_string(),
-        )
-        .body(GenericResponseBody::Bytes(file_content.into()))
-        .unwrap();
+    // 消毒文件名，防止路径遍历攻击
+    let safe_file_name = sanitize_filename(file_name);
+    if safe_file_name.is_empty() {
+        return Ok(create_error_response(StatusCode::BAD_REQUEST, "无效的文件名：file_name"));
+    }
+    let root_dir = get_sharing_root().await;
+    let target_dir = if dir_param.is_empty() {
+        (*root_dir).clone()
+    } else {
+        (*root_dir).join(sanitize_path_segment(dir_param))
+    };
+    let full_file_path = target_dir.join(safe_file_name);
 
-    Ok(response)
+    let metadata = match tokio::fs::metadata(&full_file_path).await {
+        Ok(meta) => meta,
+        Err(_) => return Ok(create_error_response(StatusCode::NOT_FOUND, "文件不存在")),
+    };
+    if !metadata.is_file() {
+        return Ok(create_error_response(StatusCode::BAD_REQUEST, "指定路径是目录，不支持预览"));
+    }
+
+    let ext = file_ext_lower(file_name);
+    if !is_previewable(&ext) {
+        return Ok(create_error_response(StatusCode::UNSUPPORTED_MEDIA_TYPE, "该文件类型不支持预览"));
+    }
+
+    let encoded_name: String = form_urlencoded::byte_serialize(file_name.as_bytes()).collect();
+    let disposition = format!("inline; filename*=UTF-8''{}", encoded_name);
+
+    // 图片 / PDF / 音频：直出流式，Content-Length 精确；支持单段 Range（音频拖进度）
+    if PREVIEW_IMAGE_SUFFIXES.contains(&ext.as_str()) || ext == "pdf" || PREVIEW_AUDIO_SUFFIXES.contains(&ext.as_str()) {
+        let content_type = mime_guess::from_path(&full_file_path)
+            .first_or_octet_stream()
+            .to_string();
+        let range_header = _req.headers().get(header::RANGE).and_then(|v| v.to_str().ok());
+        let range = parse_range_header(range_header, metadata.len());
+        return stream_preview_file(full_file_path, metadata.len(), content_type, disposition, range, None);
+    }
+
+    // Excel（xlsx）：限制 ≤10MB，直出流式，前端 exceljs 全量 fetch 解析
+    if PREVIEW_EXCEL_SUFFIXES.contains(&ext.as_str()) {
+        if metadata.len() > PREVIEW_EXCEL_MAX_SIZE {
+            return Ok(create_error_response(StatusCode::PAYLOAD_TOO_LARGE, "Excel 文件过大，请下载后查看"));
+        }
+        return stream_preview_file(
+            full_file_path,
+            metadata.len(),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet".to_string(),
+            disposition,
+            None,
+            None,
+        );
+    }
+
+    // 纯文本
+    if metadata.len() <= PREVIEW_FULL_READ_LIMIT {
+        // ≤5MB：全量读取 + 编码检测转码，一次性输出（Content-Length 已知）
+        let bytes = match tokio::fs::read(&full_file_path).await {
+            Ok(b) => b,
+            Err(e) => return Ok(create_error_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("文件读取失败：{}", e))),
+        };
+        let enc = detect_text_encoding(&bytes);
+        let (text, _, _) = enc.decode(&bytes);
+        let utf8_bytes = text.into_owned().into_bytes();
+        let response = Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
+            .header(header::CONTENT_DISPOSITION, disposition)
+            .header(header::CACHE_CONTROL, "no-store")
+            .header(header::CONTENT_LENGTH, utf8_bytes.len().to_string())
+            .body(GenericResponseBody::Bytes(utf8_bytes.into()))
+            .unwrap();
+        return Ok(response);
+    }
+
+    // >5MB：读头部定编码后流式（UTF-8 直出带 Content-Length；GBK 流式转码无 Content-Length）
+    let mut head = vec![0u8; 8192];
+    let mut file = match File::open(&full_file_path).await {
+        Ok(f) => f,
+        Err(e) => return Ok(create_error_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("文件读取失败：{}", e))),
+    };
+    let read_n = match file.read(&mut head).await {
+        Ok(n) => n,
+        Err(e) => return Ok(create_error_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("文件读取失败：{}", e))),
+    };
+    let enc = detect_text_encoding(&head[..read_n]);
+    if enc == encoding_rs::UTF_8 {
+        stream_preview_file(
+            full_file_path,
+            metadata.len(),
+            "text/plain; charset=utf-8".to_string(),
+            disposition,
+            parse_range_header(_req.headers().get(header::RANGE).and_then(|v| v.to_str().ok()), metadata.len()),
+            None,
+        )
+    } else {
+        stream_preview_file(full_file_path, metadata.len(), "text/plain; charset=utf-8".to_string(), disposition, None, Some(enc))
+    }
 }
 
 // 创建错误响应，响应体类型为 GenericResponseBody
@@ -663,7 +1122,7 @@ pub async fn rename_file(
         Ok(_) => {
             log::info!("重命名成功: {} -> {}", old_name, safe_new_name);
             fire(new_file_renamed(
-                &dir_param,
+                dir_param,
                 &sanitize_filename(&old_name),
                 &safe_new_name,
                 client_id,
@@ -749,8 +1208,8 @@ pub async fn delete_file(
         let f_path = file_path.clone();
         match tokio::task::spawn_blocking(move || trash::delete(&f_path)).await {
             Ok(Ok(())) => Ok(()),
-            Ok(Err(e)) => Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())),
-            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())),
+            Ok(Err(e)) => Err(std::io::Error::other(e.to_string())),
+            Err(e) => Err(std::io::Error::other(e.to_string())),
         }
     } else if metadata.is_dir() {
         fs::remove_dir_all(&file_path).await
@@ -761,7 +1220,7 @@ pub async fn delete_file(
     match result {
         Ok(_) => {
             log::info!("删除成功: {}", safe_filename);
-            fire(new_file_deleted(&dir_param, &safe_filename, client_id));
+            fire(new_file_deleted(dir_param, &safe_filename, client_id));
             success_json(())
         }
         Err(e) => {
@@ -869,5 +1328,262 @@ fn check_disk_space(upload_size: u64, target_dir: &std::path::Path) -> bool {
             log::error!("无法获取磁盘可用空间: {}", e);
             false // 无法确认空间充足时，拒绝上传（安全优先）
         }
+    }
+}
+
+#[cfg(test)]
+mod preview_tests {
+    use super::*;
+
+    #[test]
+    fn sanitize_filename_strips_traversal_separators() {
+        assert!(!sanitize_filename("../../etc/passwd").contains('/'));
+        // Unix 不限制反斜杠，但绝对路径开头设备名不受影响
+        assert!(!sanitize_filename("..%2f..%2fsecret").contains('/'));
+    }
+
+    #[test]
+    fn detect_encoding_handles_utf8_and_gbk() {
+        assert_eq!(detect_text_encoding("你好".as_bytes()), encoding_rs::UTF_8);
+        let (gbk_bytes, _, _) = encoding_rs::GBK.encode("你好");
+        assert_eq!(detect_text_encoding(&gbk_bytes), encoding_rs::GBK);
+    }
+
+    #[test]
+    fn gbk_stream_transcoding_keeps_cross_boundary_chars() {
+        let (gbk, _, _) = encoding_rs::GBK.encode("中文测试abc123");
+        // 块边界刻意切在可变长字节中间
+        let chunks = vec![&gbk[..1], &gbk[1..4], &gbk[4..]];
+        assert_eq!(transcode_gbk_chunks(&chunks), "中文测试abc123");
+    }
+
+    #[test]
+    fn previewability_by_extension() {
+        assert!(is_previewable(&file_ext_lower("a.pdf")));
+        assert!(is_previewable(&file_ext_lower("note.MD")));
+        assert!(is_previewable(&file_ext_lower("photo.jpeg")));
+        assert!(!is_previewable(&file_ext_lower("a.docx")));
+        assert!(!is_previewable(&file_ext_lower("noext")));
+    }
+
+    #[test]
+    fn range_header_parsing() {
+        assert_eq!(parse_range_header(Some("bytes=0-99"), 1000), Some((0, 99)));
+        assert_eq!(parse_range_header(Some("bytes=100-"), 1000), Some((100, 999)));
+        assert_eq!(parse_range_header(Some("bytes=-50"), 1000), Some((950, 999)));
+        assert_eq!(parse_range_header(Some("bytes=-0"), 1000), None);
+        assert_eq!(parse_range_header(None, 1000), None);
+        assert_eq!(parse_range_header(Some("bytes=5000-"), 1000), None);
+        assert_eq!(parse_range_header(Some("bytes=10-5"), 1000), None);
+        assert_eq!(parse_range_header(Some("items=0-9"), 1000), None);
+    }
+
+    #[test]
+    fn audio_extensions_previewable() {
+        for ext in PREVIEW_AUDIO_SUFFIXES {
+            assert!(is_previewable(ext), "音频后缀应可预览: {}", ext);
+        }
+        assert!(!is_previewable("wma"));
+        assert!(!is_previewable("ape"));
+    }
+
+    #[test]
+    fn excel_extensions_previewable() {
+        for ext in PREVIEW_EXCEL_SUFFIXES {
+            assert!(is_previewable(ext), "Excel 后缀应可预览: {}", ext);
+        }
+        assert!(!is_previewable("xls"));
+        assert!(!is_previewable("docx"));
+        assert_eq!(PREVIEW_EXCEL_MAX_SIZE, 10 * 1024 * 1024);
+    }
+
+    #[test]
+    fn streaming_flush_handles_trailing_lead_byte() {
+        use encoding_rs::CoderResult;
+        fn run_stream(chunks: &[&[u8]]) -> String {
+            let mut decoder = encoding_rs::GBK.new_decoder();
+            let mut out_chunks: Vec<String> = Vec::new();
+            for chunk in chunks {
+                let mut out = String::new();
+                if let Some(r) = decoder.max_utf8_buffer_length(chunk.len()) {
+                    out.reserve(r);
+                }
+                let mut rest = *chunk;
+                loop {
+                    let (result, consumed, _) = decoder.decode_to_string(rest, &mut out, false);
+                    rest = &rest[consumed..];
+                    match result {
+                        CoderResult::InputEmpty => break,
+                        CoderResult::OutputFull => {
+                            if let Some(r) = decoder.max_utf8_buffer_length(rest.len()) {
+                                out.reserve(r);
+                            }
+                        }
+                    }
+                }
+                out_chunks.push(out);
+            }
+            let mut out = String::new();
+            if let Some(r) = decoder.max_utf8_buffer_length(0) {
+                out.reserve(r);
+            }
+            let _ = decoder.decode_to_string(&[], &mut out, true);
+            out_chunks.push(out);
+            out_chunks.concat()
+        }
+        let (gbk, _, _) = encoding_rs::GBK.encode("中文本尾");
+        let gbk = gbk.into_owned();
+        // 末块以孤立 lead 字节结尾（GBK 双字节序列被切断），flush 应输出替换字符且不 panic
+        let mut truncated = gbk.clone();
+        truncated.push(0x81u8);
+        let flushed = run_stream(&[&truncated[..3], &truncated[3..]]);
+        assert!(
+            flushed.ends_with('\u{FFFD}'),
+            "尾随 lead 字节应被 flush 为替换字符，实际尾部: {:?}",
+            flushed.chars().last()
+        );
+        // 正常整块场景：不产生多余替换字符
+        assert_eq!(run_stream(&[&gbk[..4], &gbk[4..]]), "中文本尾");
+    }
+}
+
+#[cfg(test)]
+mod upload_tests {
+    use super::*;
+    use futures_util::StreamExt;
+
+    /// 上游吐两块数据后永久静默（模拟半开 TCP：合盖 / Wi-Fi 掉线，无 FIN 到达）
+    #[tokio::test]
+    async fn stall_guard_times_out_when_upstream_goes_silent() {
+        let upstream = futures_util::stream::iter(vec![
+            Ok(Bytes::from_static(b"chunk-1")),
+            Ok(Bytes::from_static(b"chunk-2")),
+        ])
+        .chain(futures_util::stream::pending::<Result<Bytes, io::Error>>());
+
+        let stalled = Arc::new(AtomicBool::new(false));
+        let mut guard =
+            UploadStallGuard::new(upstream, Duration::from_millis(50), Arc::clone(&stalled));
+        // 有数据时必须原样透传，不能被停滞检测吞掉
+        assert_eq!(guard.next().await.unwrap().unwrap(), "chunk-1");
+        assert_eq!(guard.next().await.unwrap().unwrap(), "chunk-2");
+        assert!(!stalled.load(Ordering::Relaxed), "有数据时不应置位停滞标志");
+        // 上游不再产生数据：窗口到期后应产出超时错误
+        let err = guard.next().await.unwrap().unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::TimedOut);
+        assert!(stalled.load(Ordering::Relaxed), "超时后应置位停滞标志");
+    }
+
+    /// 慢速但持续的上传（每 20ms 一块）总耗时超过单个窗口，
+    /// 只要数据不断到达就不应被判停滞 —— 校验窗口是按块重置而非固定总时长
+    #[tokio::test]
+    async fn stall_guard_resets_window_on_every_chunk() {
+        let upstream = futures_util::stream::unfold(0u32, |i| async move {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            if i >= 5 {
+                return None;
+            }
+            Some((Ok(Bytes::from_static(b"x")), i + 1))
+        });
+
+        let stalled = Arc::new(AtomicBool::new(false));
+        let mut guard =
+            UploadStallGuard::new(upstream, Duration::from_millis(50), Arc::clone(&stalled));
+        let mut received = 0usize;
+        while let Some(item) = guard.next().await {
+            assert!(item.is_ok(), "持续有数据时不应触发停滞超时");
+            received += 1;
+        }
+        assert_eq!(received, 5);
+        assert!(!stalled.load(Ordering::Relaxed), "正常结束的流不应置位停滞标志");
+    }
+
+    /// 未 commit 就析构（写失败 / 停滞 / 断连 / flush 失败）必须清掉临时文件，
+    /// 且不得产生最终文件 —— 避免半截文件占据最终文件名
+    #[tokio::test]
+    async fn temp_guard_discards_partial_file_when_dropped_uncommitted() {
+        let dir = std::env::temp_dir().join(format!("lan-share-guard-a-{}", std::process::id()));
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        let final_path = dir.join("target.bin");
+        let temp_path = temp_upload_path(&dir, "target.bin");
+        tokio::fs::write(&temp_path, b"partial").await.unwrap();
+
+        {
+            let _guard = TempUploadGuard::new(temp_path.clone(), final_path.clone());
+        }
+
+        assert!(!temp_path.exists(), "未提交时临时文件应被清理");
+        assert!(!final_path.exists(), "未提交时不应产生最终文件");
+        tokio::fs::remove_dir_all(&dir).await.ok();
+    }
+
+    /// commit 走同目录 rename 覆盖：原文件被完整替换，临时文件消失
+    #[tokio::test]
+    async fn temp_guard_commit_atomically_replaces_existing_file() {
+        let dir = std::env::temp_dir().join(format!("lan-share-guard-b-{}", std::process::id()));
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        let final_path = dir.join("target.bin");
+        let temp_path = temp_upload_path(&dir, "target.bin");
+        tokio::fs::write(&final_path, b"old-content").await.unwrap();
+        tokio::fs::write(&temp_path, b"new-content").await.unwrap();
+
+        let mut guard = TempUploadGuard::new(temp_path.clone(), final_path.clone());
+        guard.commit().await.unwrap();
+        drop(guard);
+
+        assert_eq!(tokio::fs::read(&final_path).await.unwrap(), b"new-content");
+        assert!(!temp_path.exists(), "提交后临时文件应已消失");
+        tokio::fs::remove_dir_all(&dir).await.ok();
+    }
+
+    /// 临时文件名需带进程与序号，保证同名文件并发上传互不覆盖
+    #[test]
+    fn temp_upload_paths_are_unique_per_call() {
+        let dir = Path::new("/tmp");
+        let a = temp_upload_path(dir, "same.bin");
+        let b = temp_upload_path(dir, "same.bin");
+        assert_ne!(a, b);
+        assert!(a.to_string_lossy().ends_with(".part"));
+        assert!(a.to_string_lossy().contains("same.bin."));
+    }
+
+    /// 端到端校验：停滞经 multer 包装后仍能通过 stalled 标志判定 —— 决定返回 408 还是 400
+    #[tokio::test]
+    async fn stall_flag_survives_multer_wrapping() {
+        let boundary = "lan-share-test-boundary";
+        let head = format!(
+            "--{b}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.bin\"\r\n\r\n",
+            b = boundary
+        );
+        // 字段头完整但数据未收尾（缺 closing boundary），随后上游永久静默
+        let upstream = futures_util::stream::iter(vec![Ok(Bytes::from(head + "partial-data"))])
+            .chain(futures_util::stream::pending::<Result<Bytes, io::Error>>());
+
+        let stalled = Arc::new(AtomicBool::new(false));
+        let mut multipart = Multipart::new(
+            UploadStallGuard::new(upstream, Duration::from_millis(50), Arc::clone(&stalled)),
+            boundary,
+        );
+
+        let mut field = multipart.next_field().await.unwrap().unwrap();
+        // 数据块可能因缺收尾边界而延后吐出，故循环取块直到出错
+        let mut failed = false;
+        for _ in 0..8 {
+            match field.chunk().await {
+                Ok(_) => continue,
+                Err(_) => {
+                    failed = true;
+                    break;
+                }
+            }
+        }
+
+        assert!(failed, "上游静默后应产生读错误");
+        // multer 的 StreamBuffer 会把流错误转成自身类型并丢失具体类型，
+        // 因此判定必须依赖 stalled 标志而非错误 downcast
+        assert!(
+            stalled.load(Ordering::Relaxed),
+            "停滞标志未穿透 multer（将退化成 400）"
+        );
     }
 }

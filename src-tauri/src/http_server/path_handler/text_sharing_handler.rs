@@ -52,16 +52,16 @@ pub async fn upload_text(
 
     log::info!("来自[{}]的文本：{}", client_ip, req_body.text_data);
 
-    // 检查是否存在内容完全一致的文本记录，存在则刷新时间并递增共享次数
+    // 检查是否存在内容完全一致的文本记录，存在则刷新时间、递增共享次数并记录共享历史
     match upload_dao::find_text_by_content(&req_body.text_data).await {
         Ok(Some(existing)) => {
             log::info!("发现重复文本 ID={}，刷新时间，共享数+1", existing.id);
-            if let Err(e) = upload_dao::bump_record(existing.id).await {
+            if let Err(e) = upload_dao::record_share_event(existing.id, &client_ip).await {
                 log::error!("刷新文本记录失败: {}", e);
             }
         }
         Ok(None) => {
-            if let Err(e) = upload_dao::add(1, &req_body.text_data, None, &client_ip, false).await {
+            if let Err(e) = upload_dao::add_with_share(1, &req_body.text_data, None, &client_ip, false).await {
                 log::error!("保存文本记录失败: {}", e);
             }
         }
@@ -79,6 +79,7 @@ pub async fn upload_text(
 pub async fn upload_records(
     _req: Request<Incoming>,
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
-    let records = upload_dao::list_by_types(&[1, 5]).await.unwrap();
+    // Web 端不参与置顶排序，保持按更新时间倒序
+    let records = upload_dao::list_by_types(&[1, 5], false).await.unwrap();
     success_json(records)
 }

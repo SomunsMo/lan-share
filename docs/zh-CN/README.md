@@ -10,7 +10,7 @@
 ![Tauri](https://img.shields.io/badge/Tauri-2-ffc131?logo=tauri&logoColor=black)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-![主页预览](../../docs/img/preview-home.png)
+![主页预览](../../docs/img/preview_home_cn.png)
 
 ## 工作原理
 
@@ -74,6 +74,7 @@ Lan Share 会在你电脑上启动一个小型文件服务器。连上同一个 
 
 | 问题 | 回答 |
 |------|------|
+| 为什么占用 100 多 M 内存 | 那是 WebView 在渲染桌面窗口。关闭窗口后，WebView 所占用的资源会立即全部释放；此时只剩 Rust 后台服务在运行，未分享时资源占用极低 |
 | 需要联网吗 | 不需要。只走局域网，没网也能用 |
 | 哪些设备能访问 | 任何带浏览器的设备都行——手机、平板、笔记本、智能电视。不用装 App |
 | 数据安全吗 | 数据不会离开你的局域网，外网连不进来 |

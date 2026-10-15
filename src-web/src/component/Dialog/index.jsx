@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DialogContext } from './useDialog';
 import {
     DialogOverlay,
     DialogCard,
@@ -9,8 +10,6 @@ import {
     DialogFooter,
     DialogButton,
 } from './DialogStyle';
-
-const DialogContext = createContext(null);
 
 let nextDialogId = 0;
 
@@ -118,6 +117,11 @@ function DialogItem({ dialog, index, closeDialog }) {
     return (
         <DialogOverlay
             $zIndex={9000 + index}
+            $exiting={dialog.exiting}
+            // 点击遮罩（卡片外区域）等同取消，调用方按假值处理
+            onClick={(e) => {
+                if (e.target === e.currentTarget) closeDialog(dialog.id, null);
+            }}
         >
             <DialogCard $exiting={dialog.exiting}>
                 {dialog.title && <DialogHeader>{dialog.title}</DialogHeader>}
@@ -150,10 +154,4 @@ function DialogItem({ dialog, index, closeDialog }) {
             </DialogCard>
         </DialogOverlay>
     );
-}
-
-export function useDialog() {
-    const context = useContext(DialogContext);
-    if (!context) throw new Error('useDialog must be used within a DialogProvider');
-    return context;
 }

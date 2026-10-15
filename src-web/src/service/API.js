@@ -28,6 +28,8 @@ export const getFileSharingAPI = (dir) => {
 }
 
 // 上传文件
+// timeout: 0 关闭客户端总超时：大文件耗时随网络波动而不可预测，由服务端停滞检测
+// （UPLOAD_IDLE_TIMEOUT_SECS 无数据到达即 408）作为唯一超时权威
 export const uploadFileAPI = (file, dir, onUploadProgress) => {
     const url = dir ? `/upload/file?dir=${encodeURIComponent(dir)}` : "/upload/file";
     return request({
@@ -37,6 +39,7 @@ export const uploadFileAPI = (file, dir, onUploadProgress) => {
         headers: {
             "Content-Type": "multipart/form-data",
         },
+        timeout: 0,
         onUploadProgress: onUploadProgress
     })
 }

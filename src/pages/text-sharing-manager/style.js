@@ -155,6 +155,21 @@ const TextSharingManagerStyle = styled.div`
         color: var(--on-surface-variant);
     }
 
+    .card-pin {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: var(--surface-container-highest);
+        color: var(--primary);
+        pointer-events: none;
+    }
+
     .card-content {
         flex: 1;
         font-size: 16px;

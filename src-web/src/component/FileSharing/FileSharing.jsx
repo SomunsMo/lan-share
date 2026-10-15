@@ -3,10 +3,14 @@ import FileSharingStyle, {FileCard} from "./FileSharingStyle.js";
 import ProgressBar from "../ProgressBar/ProgressBar.jsx";
 import {getFileSharingAPI, uploadFileAPI, renameFileAPI, deleteFileAPI, preUploadCheckAPI, recordDownloadAPI} from "@/service/API.js";
 import {formatFileSize, getFileSuffix, copyToClipboard} from "@/util/file.js";
-import {useToast} from "@/component/Toast/index.jsx";
-import {useDialog} from "@/component/Dialog/index.jsx";
+import {withRouteHash} from "@/util/route.js";
+import {useToast} from "@/component/Toast/useToast.js";
+import {useDialog} from "@/component/Dialog/useDialog.js";
 import {useTranslation} from "react-i18next";
 import {subscribe, getClientId} from "../../service/sse.js";
+import {beginTask, endTask} from "@/service/taskManager.js";
+import FilePreview from "../FilePreview/index.jsx";
+import {getPreviewType, isPreviewable} from "../FilePreview/PreviewType.js";
 import FolderIcon from '@/assets/icon/folder.svg';
 import CodeIcon from '@/assets/icon/code.svg';
 import DocIcon from '@/assets/icon/doc.svg';
@@ -133,6 +137,13 @@ function FileSharing() {
     // 磁盘空间信息
     const [diskSpace, setDiskSpace] = useState({total_space: 0, available_space: 0});
 
+    // 文件预览浮层 URL（null 表示关闭）
+    const [previewUrl, setPreviewUrl] = useState(null);
+    // 正在预览的文件名
+    const [previewTitle, setPreviewTitle] = useState('');
+    // 正在预览的文件类型（text/image/audio/pdf）
+    const [previewType, setPreviewType] = useState(null);
+
     // 移动端检测
     const [isMobile, setIsMobile] = useState(false);
 
@@ -226,7 +237,7 @@ function FileSharing() {
                 showToastRef.current({message: tRef.current('sse.toast.rootChanged'), type: 'info'});
                 const url = new URL(window.location.href);
                 url.searchParams.delete('dir');
-                window.history.pushState(null, null, url.pathname + url.search);
+                window.history.pushState(null, null, withRouteHash(url.pathname + url.search));
                 flushSharedFileListRef.current('');
                 return;
             }
@@ -280,9 +291,9 @@ function FileSharing() {
 
     useEffect(() => {
 
-        let currentDir = getCurrentDir();
+        let currentDir = getCurrentDirRef.current();
         // 调接口取文件列表（含权限配置和磁盘空间）
-        flushSharedFileList(currentDir ? currentDir : "");
+        flushSharedFileListRef.current(currentDir ? currentDir : "");
 
         preprocessSharedFileList([
             {
@@ -296,6 +307,19 @@ function FileSharing() {
             {is_dir: false, modified: "2025/01/01 00:00:00", name: "测试.exe", size: 6197565}
         ])
 
+    }, []);
+
+    // 浏览器前进/后退（移动端手势返回、PC 鼠标侧键）：URL 里的 ?dir= 已经变了，
+    // 按新目录重新拉取列表，并清空跨目录无效的选中项
+    useEffect(() => {
+        const handlePopState = () => {
+            const dir = getCurrentDirRef.current() || '';
+            setSelectedFiles(new Set());
+            setContextMenu({visible: false, x: 0, y: 0, item: null});
+            flushSharedFileListRef.current(dir);
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
     }, []);
 
     // 移动端检测
@@ -320,6 +344,9 @@ function FileSharing() {
         fileSelectorRef.current.value = '';
 
 
+        // 整个选择批次视为一个活跃任务：端口切换将等待全部文件上传完成后再跳转
+        beginTask();
+        try {
         // 逐个上传文件，避免并发问题
         for (const file of files) {
             // 为每个文件创建唯一的进度ID（在try外部声明，catch中可复用）
@@ -422,6 +449,9 @@ function FileSharing() {
                 showToast({message: `文件 ${file.name} 上传失败: ${errorMsg}`, type: 'error'});
             }
         }
+        } finally {
+            endTask();
+        }
     }
 
     const itemDoubleClickHandler = async (item) => {
@@ -442,7 +472,7 @@ function FileSharing() {
         if (await flushSharedFileList(newDir)) {
             console.log("写入新路径");
             // 向url写入参数，但不刷新页面
-            window.history.pushState(null, null, `?dir=${newDir}`);
+            window.history.pushState(null, null, withRouteHash(`?dir=${newDir}`));
         } else {
             console.error("请求新文件夹失败");
         }
@@ -455,6 +485,20 @@ function FileSharing() {
         const ok = await copyToClipboard(downloadUrl);
         showToast({message: ok ? t('fileSharing.toast.linkCopied') : t('fileSharing.toast.linkCopyFailed'), type: ok ? 'success' : 'error'});
     }
+
+    // 打开文件预览浮层（用 URLSearchParams 避免 URL 拼接歧义；type 由后缀推导）
+    const openPreview = (v) => {
+        if (v.is_dir) return;
+        const type = getPreviewType(v.suffix);
+        if (!type) return;
+        const dir = getCurrentDir();
+        const params = new URLSearchParams();
+        if (dir) params.set('dir', dir);
+        params.set('file_name', v.name);
+        setPreviewUrl(`/preview/file?${params.toString()}`);
+        setPreviewType(type);
+        setPreviewTitle(v.name);
+    };
 
     // 下载文件
     const downloadFile = async (v) => {
@@ -541,7 +585,7 @@ function FileSharing() {
         const parentDir = lastSlashIndex > 0 ? currentDir.substring(0, lastSlashIndex) : '';
 
         if (await flushSharedFileList(parentDir)) {
-            window.history.pushState(null, null, parentDir ? `?dir=${parentDir}` : window.location.pathname);
+            window.history.pushState(null, null, withRouteHash(parentDir ? `?dir=${parentDir}` : window.location.pathname));
             setSelectedFiles(new Set());
         }
     }
@@ -611,11 +655,20 @@ function FileSharing() {
 
     // 长按计时器
     const longPressTimerRef = useRef(null);
+    // 长按是否已触发菜单（用于抑制随之而来的单击）
+    const longPressFiredRef = useRef(false);
+    // 抑制标记的复位计时器
+    const longPressResetTimerRef = useRef(null);
 
     // 触摸开始（移动端长按）
     const handleTouchStart = (e, item) => {
         longPressTimerRef.current = setTimeout(() => {
             const touch = e.touches[0];
+            longPressFiredRef.current = true;
+            if (longPressResetTimerRef.current) clearTimeout(longPressResetTimerRef.current);
+            longPressResetTimerRef.current = setTimeout(() => {
+                longPressFiredRef.current = false;
+            }, 800);
             setContextMenu({
                 visible: true,
                 x: touch.clientX,
@@ -631,6 +684,30 @@ function FileSharing() {
             clearTimeout(longPressTimerRef.current);
             longPressTimerRef.current = null;
         }
+    };
+
+    // 移动端单击文件项直接打开（桌面端保持双击）
+    const handleItemClick = (e, item) => {
+        if (!isMobile) return;
+        // 点击操作按钮或勾选框时不触发打开
+        if (e.target.closest('button') || e.target.closest('input')) return;
+        // 长按弹出菜单后紧随的这次点击不作为打开操作
+        if (longPressFiredRef.current) {
+            longPressFiredRef.current = false;
+            return;
+        }
+        itemDoubleClickHandler(item);
+    };
+
+    // 移动端单击“返回上级”直接返回（桌面端保持双击）
+    const handleGoBackClick = () => {
+        if (!isMobile) return;
+        // 长按弹出菜单后紧随的这次点击不作为返回操作
+        if (longPressFiredRef.current) {
+            longPressFiredRef.current = false;
+            return;
+        }
+        goBackToParentDir();
     };
 
     // 点击其他文件项或组件外区域时隐藏菜单，点击文件列表空白区域不关闭
@@ -727,7 +804,7 @@ function FileSharing() {
                         </thead>
                         <tbody>
                         {getCurrentDir() && (
-                            <tr className={"fileItem goBackItem"} onDoubleClick={goBackToParentDir}>
+                            <tr className={"fileItem goBackItem"} onDoubleClick={goBackToParentDir} onClick={handleGoBackClick}>
                                 <td></td>
                                 <td colSpan={4}>
                                     <span className={"goBackLabel"}>{t('fileSharing.goBack')}</span>
@@ -738,6 +815,7 @@ function FileSharing() {
                             return (
                                 <tr className={"fileItem"} key={v.name + i}
                                     onDoubleClick={() => itemDoubleClickHandler(v)}
+                                    onClick={(e) => handleItemClick(e, v)}
                                     onContextMenu={(e) => showContextMenu(e, v)}
                                     onMouseEnter={() => {
                                         if (contextMenu.visible && contextMenu.item && contextMenu.item.name !== v.name) {
@@ -761,6 +839,9 @@ function FileSharing() {
                                         <div className={!v.is_dir ? "fileActions" : "dirActions"}>
                                             {v.is_dir && (
                                                 <button onClick={() => itemDoubleClickHandler(v)}>{t('fileSharing.action.open')}</button>
+                                            )}
+                                            {!v.is_dir && isPreviewable(v.suffix) && (
+                                                <button onClick={() => openPreview(v)}>{t('fileSharing.action.preview')}</button>
                                             )}
                                             <button onClick={() => downloadFile(v)}>{t('fileSharing.action.download')}</button>
                                             {v.is_dir ? (
@@ -859,6 +940,14 @@ function FileSharing() {
                                     {t('fileSharing.action.open')}
                                 </div>
                             )}
+                            {!item.is_dir && isPreviewable(item.suffix) && (
+                                <div
+                                    className="context-menu-item"
+                                    onClick={() => { openPreview(item); hideContextMenu(); }}
+                                >
+                                    {t('fileSharing.action.preview')}
+                                </div>
+                            )}
                             <div
                                 className="context-menu-item"
                                 onClick={() => {
@@ -914,6 +1003,9 @@ function FileSharing() {
                         </div>
                     );
                 })()}
+                {previewUrl && (
+                    <FilePreview url={previewUrl} title={previewTitle} type={previewType} onClose={() => { setPreviewUrl(null); setPreviewTitle(''); setPreviewType(null); }} />
+                )}
             </FileSharingStyle>
         </FileCard>
     );

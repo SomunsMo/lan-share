@@ -25,6 +25,10 @@ const TextSharingStyle = styled.div`
         flex: 1;
         min-height: 0;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        /* 明确声明支持纵向平移，修复部分安卓浏览器刷新后列表收不到触摸滚动的问题 */
+        touch-action: pan-y;
+        overscroll-behavior: contain;
         cursor: default;
     }
 
@@ -44,6 +48,10 @@ const TextSharingStyle = styled.div`
 
     .recordItem.text {
         cursor: pointer;
+        /* 单击即复制，禁用划选避免与点击复制冲突 */
+        user-select: none;
+        /* 避免移动端双击缩放，保证单击复制即时生效 */
+        touch-action: manipulation;
         flex-direction: column;
         align-items: stretch;
         gap: 2px;
@@ -63,6 +71,10 @@ const TextSharingStyle = styled.div`
         object-fit: cover;
         border-radius: 4px;
         flex-shrink: 0;
+    }
+
+    .recordThumb.previewableThumb {
+        cursor: pointer;
     }
 
     .recordBody {
@@ -140,32 +152,44 @@ const TextSharingStyle = styled.div`
         gap: 8px;
     }
 
-    .sendBtnWrapper button {
+    .sendBtnWrapper .sendBtn {
         color: var(--text-accent);
         background-color: var(--accent);
     }
 
-    .sendBtnWrapper button:hover {
+    .sendBtnWrapper .sendBtn:hover {
         background-color: var(--accent-hover);
     }
 
+    /* 图标按钮（清空文本 / 上传图片）：尺寸用 em，跟随根字号 clamp 一起缩放，
+       与"共享文本"按钮的缩放保持一致（原来写死 34px，窄屏下明显偏大） */
+    .clearDraftBtn,
     .imageUploadBtn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 34px;
-        height: 34px;
+        width: 2.4em;
+        height: 2.4em;
+        padding: 0;
+        font-size: 0.88rem;
         border: 1px solid var(--border);
         border-radius: var(--radius);
         cursor: pointer;
         color: var(--text-secondary);
         background: transparent;
-        transition: background 0.15s, color 0.15s;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+
+        svg {
+            width: 1.15em;
+            height: 1.15em;
+        }
     }
 
+    .clearDraftBtn:hover,
     .imageUploadBtn:hover {
         background: var(--bg-hover);
         color: var(--text-primary);
+        border-color: var(--accent);
     }
 
     .context-menu {

@@ -12,4 +12,7 @@ lan-share-http-macros = { path = "crates/http-macros" }
 strip = true
 lto = true
 codegen-units = 1
-opt-level = "z"
+# "z" 以体积优先，会关闭循环向量化与激进内联，对内存拷贝 / 逐字节扫描 / sha256
+# 这类热循环是实打实的吞吐惩罚；改为 3 优先速度，代价是二进制变大
+# （注意必须写不带引号的整数，带引号只有 "s" / "z" 合法）
+opt-level = 3

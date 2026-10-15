@@ -1,6 +1,6 @@
 [package]
 name = "lan-share"
-version = "1.1.0"
+version = "1.1.1"
 description = "A Tauri App"
 authors = ["somunsm"]
 edition = "2021"
@@ -25,7 +25,7 @@ env_logger = "0.11.8"
 # 日期时间处理库
 chrono = "0.4.42"
 # 异步运行时
-tokio = { version = "1.46.1", features = ["rt", "rt-multi-thread", "macros", "fs", "net", "sync"] }
+tokio = { version = "1.46.1", features = ["rt", "rt-multi-thread", "macros", "fs", "net", "sync", "time"] }
 # 获取机器内网IP
 
 # 本地宏
@@ -66,6 +66,8 @@ dirs = "6"
 regex = "1"
 trash = "5"
 image = "0.25"
+# 文本编码检测与转码（预览 GBK 文本）
+encoding_rs = "0.8"
 sha2 = "0.10"
 base64 = "0.22"
 

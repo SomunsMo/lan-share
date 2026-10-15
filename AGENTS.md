@@ -42,3 +42,5 @@ Tauri2 跨平台 (Win/Mac/Linux)，每次修改须兼容所有平台。
 - `autostart.md` — 开机最小化启动
 - `database.md` — 数据库
 - `dev-conventions.md` — 技术栈约束、路径别名、IPC 命令流程、Toast 使用
+- `i18n.md` — 国际化（语言检测、IPC、key 规范、打包）
+- `release-notes.md` — 按版本区间总结改动（commit 取值、分组、中英文格式）

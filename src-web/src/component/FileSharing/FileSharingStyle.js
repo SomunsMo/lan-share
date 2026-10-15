@@ -2,7 +2,7 @@ import styled from "@emotion/styled";
 import Card from "../Card/Card.js";
 
 export const FileCard = styled(Card)`
-    max-height: calc(75vh * 1.5);
+    width: 100%;
 `;
 
 const FileSharingStyle = styled.div`
@@ -65,11 +65,15 @@ const FileSharingStyle = styled.div`
     }
 
     .fileList {
-        min-height: 300px;
+        flex: 1;
+        min-height: 0;
         margin-bottom: 12px;
         overflow-x: auto;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
+        /* 明确声明支持纵向平移，修复部分安卓浏览器刷新后列表收不到触摸滚动的问题 */
+        touch-action: pan-y;
+        overscroll-behavior: contain;
     }
 
     .fileTable {
@@ -289,6 +293,18 @@ const FileSharingStyle = styled.div`
         .fileTable td:nth-child(4),
         .fileTable td:nth-child(5) {
             display: none;
+        }
+
+        /* 单元格隐藏后 colgroup 里对应的 col 仍然存在，还占着 160px/80px/25% 的宽度，
+           于是名称列撑不满、hover 背景也只盖到名称列那一段，这里把 col 一起去掉并让名称列自适应 */
+        .fileTable col:nth-child(3),
+        .fileTable col:nth-child(4),
+        .fileTable col:nth-child(5) {
+            display: none;
+        }
+
+        .fileTable col:nth-child(2) {
+            width: auto;
         }
     }
 `;

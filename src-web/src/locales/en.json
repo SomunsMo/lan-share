@@ -2,7 +2,8 @@
   "common": {
     "button": {
       "cancel": "Cancel",
-      "confirm": "Confirm"
+      "confirm": "Confirm",
+      "close": "Close"
     },
     "toast": {
       "operationFailed": "Operation failed",
@@ -26,7 +27,27 @@
       "reconnecting": "Reconnecting...",
       "retryStopped": "Connection lost, auto retry stopped. Please reconnect manually",
       "retryNow": "Reconnect now"
-    }
+    },
+    "portChange": {
+      "banner": "Port changed, click to visit the new address",
+      "bannerGo": "Visit now",
+      "dialogTitle": "Port changed",
+      "dialogContent": "The desktop app port changed from {{oldPort}} to {{newPort}}. Go to the new address now?",
+      "goNow": "Go now",
+      "stay": "Stay on this page",
+      "waiting": "Waiting for current tasks to finish, then jump automatically",
+      "restoredTitle": "Port restored",
+      "restoredContent": "The server port has been restored, the current address keeps working",
+      "acknowledge": "Got it"
+    },
+    "qrTitle": "QR code of this page"
+  },
+  "nav": {
+    "title": "Navigation",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "textSharing": "Text & Image",
+    "fileSharing": "Files"
   },
   "fileSharing": {
     "diskSpace": "Storage",
@@ -44,10 +65,23 @@
       "details": "Details",
       "copyLink": "Copy Link",
       "download": "Download",
+      "preview": "Preview",
       "rename": "Rename",
       "delete": "Delete",
       "open": "Open",
       "copyFileName": "Copy Name"
+    },
+    "preview": {
+      "refresh": "Refresh",
+      "close": "Close",
+      "reset": "Reset",
+      "loading": "Loading…",
+      "empty": "Empty file",
+      "loadFailed": "Failed to load text",
+      "audioFailed": "Failed to load audio",
+      "excelFailed": "Failed to load spreadsheet",
+      "excelEmpty": "Empty sheet",
+      "excelTooLarge": "File exceeds 10MB, please download"
     },
     "toast": {
       "linkCopied": "Link copied",
@@ -107,13 +141,16 @@
     "hintMobile": "Long-press image to download"
   },
   "textSharing": {
+    "clearBtn": "Clear draft text",
     "sendBtn": "Share Text",
+    "hint": "Click text to copy it to the clipboard",
     "contextMenu": {
       "copy": "Copy"
     },
     "toast": {
       "loadFailed": "Failed to load text history: {{error}}",
       "sendFailed": "Failed to send text: {{error}}",
+      "draftCleared": "Draft text cleared",
       "copied": "Text copied"
     }
   },

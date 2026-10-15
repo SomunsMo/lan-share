@@ -1,3 +1,5 @@
+// 模块结构说明：聚合模块与其内部同名文件共存（config/config.rs 等），属有意设计
+#[allow(clippy::module_inception)]
 pub mod config {
     pub mod config;
 }
@@ -16,6 +18,8 @@ pub mod db {
     }
 }
 
+// 模块结构说明：聚合模块与其内部同名文件共存（http_server/http_server.rs 等），属有意设计
+#[allow(clippy::module_inception)]
 pub mod http_server {
     pub mod handler;
     pub mod http_server;
@@ -265,7 +269,7 @@ pub(crate) fn create_and_position_window(
             .expect("创建主窗口失败");
 
     if let Some(route) = &initial_route {
-        let _ = window.eval(&format!(
+        let _ = window.eval(format!(
             r#"
             (function(){{
                 var check = function(){{
@@ -415,7 +419,7 @@ pub fn run() {
                 }
             }
 
-            tray::create_tray_menu(&app.handle());
+            tray::create_tray_menu(app.handle());
             crate::http_server::sse::init_app(app.handle().clone());
 
             tauri::async_runtime::spawn(async move {
@@ -427,11 +431,11 @@ pub fn run() {
             });
 
             let port = *crate::config::config::get_configured_http_port();
-            let _ = crate::config::config::RUNNING_HTTP_PORT.set(port);
+            crate::config::config::set_running_http_port(port);
 
             if is_port_occupied(port) {
                 log::error!("端口 {} 已被占用", port);
-                let _ = crate::config::config::OCCUPIED_PORT.set(port);
+                crate::config::config::set_occupied_port(Some(port));
             } else {
                 log::info!("端口 {} 可用，准备启动HTTP服务器", port);
                 tauri::async_runtime::spawn(async move {

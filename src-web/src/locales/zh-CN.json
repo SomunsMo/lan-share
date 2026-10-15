@@ -2,7 +2,8 @@
   "common": {
     "button": {
       "cancel": "取消",
-      "confirm": "确定"
+      "confirm": "确定",
+      "close": "关闭"
     },
     "toast": {
       "operationFailed": "操作失败",
@@ -26,7 +27,27 @@
       "reconnecting": "重连中...",
       "retryStopped": "连接已断开，自动重试已停止，请手动重连",
       "retryNow": "立即重连"
-    }
+    },
+    "portChange": {
+      "banner": "端口已切换，点击访问最新地址",
+      "bannerGo": "立即访问",
+      "dialogTitle": "端口已变更",
+      "dialogContent": "本机应用访问端口已由 {{oldPort}} 变更为 {{newPort}}，是否立即前往最新地址？",
+      "goNow": "立即前往",
+      "stay": "留在当前页",
+      "waiting": "正在等待当前任务完成，完成后将自动跳转",
+      "restoredTitle": "端口已恢复",
+      "restoredContent": "服务端已改回原端口，当前页面地址保持可用",
+      "acknowledge": "知道了"
+    },
+    "qrTitle": "本页面二维码"
+  },
+  "nav": {
+    "title": "导航",
+    "openMenu": "打开菜单",
+    "closeMenu": "关闭菜单",
+    "textSharing": "图文共享",
+    "fileSharing": "文件共享"
   },
   "fileSharing": {
     "diskSpace": "存储空间",
@@ -44,10 +65,23 @@
       "details": "查看详情",
       "copyLink": "复制链接",
       "download": "下载",
+      "preview": "预览",
       "rename": "重命名",
       "delete": "删除",
       "open": "打开",
       "copyFileName": "复制名称"
+    },
+    "preview": {
+      "refresh": "刷新",
+      "close": "关闭",
+      "reset": "重置",
+      "loading": "加载中…",
+      "empty": "文件为空",
+      "loadFailed": "文本加载失败",
+      "audioFailed": "音频加载失败",
+      "excelFailed": "表格加载失败",
+      "excelEmpty": "该表为空",
+      "excelTooLarge": "文件超过 10MB，请下载后查看"
     },
     "toast": {
       "linkCopied": "链接已复制",
@@ -107,13 +141,16 @@
     "hintMobile": "长按图片后可选择下载图片"
   },
   "textSharing": {
+    "clearBtn": "清空待共享文本",
     "sendBtn": "共享文本",
+    "hint": "单击文本即可复制到剪贴板",
     "contextMenu": {
       "copy": "复制"
     },
     "toast": {
       "loadFailed": "获取历史文本失败: {{error}}",
       "sendFailed": "发送文本失败: {{error}}",
+      "draftCleared": "已清空待共享文本",
       "copied": "文本已复制"
     }
   },

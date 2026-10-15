@@ -63,6 +63,42 @@ pub async fn serve_shared_image(
 
     log::debug!("提供图片: {:?}", full_path);
 
+    // 一次 stat 同时拿到：存在性 + 修改时间 + 文件大小
+    let meta = match tokio::fs::metadata(&full_path).await {
+        Ok(m) => m,
+        Err(e) => {
+            log::error!("读取图片文件失败 {}: {:?}", full_path.display(), e);
+            return error(StatusCode::NOT_FOUND, "图片文件不存在");
+        }
+    };
+
+    // ETag 取磁盘真相（mtime + size）；mtime 读取失败时退化为仅用 size
+    let etag = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| {
+            format!(
+                "\"{:x}-{:x}-{:x}\"",
+                d.as_secs(),
+                d.subsec_nanos(),
+                meta.len()
+            )
+        })
+        .unwrap_or_else(|| format!("\"{:x}\"", meta.len()));
+
+    // 条件请求：客户端带同一个 ETag 回来，说明它的本地副本仍然有效
+    if let Some(inm) = req.headers().get(header::IF_NONE_MATCH) {
+        if inm.to_str().map(|s| s.trim() == etag).unwrap_or(false) {
+            return Ok(Response::builder()
+                .status(StatusCode::NOT_MODIFIED)
+                .header(header::ETAG, etag.as_str())
+                .header(header::CACHE_CONTROL, "no-cache")
+                .body(GenericResponseBody::Empty)
+                .unwrap());
+        }
+    }
+
     let file_bytes = match tokio::fs::read(&full_path).await {
         Ok(bytes) => bytes,
         Err(e) => {
@@ -90,7 +126,9 @@ pub async fn serve_shared_image(
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, content_type)
         .header(header::CONTENT_DISPOSITION, disposition)
-        .header(header::CACHE_CONTROL, "public, max-age=31536000, immutable")
+        .header(header::ETAG, etag.as_str())
+        .header(header::CACHE_CONTROL, "no-cache")
+        .header(header::CONTENT_LENGTH, meta.len())
         .body(body)
         .unwrap();
 
@@ -139,7 +177,7 @@ pub async fn upload_image(
 
     if let Ok(Some(existing)) = upload_dao::find_image_by_sha256_size(&sha256_hash, size).await {
         log::info!("发现重复图片 ID={}，刷新时间", existing.id);
-        if let Err(e) = upload_dao::bump_record(existing.id).await {
+        if let Err(e) = upload_dao::record_share_event(existing.id, &client_ip).await {
             log::error!("刷新记录失败: {}", e);
         }
         if let Ok(content_json) = serde_json::from_str::<Value>(&existing.content) {
@@ -183,7 +221,7 @@ pub async fn upload_image(
         log::info!("图片已保存至: {:?}", save_path);
     }
 
-    let id = match upload_dao::add(5, "{}", None, &client_ip, false).await {
+    let id = match upload_dao::add_with_share(5, "{}", None, &client_ip, false).await {
         Ok(id) => id,
         Err(e) => {
             log::error!("插入记录失败: {}", e);

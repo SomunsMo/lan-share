@@ -4,7 +4,12 @@ const AppStyle = styled.div`
     display: flex;
     flex-direction: column;
     width: 100%;
-    min-height: 100vh;
+/* 根容器高度必须"确定"（height 而不是 min-height）：只有确定高度时 flex 才会把剩余空间
+       分配给 .content，填满效果才生效；min-height 下 flex 不分配剩余空间，整页会变成滚动。
+       代价是文档本身不可滚动，可滚动的只有卡片内的列表 */
+    height: 100vh;
+    height: 100svh;
+    overflow: hidden;
 
     > main {
         position: relative;
@@ -42,14 +47,14 @@ const AppStyle = styled.div`
         border-color: var(--accent);
     }
 
-    .topBar {
+    .topLeftBar {
         position: absolute;
         top: 10px;
-        right: 20px;
+        left: 20px;
+        z-index: 60;
         display: flex;
         align-items: center;
         gap: 8px;
-        z-index: 50;
     }
 
     .theme-toggle-btn,
@@ -92,77 +97,37 @@ const AppStyle = styled.div`
         color: var(--text-secondary);
     }
 
-    .qrCodeArea {
+    .qrIcon {
         display: inline-flex;
         align-items: center;
-        margin-top: 12px;
-        position: relative;
-    }
-
-    .qrIcon {
-        width: 44px;
-        height: 44px;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        padding: 5px;
+        box-sizing: border-box;
         background-color: var(--bg-card);
         border: 1px solid var(--border);
-        border-radius: var(--radius);
+        border-radius: 20px;
         cursor: pointer;
-        padding: 8px;
-        box-sizing: border-box;
         transition: border-color 0.15s;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
     }
 
     .qrIcon:hover {
         border-color: var(--accent);
     }
 
-    .qrPopupContainer {
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%) scale(0.9);
-        opacity: 0;
-        visibility: hidden;
-        pointer-events: none;
-        transition: all 0.2s ease;
-        padding-top: 8px;
-        z-index: 100;
-    }
-
-    .qrIcon:hover + .qrPopupContainer,
-    .qrPopupContainer:hover {
-        opacity: 1;
-        visibility: visible;
-        pointer-events: auto;
-        transform: translateX(-50%) scale(1);
-    }
-
-    .qrContentWrapper {
-        background-color: var(--bg-card);
-        border: 1px solid var(--border);
-        padding: 16px;
-        border-radius: var(--radius-sm);
-        box-shadow: var(--shadow-md);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .qrUrlDisplay {
-        margin: 2px 0;
-        font-size: 0.78rem;
-        color: var(--text-secondary);
-        text-align: center;
-        white-space: nowrap;
-        user-select: text;
-        max-width: 260px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
+    /* 内容区：占满标题区以下的剩余高度；本身不作为滚动容器，放不下时整页滚动 */
     .content {
         display: flex;
+        flex: 1;
         flex-direction: column;
+        min-height: 0;
         width: 100%;
         max-width: 1400px;
         padding: 0 20px 20px;
@@ -171,21 +136,43 @@ const AppStyle = styled.div`
         box-sizing: border-box;
     }
 
-    .textRow {
+    /* 行容器占满剩余高度，卡片靠 align-items: stretch 取同样高度，最低 230px */
+    .textRow, .fileRow {
         display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
+        flex: 1;
+        min-height: 230px;
         width: 100%;
+        justify-content: center;
+        align-items: stretch;
+        box-sizing: border-box;
+    }
+
+    /* 图文共享：宽屏两张卡并排（单行，stretch 使两卡等高填满） */
+    .textRow {
+        flex-direction: row;
+        flex-wrap: nowrap;
         gap: 0;
     }
 
-    .fileRow {
-        width: 100%;
-        display: flex;
-        justify-content: center;
+    /* 窄屏两张卡纵向排列：输入卡 38.2%、记录卡 61.8%（黄金比例）
+       纵向排列时主轴变成竖直方向，justify-content 必须改回 flex-start：
+       保持 center 会把超出部分同时压到上下两侧，内容被顶到标题区下面、底部还被裁掉
+       卡片允许按比例收缩（min-height: 0），230px 下限由行容器 .textRow 的 min-height 承担，
+       这样两张卡合计正好等于行高，不会溢出；flex-basis 各减 16px 是扣掉 Card 自带的上下 margin */
+    @media (max-width: 767px) {
+        .content .textRow {
+            flex-direction: column;
+            justify-content: flex-start;
+        }
 
-        > * {
-            width: 100%;
+        .content .textRow .textCard {
+            flex: 1 1 calc(38.2% - 16px);
+            min-height: 0;
+            width: auto;
+        }
+
+        .content .textRow .recordCard {
+            flex-basis: calc(61.8% - 16px);
         }
     }
 `

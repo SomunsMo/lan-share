@@ -1,19 +1,49 @@
 import React, {useCallback, useEffect, useRef, useState, useMemo} from 'react';
 import Card from "../Card/Card.js";
 import TextSharingStyle from "./TextSharingStyle.js";
+import FilePreview from "../FilePreview/index.jsx";
+import {isPreviewable} from "../FilePreview/PreviewType.js";
+import {getFileSuffix, copyToClipboard} from "@/util/file.js";
 import {getUploadRecordsAPI, uploadTextAPI, recordCopyAPI, uploadImageAPI} from "../../service/API.js";
-import {useDialog} from "@/component/Dialog/index.jsx";
-import {useToast} from "@/component/Toast/index.jsx";
+import {useDialog} from "@/component/Dialog/useDialog.js";
+import {useToast} from "@/component/Toast/useToast.js";
 import copy from "copy-to-clipboard";
 import {useTranslation} from "react-i18next";
 import {subscribe, getClientId} from "../../service/sse.js";
+import {track} from "@/service/taskManager.js";
+
+// 待共享文本的本地草稿键
+const DRAFT_KEY = 'lan-share-text-draft';
+
+// 读取本地草稿（防止刷新/切页丢失待共享内容）
+const loadDraft = () => {
+    try {
+        return localStorage.getItem(DRAFT_KEY) || "";
+    } catch (e) {
+        console.warn('读取文本草稿失败:', e);
+        return "";
+    }
+};
+
+// 写入本地草稿，内容为空时移除
+const saveDraft = (text) => {
+    try {
+        if (text) {
+            localStorage.setItem(DRAFT_KEY, text);
+        } else {
+            localStorage.removeItem(DRAFT_KEY);
+        }
+    } catch (e) {
+        console.warn('保存文本草稿失败:', e);
+    }
+};
 
 function TextSharing() {
     const { t } = useTranslation();
     const {showToast} = useToast();
     const {showDialog} = useDialog();
     const isTouch = useMemo(() => 'ontouchstart' in window || navigator.maxTouchPoints > 0, []);
-    const [uploadText, setUploadText] = useState("");
+    const [uploadText, setUploadText] = useState(loadDraft);
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, content: '', id: null, actionType: null });
     const [records, setRecords] = useState([]);
     const [filterType, setFilterType] = useState('all');
@@ -24,11 +54,16 @@ function TextSharing() {
         return records.filter(r => r.action_type === type);
     }, [records, filterType]);
 
-    useEffect(() => {
-        flushRecords();
-    }, []);
+    // 预览浮层 URL（null 表示关闭）
+    const [previewUrl, setPreviewUrl] = useState(null);
+    // 正在预览的文件名
+    const [previewTitle, setPreviewTitle] = useState('');
+    // 当前预览类型（image/text/pdf/audio），用于 FilePreview 渲染分支
+    const [previewType, setPreviewType] = useState(null);
+    const [imageMenu, setImageMenu] = useState({visible: false, x: 0, y: 0, id: null, name: '', canPreview: false});
+    const longPressTimerRef = useRef(null);
 
-    const flushRecords = () => {
+    const flushRecords = useCallback(() => {
         getUploadRecordsAPI().then(res => {
             if (res.code !== 200) {
                 console.error("获取记录列表异常")
@@ -40,7 +75,11 @@ function TextSharing() {
             console.error("获取记录列表异常", error);
             showToast({message: t('textSharing.toast.loadFailed', {error: error.message || '未知错误'}), type: 'error'});
         })
-    }
+    }, [showToast, t]);
+
+    useEffect(() => {
+        flushRecords();
+    }, [flushRecords]);
 
     const showToastRef = useRef();
     const tRef = useRef();
@@ -97,7 +136,8 @@ function TextSharing() {
                     loadingLabel: 'imageSharing.sharing',
                     handler: async () => {
                         try {
-                            const res = await uploadImageAPI(imageFile);
+                            // track 计入活跃任务，端口切换会等图片上传完成后才跳转
+                            const res = await track(uploadImageAPI(imageFile));
                             if (res.code !== 200) {
                                 showToast({message: t('common.toast.operationFailed'), type: 'error'});
                                 return;
@@ -111,7 +151,7 @@ function TextSharing() {
                     },
                 },
             ],
-        }).then((confirmed) => {
+        }).then(() => {
             URL.revokeObjectURL(previewUrl);
         }).catch(() => {
             URL.revokeObjectURL(previewUrl);
@@ -185,6 +225,20 @@ function TextSharing() {
         setUploadText(e.target.value);
     }
 
+    // 草稿防抖落盘，避免每次输入都写 localStorage
+    useEffect(() => {
+        const timer = setTimeout(() => saveDraft(uploadText), 300);
+        return () => clearTimeout(timer);
+    }, [uploadText]);
+
+    // 清空待共享文本
+    const clearDraft = () => {
+        if (!uploadText) return;
+        setUploadText("");
+        saveDraft("");
+        showToast({message: t('textSharing.toast.draftCleared'), type: 'info'});
+    }
+
     const sendText = () => {
         uploadTextAPI(uploadText)
             .then(res => {
@@ -212,14 +266,47 @@ function TextSharing() {
         setContextMenu({ visible: false, x: 0, y: 0, content: '', actionType: null });
     };
 
+    const closeImageMenu = () => {
+        setImageMenu({visible: false, x: 0, y: 0, id: null, name: '', canPreview: false});
+    };
+
+    const showImageMenu = (e, v) => {
+        e.preventDefault();
+        e.stopPropagation();
+        let meta = {};
+        try { meta = JSON.parse(v.content); } catch { /* 解析失败使用空对象 */ }
+        const originalName = meta.original_name || '';
+        const canPreview = originalName ? isPreviewable(getFileSuffix(originalName)) : false;
+        const cx = e.clientX || (e.touches && e.touches[0]?.clientX) || 0;
+        const cy = e.clientY || (e.touches && e.touches[0]?.clientY) || 0;
+        const x = Math.min(cx, window.innerWidth - 140);
+        const y = Math.min(cy, window.innerHeight - 120);
+        setImageMenu({visible: true, x, y, id: v.id, name: originalName, canPreview});
+    };
+
+    const startImageLongPress = (e, v) => {
+        longPressTimerRef.current = setTimeout(() => showImageMenu(e, v), 500);
+    };
+
+    const clearImageLongPress = () => {
+        if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; }
+    };
+
+    const copyImageLink = (id) => {
+        const link = `${window.location.origin}/shared-image/${id}`;
+        copyToClipboard(link);
+        showToast({message: t('fileSharing.toast.linkCopied'), type: 'success'});
+    };
+
     useEffect(() => {
         const handleClick = (e) => {
-            if (!contextMenu.visible) return;
             if (e.target.closest('.context-menu')) return;
-            hideContextMenu();
+            if (contextMenu.visible) hideContextMenu();
+            if (imageMenu.visible) closeImageMenu();
         };
         const handleScroll = () => {
             if (contextMenu.visible) hideContextMenu();
+            if (imageMenu.visible) closeImageMenu();
         };
         document.addEventListener('click', handleClick);
         window.addEventListener('scroll', handleScroll, true);
@@ -227,7 +314,7 @@ function TextSharing() {
             document.removeEventListener('click', handleClick);
             window.removeEventListener('scroll', handleScroll, true);
         };
-    }, [contextMenu.visible]);
+    }, [contextMenu.visible, imageMenu.visible]);
 
     const copyText = (text, id) => {
         if (id != null) {
@@ -239,10 +326,10 @@ function TextSharing() {
 
     return (
         <TextSharingStyle>
-            <Card>
+            <Card className="textCard">
                 <textarea id="textInput" value={uploadText} onChange={uploadTextOnChange} onPaste={handlePaste}></textarea>
                 <div className="sendBtnWrapper">
-                    <button onClick={sendText}>{t('textSharing.sendBtn')}</button>
+                    <button className="sendBtn" onClick={sendText}>{t('textSharing.sendBtn')}</button>
                     <label className="imageUploadBtn" title={t('imageSharing.uploadImageBtn')}>
                         <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleFileInputChange} />
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -251,10 +338,19 @@ function TextSharing() {
                             <polyline points="21 15 16 10 5 21"/>
                         </svg>
                     </label>
+                    <button className="clearDraftBtn" onClick={clearDraft}
+                            title={t('textSharing.clearBtn')} aria-label={t('textSharing.clearBtn')}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+                            <line x1="18" y1="9" x2="12" y2="15"/>
+                            <line x1="12" y1="9" x2="18" y2="15"/>
+                        </svg>
+                    </button>
                 </div>
             </Card>
 
-            <Card>
+            <Card className="textCard recordCard">
                 <div className="recordFilter">
                     <button className={filterType === 'all' ? 'active' : ''} onClick={() => setFilterType('all')}>{t('recordList.filter.all')}</button>
                     <button className={filterType === 'text' ? 'active' : ''} onClick={() => setFilterType('text')}>{t('recordList.filter.text')}</button>
@@ -267,21 +363,39 @@ function TextSharing() {
                             if (v.action_type === 1) {
                                 return (
                                     <li key={v.id} className="recordItem text"
-                                        onDoubleClick={() => copyText(v.content, v.id)}
+                                        onClick={(e) => {
+                                            // 仅主键左键触发复制，右键/Ctrl+单击（macOS 次键）仍走 contextmenu
+                                            if (e.button !== 0 || e.ctrlKey) return;
+                                            copyText(v.content, v.id);
+                                        }}
                                         onContextMenu={(e) => showContextMenu(e, v.content, v.id, 1)}
                                         onMouseEnter={() => { if (contextMenu.visible) hideContextMenu(); }}>
                                         <p className="recordContent">{v.content}</p>
+                                        <p className="recordHint">{t('textSharing.hint')}</p>
                                         <p className="metaInfo">{v.created_at.replace(/-/g, '/')} | {v.ip}</p>
                                     </li>
                                 );
                             }
                             let meta = {};
-                            try { meta = JSON.parse(v.content); } catch(e) {}
+                            try { meta = JSON.parse(v.content); } catch { /* 解析失败使用空对象 */ }
+                            const originalName = meta.original_name || '';
+                            const canPreview = originalName ? isPreviewable(getFileSuffix(originalName)) : false;
                             return (
-                                <li key={v.id} className="recordItem image">
+                                <li key={v.id} className="recordItem image"
+                                    onContextMenu={(e) => showImageMenu(e, v)}
+                                    onTouchStart={(e) => startImageLongPress(e, v)}
+                                    onTouchEnd={() => clearImageLongPress()}
+                                    onTouchMove={() => clearImageLongPress()}>
                                     <img src={`/shared-image/${v.id}`}
-                                        alt={meta.original_name || ''}
-                                        className="recordThumb" />
+                                        alt={originalName}
+                                        className={`recordThumb${canPreview ? ' previewableThumb' : ''}`}
+                                        onClick={(e) => {
+                                            // 仅左键（event.button === 0）触发预览，右键仍走 li 的 contextmenu 下载/复制
+                                            if (e.button !== 0 || !canPreview) return;
+                                            setPreviewUrl(`/shared-image/${v.id}`);
+                                            setPreviewTitle(originalName || v.content || '');
+                                            setPreviewType('image');
+                                        }} />
                                     <div className="recordBody">
                                         <p className="recordHint">{isTouch ? t('imageSharing.hintMobile') : t('imageSharing.hintDesktop')}</p>
                                         <p className="metaInfo">{v.created_at?.replace(/-/g, '/')} | {v.ip}</p>
@@ -303,6 +417,32 @@ function TextSharing() {
                         hideContextMenu();
                     }}>{t('textSharing.contextMenu.copy')}</div>
                 </div>
+            )}
+
+            {imageMenu.visible && (
+                <div className="context-menu" style={{left: imageMenu.x, top: imageMenu.y}} onClick={(e) => e.stopPropagation()}>
+                    {imageMenu.canPreview ? (
+                        <div className="context-menu-item" onClick={() => {
+                            setPreviewUrl(`/shared-image/${imageMenu.id}`);
+                            setPreviewTitle(imageMenu.name || '');
+                            setPreviewType('image');
+                            closeImageMenu();
+                        }}>{t('fileSharing.action.preview')}</div>
+                    ) : (
+                        <div className="context-menu-item" onClick={() => {
+                            copyImageLink(imageMenu.id);
+                            closeImageMenu();
+                        }}>{t('fileSharing.action.copyLink')}</div>
+                    )}
+                </div>
+            )}
+
+            {previewUrl && (
+                <FilePreview url={previewUrl} title={previewTitle} type={previewType} onClose={() => {
+                    setPreviewUrl(null);
+                    setPreviewTitle('');
+                    setPreviewType(null);
+                }} />
             )}
         </TextSharingStyle>
     );

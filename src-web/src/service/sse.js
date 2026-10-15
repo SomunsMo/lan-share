@@ -2,12 +2,12 @@ const STORAGE_KEY = 'lan-share-client-id';
 
 export const getClientId = () => {
     let id;
-    try { id = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+    try { id = localStorage.getItem(STORAGE_KEY); } catch { /* localStorage 不可用则忽略 */ }
     if (!id) {
         id = (crypto.randomUUID && crypto.randomUUID()) ||
              'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,
                 c => { const r = Math.random()*16|0; const v = c==='x'?r:(r&0x3|0x8); return v.toString(16); });
-        try { localStorage.setItem(STORAGE_KEY, id); } catch (e) {}
+        try { localStorage.setItem(STORAGE_KEY, id); } catch { /* localStorage 不可用则忽略 */ }
     }
     return id;
 };
