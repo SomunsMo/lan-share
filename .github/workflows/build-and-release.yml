@@ -39,7 +39,6 @@ jobs:
           fi
 
           TAG="v${CARGO_VERSION}"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
           if ! IS_DRAFT=$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null); then
             echo "未找到 ${TAG} 的 release，本次只构建，不填充。"
@@ -54,6 +53,9 @@ jobs:
           fi
 
           echo "找到草稿 ${TAG}，构建完成后将填充二进制。"
+          # tag 只在确定要填充时才输出：草稿 release 未发布前 tag 尚不存在，
+          # 此时输出会让 build 的 checkout 拉不到 ref 而失败。
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "fill=true" >> "$GITHUB_OUTPUT"
 
   build:
