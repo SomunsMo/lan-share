@@ -10,8 +10,10 @@ jobs:
   validate:
     name: Validate version
     runs-on: ubuntu-latest
+    # 草稿 release 只对有 push 权限的 token 可见，contents: read 会让
+    # gh release view 对草稿返回 404，导致永远走「不填充」分支
     permissions:
-      contents: read
+      contents: write
     outputs:
       tag: ${{ steps.check.outputs.tag }}
       fill: ${{ steps.check.outputs.fill }}
