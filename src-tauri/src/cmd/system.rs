@@ -51,18 +51,34 @@ pub struct ClearResult {
 /// 获取本机内网IP，网卡未就绪（如开机自启早期）时带重试，最多约 10 秒。
 /// 失败兜底返回 127.0.0.1，避免 panic 导致整个进程退出。
 pub fn get_local_ip_with_retry() -> String {
-    for _ in 0..10 {
-        if let Ok(ip) = local_ip_address::local_ip() {
-            return ip.to_string();
+    for attempt in 0..10 {
+        match local_ip_address::local_ip() {
+            Ok(ip) => {
+                log::info!(
+                    "[get_local_ip] 第 {} 次获取本机 IP 成功: {}",
+                    attempt + 1,
+                    ip
+                );
+                return ip.to_string();
+            }
+            Err(e) => {
+                log::warn!(
+                    "[get_local_ip] 第 {} 次获取本机 IP 失败: {}",
+                    attempt + 1,
+                    e
+                );
+            }
         }
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
+    log::error!("[get_local_ip] 重试 10 次后仍无法获取本机 IP，回退 127.0.0.1");
     String::from("127.0.0.1")
 }
 
 /// 获取本机内网IP
 #[tauri::command]
 pub fn get_local_ip() -> String {
+    log::info!("[get_local_ip] 收到获取本机 IP 请求");
     get_local_ip_with_retry()
 }
 
