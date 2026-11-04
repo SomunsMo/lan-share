@@ -153,15 +153,17 @@ function Home() {
         invoke("get_device_name").then(name => setDeviceName(name)).catch(() => {});
     }, []);
 
-    const copyUrl = async () => {
-        const addr = webUrl ? webUrl.replace('http://', '') : '';
+    const copyValue = async (value) => {
+        if (!value) return;
         try {
-            await copyText(addr);
+            await copyText(value);
             showToast({message: t('common.toast.copied'), type: 'success'});
         } catch (err) {
             console.error('复制失败:', err);
         }
-    }
+    };
+
+    const copyUrl = () => copyValue(webUrl ? webUrl.replace('http://', '') : '');
 
     const ipAddr = useMemo(() => webUrl ? webUrl.split('/')[2].split(':')[0] : '', [webUrl]);
     const portNum = useMemo(() => webUrl ? webUrl.split('/')[2].split(':')[1] : '', [webUrl]);
@@ -218,19 +220,29 @@ function Home() {
                             <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.deviceName') || 'Device Name'}</Typography>
                             <Typography
                                 title={t('home.copyTooltip')}
-                                onClick={async () => { try { await copyText(deviceName); showToast({message: t('common.toast.copied'), type: 'success'}); } catch (err) { console.error('复制失败:', err); } }}
+                                onClick={() => copyValue(deviceName)}
                                 sx={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--on-surface)', cursor: 'pointer', '&:hover': { color: 'var(--primary)' } }}
                             >{deviceName}</Typography>
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid var(--border)' }}>
                             <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.localIp') || 'Local IP'}</Typography>
-                            <Box component="code" sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--on-surface)', bgcolor: 'var(--surface-container)', px: 1, py: 0.5, borderRadius: 'var(--radius)', fontFamily: 'var(--font-family-label)' }}>
+                            <Box
+                                component="code"
+                                title={t('home.copyTooltip')}
+                                onClick={() => copyValue(ipAddr)}
+                                sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--on-surface)', bgcolor: 'var(--surface-container)', px: 1, py: 0.5, borderRadius: 'var(--radius)', fontFamily: 'var(--font-family-label)', cursor: 'pointer', transition: 'color 0.2s', '&:hover': { color: 'var(--primary)' } }}
+                            >
                                 {ipAddr}
                             </Box>
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid var(--border)' }}>
                             <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.port') || 'Port'}</Typography>
-                            <Box component="code" sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--on-surface)', bgcolor: 'var(--surface-container)', px: 1, py: 0.5, borderRadius: 'var(--radius)', fontFamily: 'var(--font-family-label)' }}>
+                            <Box
+                                component="code"
+                                title={t('home.copyTooltip')}
+                                onClick={() => copyValue(portNum)}
+                                sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--on-surface)', bgcolor: 'var(--surface-container)', px: 1, py: 0.5, borderRadius: 'var(--radius)', fontFamily: 'var(--font-family-label)', cursor: 'pointer', transition: 'color 0.2s', '&:hover': { color: 'var(--primary)' } }}
+                            >
                                 {portNum}
                             </Box>
                         </Box>
