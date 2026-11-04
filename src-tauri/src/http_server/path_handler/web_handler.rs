@@ -16,8 +16,13 @@ pub async fn home_page_redirect(
 
 #[request("/web")]
 pub async fn web_handler(
-    _req: Request<Incoming>,
+    req: Request<Incoming>,
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
+    // 访问密码开启且未登录时，始终返回内置登录页，避免自定义前端绕过鉴权
+    if !crate::auth::is_authenticated(&req) {
+        return success(crate::embedded::FRONTEND_HTML.to_string());
+    }
+
     // 先尝试从配置目录中读取自定义网页
     let custom_html_path = get_config_dir().join("frontend/index.html");
     if let Ok(html_content) = fs::read_to_string(&custom_html_path) {

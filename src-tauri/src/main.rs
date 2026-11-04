@@ -42,6 +42,9 @@ async fn init() {
     // 初始化DB
     sqlite::init().await;
 
+    // 访问密码配置必须在 HTTP 服务启动前加载完成
+    lan_share_lib::auth::init_from_config().await;
+
     // ====================【↓DB初始化后才能执行的代码】====================
 
     // 检查共享根目录是否已配置（用于首次运行检测）

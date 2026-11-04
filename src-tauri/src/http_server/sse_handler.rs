@@ -10,6 +10,7 @@ pub async fn events_handler(
 ) -> Result<Response<GenericResponseBody>, std::convert::Infallible> {
     let (tx, rx) = mpsc::channel::<Bytes>(16);
     let mut sse_rx = crate::http_server::sse::subscribe();
+    let session_token = crate::auth::cookie_token(&_req);
 
     tokio::spawn(async move {
         let mut heartbeats = tokio::time::interval(std::time::Duration::from_secs(15));
@@ -33,6 +34,10 @@ pub async fn events_handler(
                     }
                 }
                 _ = heartbeats.tick() => {
+                    // 改密、登出、重启服务后会话会被清空，心跳时主动断开 SSE
+                    if !crate::auth::validate_current_auth(session_token.as_deref()) {
+                        break;
+                    }
                     if tx.send(Bytes::from_static(b": keep-alive\n\n")).await.is_err() {
                         break;
                     }

@@ -70,6 +70,8 @@ image = "0.25"
 encoding_rs = "0.8"
 sha2 = "0.10"
 base64 = "0.22"
+# 生成访问密码随机盐与会话 token
+getrandom = "0.2"
 
 
 [target.'cfg(windows)'.dependencies]

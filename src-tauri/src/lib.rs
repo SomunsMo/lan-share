@@ -4,6 +4,8 @@ pub mod config {
     pub mod config;
 }
 
+pub mod auth;
+
 pub mod cmd {
     pub mod _cmd_handler;
     pub mod system;
@@ -27,6 +29,7 @@ pub mod http_server {
     pub mod sse;
     pub mod sse_handler;
     pub mod path_handler {
+        pub mod auth_handler;
         pub mod file_sharing_handler;
         pub mod image_sharing_handler;
         pub mod record_handler;

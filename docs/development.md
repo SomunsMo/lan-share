@@ -117,7 +117,7 @@ The desktop app launches an embedded HTTP server (`hyper`) in the background. Ot
 
 **Startup flow** (`src-tauri/src/main.rs` + `lib.rs`):
 1. `main()` → init logger → create config directory
-2. Init SQLite connection pool → create/migrate tables → load config
+2. Init SQLite connection pool → create/migrate tables → load config → `auth::init_from_config()` (access password)
 3. Check sharing directory (prompt on first run)
 4. Read window state JSON + configured HTTP port
 5. `lib.rs::run()` → Tauri Builder:
@@ -162,6 +162,7 @@ lan-share/
 │   │   │   ├── _cmd_handler.rs       # generate_handler![] command registry
 │   │   │   └── system.rs             # 68 IPC commands
 │   │   ├── config/config.rs          # Global runtime state (OnceLock / RwLock)
+│   │   ├── auth/mod.rs               # Access password: hash, sessions, guard, failure policy
 │   │   ├── db/
 │   │   │   ├── sqlite.rs             # Connection pool, table creation, migrations
 │   │   │   ├── entity.rs             # Data structures (Config, TransferRecord)
@@ -177,6 +178,7 @@ lan-share/
 │   │   │       ├── text_sharing_handler.rs
 │   │   │       ├── image_sharing_handler.rs
 │   │   │       ├── record_handler.rs
+│   │   │       ├── auth_handler.rs
 │   │   │       └── web_handler.rs
 │   │   ├── normalizer/               # URL path normalization
 │   │   └── utils/                    # datetime, path utilities
@@ -192,8 +194,10 @@ lan-share/
 │   │   │   ├── Dialog/               # Modal dialog
 │   │   │   ├── Toast/                # Notifications
 │   │   │   ├── ProgressBar/          # Upload progress
+│   │   │   ├── Login/                # Access password login page
 │   │   │   └── SseStatusBanner/      # Disconnect banner + reconnect countdown
 │   │   ├── service/                  # Axios instance + API methods
+│   │   │   ├── auth.js               # /auth/status, /auth/login, /auth/logout
 │   │   │   └── sse.js                # SSE client: subscribe/subscribeStatus/retryNow
 │   │   └── util/                     # File utilities
 │   └── vite.config.js                # vite-plugin-singlefile + host:true
@@ -223,6 +227,9 @@ All JSON responses follow `{ code, msg, data }`.
 | POST | `/record/download` | Record file download event |
 | GET | `/config/permissions` | Get web permission settings |
 | GET | `/api/events` | SSE stream — real-time push of share/delete/settings events |
+| GET | `/auth/status` | Access password status (public) |
+| POST | `/auth/login` | Password login, sets session cookie (public) |
+| POST | `/auth/logout` | Clear session and cookie (public) |
 
 ## Real-Time Events (SSE)
 
@@ -236,7 +243,7 @@ Web UI stays in sync with the desktop without polling, via a Server-Sent Events 
 
 ## IPC Commands
 
-68 commands registered in `_cmd_handler.rs` (`src-tauri/src/cmd/system.rs`).
+74 commands registered in `_cmd_handler.rs` (`src-tauri/src/cmd/system.rs`).
 
 **System / Status**: `get_local_ip`, `get_device_name`, `get_server_status`, `get_running_port`, `get_app_version`, `get_repo_url`, `check_update`
 
@@ -253,6 +260,8 @@ Web UI stays in sync with the desktop without polling, via a Server-Sent Events 
 **Record Toggles**: `get/set_record_copy_enabled`, `get/set_record_download_enabled`
 
 **System**: `get/set_autostart`, `get/set_autostart_minimized`, `get/set_exclude_system_files`, `get/set_exclude_patterns`, `open_file_location`, `open_folder`, `update_tray_menu`
+
+**Access Password**: `get_password_status`, `set_password_enabled`, `set_password`, `clear_password`, `get/set_login_failure_policy`, `restart_http_server`
 
 ## Database
 
@@ -289,6 +298,7 @@ SQLite database at `{config_dir}/Somunsm/LanShare/config.db` (defined in `src-ta
 - **Recycle bin**: Deleted files sent to OS trash by default (configurable)
 - **Exclude rules**: Built-in system file exclusion (`.DS_Store`, `desktop.ini`, `Thumbs.db`, etc.) + custom regex patterns
 - **Network isolation**: HTTP server listens on `0.0.0.0:{port}`, reachable only within LAN
+- **Access password** (optional): HTTP-layer guard (`auth::guard`) + in-memory session + HttpOnly cookie; desktop IPC unaffected. See `docs/spec/password.md`
 
 ## Custom Frontend
 
@@ -300,6 +310,8 @@ Place your own `index.html` or `404.html` in the config directory's `frontend/` 
 ```
 
 No recompilation needed — restart the app to apply changes. Falls back to the built-in embedded frontend if files don't exist.
+
+When access password is enabled, unauthenticated requests to `/web` always receive the built-in frontend (login page); the custom `frontend/index.html` is only served after login.
 
 Default `{config_dir}` locations:
 

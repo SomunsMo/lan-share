@@ -1,3 +1,4 @@
+use crate::auth::{self, FailurePolicy};
 use crate::db::dao::config_dao;
 use crate::db::dao::upload_dao;
 use crate::http_server::sse::{fire, fire_port_changed, fire_reload, fire_root_changed, new_clear, new_image, new_image_deleted, new_text, new_text_deleted};
@@ -40,6 +41,9 @@ pub struct AllSettings {
     pub delete_to_trash: bool,
     pub image_sharing_dir: String,
     pub tray_icon_mode: String,
+    pub password_enabled: bool,
+    pub password_set: bool,
+    pub login_failure_policy: String,
 }
 
 #[derive(Serialize)]
@@ -1624,6 +1628,50 @@ pub async fn set_theme_setting(theme: String) -> Result<(), String> {
     Ok(())
 }
 
+// ===== 访问密码 =====
+
+/// 获取访问密码状态（是否开启、是否已设置）
+#[tauri::command]
+pub fn get_password_status() -> auth::PasswordStatus {
+    auth::get_status()
+}
+
+/// 开启/关闭访问密码（立即生效，并清空所有 Web 会话）
+#[tauri::command]
+pub async fn set_password_enabled(enabled: bool) -> Result<auth::PasswordStatus, String> {
+    auth::set_enabled(enabled).await
+}
+
+/// 设置/修改访问密码
+#[tauri::command]
+pub async fn set_password(password: String) -> Result<(), String> {
+    auth::set_password(&password).await
+}
+
+/// 清除访问密码（仅在密码保护关闭时允许）
+#[tauri::command]
+pub async fn clear_password() -> Result<(), String> {
+    auth::clear_password().await
+}
+
+/// 获取登录失败处理策略
+#[tauri::command]
+pub fn get_login_failure_policy() -> String {
+    auth::get_failure_policy().as_str().to_string()
+}
+
+/// 设置登录失败处理策略
+#[tauri::command]
+pub async fn set_login_failure_policy(policy: String) -> Result<(), String> {
+    auth::set_failure_policy(FailurePolicy::from_str(&policy)).await
+}
+
+/// 重启 HTTP 服务并断开现有连接（正在下载/SSE 会立即失败）
+#[tauri::command]
+pub async fn restart_http_server() -> Result<(), String> {
+    crate::http_server::http_server::restart_server().await
+}
+
 // ===== 检查更新 =====
 
 #[derive(Debug, Serialize)]
@@ -1843,6 +1891,9 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
         }
     };
 
+    let password_status = auth::get_status();
+    let login_failure_policy = auth::get_failure_policy().as_str().to_string();
+
     let result = AllSettings {
         sharing_directory,
         upload_enabled: configs.get("upload_enabled").map(|v| v == "true").unwrap_or(false),
@@ -1864,6 +1915,9 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
         delete_to_trash: configs.get("delete_to_trash").map(|v| v == "true").unwrap_or(true),
         image_sharing_dir,
         tray_icon_mode: configs.get("tray_icon_mode").cloned().unwrap_or_else(|| "template".to_string()),
+        password_enabled: password_status.enabled,
+        password_set: password_status.password_set,
+        login_failure_policy,
     };
 
     log::debug!(
