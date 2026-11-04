@@ -11,14 +11,19 @@ import { startEventSource, stopEventSource } from "./service/sse.js";
 import SseStatusBanner from "./component/SseStatusBanner/index.jsx";
 import PortChangedBanner from "./component/PortChangedBanner/index.jsx";
 import SideNav from "./component/SideNav/index.jsx";
+import Login from "./component/Login/index.jsx";
 import {ROUTE_TEXT, ROUTE_FILES} from "./util/route.js";
 import {useHashRoute} from "./util/useHashRoute.js";
+import {getAuthStatusAPI, logoutAPI} from "./service/auth.js";
+import {onUnauthorized} from "./service/authEvents.js";
 
 const THEME_KEY = 'lan-share-theme';
 
 function App() {
     const { t, i18n } = useTranslation();
     const [route, navigate] = useHashRoute();
+    // null 表示正在检查登录状态
+    const [auth, setAuth] = useState(null);
     const [theme, setTheme] = useState(() => {
         try {
             const saved = localStorage.getItem(THEME_KEY);
@@ -40,9 +45,57 @@ function App() {
     }, [theme]);
 
     useEffect(() => {
+        let cancelled = false;
+
+        getAuthStatusAPI()
+            .then((res) => {
+                const status = res?.data;
+                if (!cancelled) setAuth(status || {password_enabled: false, authenticated: true});
+            })
+            .catch(() => {
+                // 状态查询失败时不阻断页面，后续接口返回 401 会再切回登录页
+                if (!cancelled) setAuth({password_enabled: false, authenticated: true});
+            });
+
+        const offUnauthorized = onUnauthorized(() => {
+            stopEventSource();
+            setAuth((prev) => ({
+                password_enabled: true,
+                password_set: prev?.password_set ?? true,
+                authenticated: false,
+            }));
+        });
+
+        return () => {
+            cancelled = true;
+            offUnauthorized();
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!auth?.authenticated) return;
         startEventSource();
         return stopEventSource;
-    }, []);
+    }, [auth?.authenticated]);
+
+    const handleLoginSuccess = () => {
+        // 登录后重新加载，让自定义前端能够被服务端返回
+        window.location.reload();
+    };
+
+    const handleLogout = async () => {
+        try {
+            await logoutAPI();
+        } catch (e) {
+            console.error('登出失败:', e);
+        }
+        stopEventSource();
+        setAuth((prev) => ({
+            password_enabled: true,
+            password_set: prev?.password_set ?? true,
+            authenticated: false,
+        }));
+    };
 
     const qrFgColor = React.useMemo(() => {
         if (theme === 'dark') return '#f6f6f6';
@@ -62,6 +115,14 @@ function App() {
     };
 
     const themeLabel = {system: t('web.themeLabel.system'), light: t('web.themeLabel.light'), dark: t('web.themeLabel.dark')};
+
+    if (auth === null) {
+        return <AppStyle/>;
+    }
+
+    if (auth.password_enabled && !auth.authenticated) {
+        return <Login onSuccess={handleLoginSuccess}/>;
+    }
 
     return (
         <DialogProvider>
@@ -106,6 +167,11 @@ function App() {
                                         <option value="zh-CN">{t('web.languageLabel.zh-CN')}</option>
                                         <option value="en">{t('web.languageLabel.en')}</option>
                                     </select>
+                                    {auth.password_enabled && (
+                                        <button className="theme-toggle-btn" onClick={handleLogout}>
+                                            {t('web.auth.logout')}
+                                        </button>
+                                    )}
                                 </>
                             )}/>
                             <QrCodeButton fgColor={qrFgColor}/>

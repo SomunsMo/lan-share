@@ -12,6 +12,17 @@
   },
   "web": {
     "subtitle": "LAN text, image & file sharing tool over HTTP",
+    "auth": {
+      "subtitle": "Access authentication is enabled",
+      "passwordLabel": "Access password",
+      "passwordPlaceholder": "Enter access password",
+      "passwordRequired": "Please enter the access password",
+      "submit": "Sign in",
+      "submitting": "Signing in...",
+      "loginFailed": "Login failed, please try again later",
+      "footer": "The password is set by the desktop administrator",
+      "logout": "Sign out"
+    },
     "themeLabel": {
       "system": "Follow System",
       "light": "Light",

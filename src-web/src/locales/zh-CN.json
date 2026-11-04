@@ -12,6 +12,17 @@
   },
   "web": {
     "subtitle": "基于HTTP的局域网文本、图片、文件共享工具",
+    "auth": {
+      "subtitle": "已开启访问认证",
+      "passwordLabel": "访问密码",
+      "passwordPlaceholder": "请输入访问密码",
+      "passwordRequired": "请输入访问密码",
+      "submit": "登录",
+      "submitting": "登录中...",
+      "loginFailed": "登录失败，请稍后再试",
+      "footer": "密码由桌面端管理员设置",
+      "logout": "退出登录"
+    },
     "themeLabel": {
       "system": "跟随系统",
       "light": "浅色",

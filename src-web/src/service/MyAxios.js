@@ -1,5 +1,6 @@
 import originAxios from "axios";
 import { getClientId } from "./sse.js";
+import { emitUnauthorized } from "./authEvents.js";
 
 const request = (options) => {
     return new Promise((resolve, reject) => {
@@ -29,6 +30,13 @@ const request = (options) => {
             if (response.status === 200) return response.data;
             return response;
         }, err => {
+            if (err.response && err.response.status === 401) {
+                // 会话失效（改密、重启服务、登出等）：通知界面切回登录页
+                const url = err.config?.url || '';
+                if (!url.startsWith('/auth/')) {
+                    emitUnauthorized();
+                }
+            }
             if (err.response && err.response.data) {
                 const data = err.response.data;
                 // 标准化错误对象：确保 message 和 status 始终可用

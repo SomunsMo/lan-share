@@ -1,3 +1,5 @@
+import { emitUnauthorized } from './authEvents.js';
+
 const STORAGE_KEY = 'lan-share-client-id';
 
 export const getClientId = () => {
@@ -58,6 +60,24 @@ function dispatch(parsed) {
     listeners.forEach(cb => cb(parsed));
 }
 
+function scheduleReconnect() {
+    reconnectCount += 1;
+    if (reconnectCount > MAX_AUTO_RETRIES) {
+        // 超过最大自动重试次数：停止自动重试，只保留手动重连按钮
+        retryStopped = true;
+        nextAttemptAt = null;
+        emitStatus();
+        console.debug(`SSE 连续失败 ${reconnectCount} 次，已停止自动重试`);
+        return;
+    }
+    const delay = getRetryDelay();
+    nextAttemptAt = Date.now() + delay;
+    retryStopped = false;
+    emitStatus();
+    console.debug(`SSE 断开，${delay / 1000}s 后重连（第 ${reconnectCount} 次失败）`);
+    retryTimer = setTimeout(() => { retryTimer = null; startEventSource(); }, delay);
+}
+
 export function startEventSource() {
     if (source) return;
     connecting = true;
@@ -79,21 +99,22 @@ export function startEventSource() {
         connected = false;
         connecting = false;
         if (retryTimer) return; // 已有待执行重连，避免叠加
-        reconnectCount += 1;
-        if (reconnectCount > MAX_AUTO_RETRIES) {
-            // 超过最大自动重试次数：停止自动重试，只保留手动重连按钮
-            retryStopped = true;
-            nextAttemptAt = null;
-            emitStatus();
-            console.debug(`SSE 连续失败 ${reconnectCount} 次，已停止自动重试`);
-            return;
-        }
-        const delay = getRetryDelay();
-        nextAttemptAt = Date.now() + delay;
-        retryStopped = false;
-        emitStatus();
-        console.debug(`SSE 断开，${delay / 1000}s 后重连（第 ${reconnectCount} 次失败）`);
-        retryTimer = setTimeout(() => { retryTimer = null; startEventSource(); }, delay);
+
+        // 先确认是否因未登录被拒绝：未登录时停止自动重连并通知界面切回登录页
+        fetch('/auth/status', { cache: 'no-store' })
+            .then(res => res.json())
+            .then(payload => {
+                const status = payload?.data;
+                if (status?.password_enabled && !status?.authenticated) {
+                    retryStopped = true;
+                    nextAttemptAt = null;
+                    emitStatus();
+                    emitUnauthorized();
+                    return;
+                }
+                scheduleReconnect();
+            })
+            .catch(() => scheduleReconnect());
     };
     source.onmessage = (msg) => {
         try {
