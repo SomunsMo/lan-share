@@ -3,6 +3,7 @@ import HomeStyle from "./style.js";
 import {invoke} from "@tauri-apps/api/core";
 import {listen} from "@tauri-apps/api/event";
 import {getCurrentWindow} from "@tauri-apps/api/window";
+import {useNavigate} from "react-router";
 import {QRCodeSVG} from "qrcode.react";
 import {open} from '@tauri-apps/plugin-dialog';
 import {useDialog} from "@/components/dialog/index.jsx";
@@ -17,9 +18,11 @@ import CircularProgress from '@mui/material/CircularProgress';
 function Home() {
     const { t } = useTranslation();
     const {showToast} = useToast();
+    const navigate = useNavigate();
     const [webUrl, setWebUrl] = useState("");
     const [serverStatus, setServerStatus] = useState(null);
     const [statusLoading, setStatusLoading] = useState(true);
+    const [passwordStatus, setPasswordStatus] = useState(null);
     const [qrFgColor, setQrFgColor] = useState("#213547");
     const {showDialog} = useDialog();
 
@@ -44,6 +47,12 @@ function Home() {
         checkFirstRun().catch(e => {
             console.error("首次运行检查失败：", e);
         });
+
+        invoke("get_password_status")
+            .then(status => setPasswordStatus(status))
+            .catch(e => {
+                console.error("获取访问认证状态失败：", e);
+            });
     }, []);
 
     const checkFirstRun = async () => {
@@ -165,8 +174,26 @@ function Home() {
 
     const copyUrl = () => copyValue(webUrl ? webUrl.replace('http://', '') : '');
 
+    // 点击访问认证状态行跳转到设置页的安全分组
+    const goToSecuritySettings = () => {
+        navigate('/settings', {state: {scrollTo: 'security'}});
+    };
+
     const ipAddr = useMemo(() => webUrl ? webUrl.split('/')[2].split(':')[0] : '', [webUrl]);
     const portNum = useMemo(() => webUrl ? webUrl.split('/')[2].split(':')[1] : '', [webUrl]);
+
+    const authInfo = useMemo(() => {
+        if (!passwordStatus) {
+            return {label: t('common.loading') || '...', color: 'var(--on-surface-variant)', glow: false};
+        }
+        if (!passwordStatus.enabled) {
+            return {label: t('home.authDisabled'), color: 'var(--on-surface-variant)', glow: false};
+        }
+        if (passwordStatus.password_set) {
+            return {label: t('home.authEnabled'), color: '#22c55e', glow: true};
+        }
+        return {label: t('home.authEnabledNoPassword'), color: '#f59e0b', glow: false};
+    }, [passwordStatus, t]);
 
     return (
         <HomeStyle>
@@ -246,12 +273,33 @@ function Home() {
                                 {portNum}
                             </Box>
                         </Box>
+                        <Box
+                            onClick={passwordStatus ? goToSecuritySettings : undefined}
+                            title={passwordStatus ? t('home.authGoSettings') : undefined}
+                            sx={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                py: 1,
+                                borderBottom: '1px solid var(--border)',
+                                cursor: passwordStatus ? 'pointer' : 'default',
+                                '&:hover .authValue': passwordStatus ? { color: 'var(--primary)' } : {},
+                            }}
+                        >
+                            <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.accessAuth') || 'Access Auth'}</Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: authInfo.color, boxShadow: authInfo.glow ? `0 0 6px ${authInfo.color}` : 'none' }} />
+                                <Typography className="authValue" sx={{ fontSize: '0.875rem', fontWeight: 500, color: passwordStatus?.enabled ? (passwordStatus?.password_set ? 'var(--on-surface)' : '#f59e0b') : 'var(--on-surface-variant)', fontFamily: 'var(--font-family-label)', transition: 'color 0.2s' }}>
+                                    {authInfo.label}
+                                </Typography>
+                            </Box>
+                        </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1 }}>
-                            <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.status') || 'Status'}</Typography>
+                            <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.status') || 'Running Status'}</Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: serverStatus?.running ? '#22c55e' : 'var(--error)', boxShadow: serverStatus?.running ? '0 0 6px #22c55e' : 'none' }} />
                                 <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: serverStatus?.running ? 'var(--on-surface)' : 'var(--error)', fontFamily: 'var(--font-family-label)' }}>
-                                    {serverStatus?.running ? (t('home.listening') || 'Listening...') : (t('home.notRunning') || 'Not Running')}
+                                    {serverStatus?.running ? (t('home.listening') || 'Listening') : (t('home.notRunning') || 'Not Running')}
                                 </Typography>
                             </Box>
                         </Box>
