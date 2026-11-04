@@ -50,6 +50,7 @@
   "settings": {
     "pageTitle": "设置",
     "sectionNetwork": "网络配置",
+    "sectionSecurity": "访问安全",
     "sectionSystem": "系统偏好",
     "sectionAppearance": "外观",
     "sectionRecords": "记录设置",
@@ -57,6 +58,21 @@
     "option": {
       "port": "Http Server端口",
       "portDesc": "对其他设备提供网页和能力的服务端口",
+      "passwordProtect": "访问密码",
+      "passwordProtectDesc": "开启后，通过 Web 访问需要输入密码（桌面端不受影响）",
+      "setPassword": "设置访问密码",
+      "setPasswordDesc": "已设置访问密码，修改后所有 Web 会话立即失效",
+      "setPasswordNotSetDesc": "尚未设置访问密码，开启保护后必须设置密码才能登录",
+      "setPasswordAction": "设置密码",
+      "changePasswordAction": "修改密码",
+      "passwordNotSetWarning": "未设置密码，Web 将无法登录",
+      "clearPassword": "清除访问密码",
+      "clearPasswordDesc": "清除已保存的密码，需先关闭访问密码保护",
+      "clearPasswordAction": "清除密码",
+      "loginFailurePolicy": "登录失败处理",
+      "loginFailurePolicyDesc": "密码错误时的处理方式",
+      "loginFailurePolicyLockout": "失败 5 次锁定 30 秒",
+      "loginFailurePolicyDelay": "仅固定延迟",
       "autostart": "开机自启",
       "autostartDesc": "开机时自动启动应用",
       "autostartMinimized": "开机最小化启动",
@@ -125,7 +141,12 @@
       "patternInvalid": "正则表达式无效",
       "migrateFailed": "迁移图片文件失败: {{error}}",
       "dirChanged": "图片暂存目录已更新",
-      "openDirFailed": "打开目录失败: {{error}}"
+      "openDirFailed": "打开目录失败: {{error}}",
+      "passwordDisabled": "访问密码保护已关闭",
+      "passwordSaved": "访问密码已保存，所有 Web 会话已失效",
+      "passwordCleared": "访问密码已清除",
+      "serverRestarted": "HTTP 服务已重启，现有连接已断开",
+      "restartFailed": "重启 HTTP 服务失败: {{error}}"
     },
     "dialog": {
       "changePort": {
@@ -136,6 +157,29 @@
       "deleteToTrashWarning": {
         "title": "关闭删除到回收站",
         "content": "关闭后，删除的文件将被永久删除而非移入回收站，是否继续？"
+      },
+      "setPassword": {
+        "title": "设置访问密码",
+        "passwordLabel": "新密码",
+        "confirmLabel": "确认密码",
+        "tooShort": "密码至少需要 {{min}} 位",
+        "mismatch": "两次输入的密码不一致"
+      },
+      "passwordEnabled": {
+        "title": "访问密码已开启",
+        "content": "访问密码已立即生效。是否重启 HTTP 服务？重启会断开当前所有 Web 连接（正在下载、实时推送会立即失败）。",
+        "restart": "重启服务"
+      },
+      "passwordNotSet": {
+        "title": "尚未设置访问密码",
+        "content": "访问密码保护已开启，但在设置密码前，所有 Web 访问都无法通过验证。是否立即设置密码？",
+        "setNow": "立即设置",
+        "later": "稍后"
+      },
+      "clearPassword": {
+        "title": "清除访问密码",
+        "content": "清除后，已保存的密码将被删除。确定继续吗？",
+        "confirm": "清除"
       }
     },
     "labels": {

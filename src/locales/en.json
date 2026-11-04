@@ -50,6 +50,7 @@
   "settings": {
     "pageTitle": "Settings",
     "sectionNetwork": "Network Configuration",
+    "sectionSecurity": "Access Security",
     "sectionSystem": "System Preferences",
     "sectionAppearance": "Appearance",
     "sectionRecords": "Recording Settings",
@@ -57,6 +58,21 @@
     "option": {
       "port": "HTTP Server Port",
       "portDesc": "Service port for providing web UI and file sharing to other devices",
+      "passwordProtect": "Access Password",
+      "passwordProtectDesc": "When enabled, web access requires a password (desktop app is unaffected)",
+      "setPassword": "Set Access Password",
+      "setPasswordDesc": "A password is set. Changing it invalidates all web sessions immediately",
+      "setPasswordNotSetDesc": "No password set. Web access cannot log in until you set one",
+      "setPasswordAction": "Set Password",
+      "changePasswordAction": "Change Password",
+      "passwordNotSetWarning": "No password set, web login is unavailable",
+      "clearPassword": "Clear Access Password",
+      "clearPasswordDesc": "Remove the saved password. Disable password protection first",
+      "clearPasswordAction": "Clear Password",
+      "loginFailurePolicy": "Failed Login Handling",
+      "loginFailurePolicyDesc": "How to handle wrong passwords",
+      "loginFailurePolicyLockout": "Lock for 30s after 5 failures",
+      "loginFailurePolicyDelay": "Fixed delay only",
       "autostart": "Auto Start",
       "autostartDesc": "Launch application on system startup",
       "autostartMinimized": "Auto Start Minimized",
@@ -125,7 +141,12 @@
       "patternInvalid": "Invalid regex pattern",
       "migrateFailed": "Failed to migrate images: {{error}}",
       "dirChanged": "Image directory updated",
-      "openDirFailed": "Failed to open directory: {{error}}"
+      "openDirFailed": "Failed to open directory: {{error}}",
+      "passwordDisabled": "Access password protection disabled",
+      "passwordSaved": "Access password saved. All web sessions have been invalidated",
+      "passwordCleared": "Access password cleared",
+      "serverRestarted": "HTTP server restarted, existing connections closed",
+      "restartFailed": "Failed to restart HTTP server: {{error}}"
     },
     "dialog": {
       "changePort": {
@@ -136,6 +157,29 @@
       "deleteToTrashWarning": {
         "title": "Disable Delete to Trash",
         "content": "After disabling, deleted files will be permanently removed instead of moved to trash. Continue?"
+      },
+      "setPassword": {
+        "title": "Set Access Password",
+        "passwordLabel": "New password",
+        "confirmLabel": "Confirm password",
+        "tooShort": "Password must be at least {{min}} characters",
+        "mismatch": "The two passwords do not match"
+      },
+      "passwordEnabled": {
+        "title": "Access Password Enabled",
+        "content": "The access password is now in effect. Restart the HTTP server? Restarting closes all current web connections (active downloads and live updates will fail immediately).",
+        "restart": "Restart Server"
+      },
+      "passwordNotSet": {
+        "title": "No Access Password Set",
+        "content": "Password protection is enabled, but until a password is set all web requests will fail verification. Set a password now?",
+        "setNow": "Set Now",
+        "later": "Later"
+      },
+      "clearPassword": {
+        "title": "Clear Access Password",
+        "content": "The saved password will be deleted. Continue?",
+        "confirm": "Clear"
       }
     },
     "labels": {

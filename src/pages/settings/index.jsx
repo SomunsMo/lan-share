@@ -1,6 +1,7 @@
 import React, {useState, useEffect, useRef} from 'react';
 import SettingsStyle from "./style.js";
 import {invoke} from "@tauri-apps/api/core";
+import {useLocation, useNavigate} from "react-router";
 import {open} from '@tauri-apps/plugin-dialog';
 import {useToast} from "../../components/toast/index.jsx";
 import {useDialog} from "../../components/dialog/index.jsx";
@@ -13,9 +14,12 @@ import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
+import PasswordDialog from "./PasswordDialog.jsx";
 
 function Settings() {
     const { t, i18n } = useTranslation();
+    const location = useLocation();
+    const navigate = useNavigate();
     const [selectedDirectory, setSelectedDirectory] = useState(t('settings.labels.clickToSelect'));
     const [imageSharingDir, setImageSharingDir] = useState(t('settings.labels.clickToSelect'));
     const [uploadEnabled, setUploadEnabled] = useState(false);
@@ -54,6 +58,10 @@ function Settings() {
     });
     const [primaryColorHex, setPrimaryColorHex] = useState('#0065ca');
     const [trayIconMode, setTrayIconMode] = useState('template');
+    const [passwordEnabled, setPasswordEnabled] = useState(false);
+    const [passwordSet, setPasswordSet] = useState(false);
+    const [loginFailurePolicy, setLoginFailurePolicy] = useState('lockout');
+    const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
     const isMac = navigator.platform.includes('Mac');
 
     const hslToHex = (h, s, l) => {
@@ -112,6 +120,9 @@ function Settings() {
                 setThemeSetting(s.theme_setting);
                 setHttpPort(s.http_port);
                 setTrayIconMode(s.tray_icon_mode || 'template');
+                setPasswordEnabled(!!s.password_enabled);
+                setPasswordSet(!!s.password_set);
+                setLoginFailurePolicy(s.login_failure_policy || 'lockout');
 
                 const { h, s: sat, l } = JSON.parse(s.theme_color);
                 setHuePrimary(h);
@@ -136,6 +147,17 @@ function Settings() {
         };
         fetchAllSettings();
     }, []);
+
+    // 从首页「访问认证-未开启」跳转过来时，滚动到安全分组
+    useEffect(() => {
+        if (location.state?.scrollTo !== 'security') return;
+        const el = document.getElementById('settings-security');
+        if (el) {
+            requestAnimationFrame(() => el.scrollIntoView({behavior: 'smooth', block: 'start'}));
+        }
+        // 清除 state，避免返回该历史记录时重复滚动
+        navigate(location.pathname, {replace: true, state: null});
+    }, [location.state, location.pathname, navigate]);
 
     const handleThemeChange = async (event) => {
         const newTheme = event.target.value;
@@ -542,6 +564,97 @@ function Settings() {
         }
     };
 
+    const handlePasswordToggle = async (event) => {
+        const checked = event.target.checked;
+        setPasswordEnabled(checked);
+
+        try {
+            await invoke('set_password_enabled', {enabled: checked});
+        } catch (error) {
+            setPasswordEnabled(!checked);
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.passwordProtect'), error: error?.message || error}), type: 'error'});
+            return;
+        }
+
+        if (!checked) {
+            showToast({message: t('settings.toast.passwordDisabled'), type: 'success'});
+            return;
+        }
+
+        // 已设置密码：提示重启服务以断开现有 Web 会话
+        if (passwordSet) {
+            const choice = await showDialog({
+                title: t('settings.dialog.passwordEnabled.title'),
+                content: t('settings.dialog.passwordEnabled.content'),
+                buttons: [
+                    {label: 'settings.dialog.passwordEnabled.restart', value: 'restart'},
+                    {label: 'common.button.confirm', value: 'ok', primary: true},
+                ],
+            });
+            if (choice === 'restart') {
+                try {
+                    await invoke('restart_http_server');
+                    showToast({message: t('settings.toast.serverRestarted'), type: 'success'});
+                } catch (error) {
+                    showToast({message: t('settings.toast.restartFailed', {error: error?.message || error}), type: 'error'});
+                }
+            }
+            return;
+        }
+
+        // 尚未设置密码：所有 Web 请求都会验证失败，提示立即设置
+        const choice = await showDialog({
+            title: t('settings.dialog.passwordNotSet.title'),
+            content: t('settings.dialog.passwordNotSet.content'),
+            buttons: [
+                {label: 'settings.dialog.passwordNotSet.later', value: 'later'},
+                {label: 'settings.dialog.passwordNotSet.setNow', value: 'set', primary: true},
+            ],
+        });
+        if (choice === 'set') {
+            setPasswordDialogOpen(true);
+        }
+    };
+
+    const handleSavePassword = async (password) => {
+        await invoke('set_password', {password});
+        setPasswordSet(true);
+        showToast({message: t('settings.toast.passwordSaved'), type: 'success'});
+    };
+
+    const handleClearPassword = async () => {
+        const confirmed = await showDialog({
+            title: t('settings.dialog.clearPassword.title'),
+            content: t('settings.dialog.clearPassword.content'),
+            buttons: [
+                {label: 'common.button.cancel', value: false},
+                {label: 'settings.dialog.clearPassword.confirm', value: true, danger: true, primary: true},
+            ],
+        });
+        if (!confirmed) return;
+
+        try {
+            await invoke('clear_password');
+            setPasswordSet(false);
+            showToast({message: t('settings.toast.passwordCleared'), type: 'success'});
+        } catch (error) {
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.clearPassword'), error: error?.message || error}), type: 'error'});
+        }
+    };
+
+    const handleLoginFailurePolicyChange = async (event) => {
+        const newPolicy = event.target.value;
+        const previous = loginFailurePolicy;
+        setLoginFailurePolicy(newPolicy);
+
+        try {
+            await invoke('set_login_failure_policy', {policy: newPolicy});
+        } catch (error) {
+            setLoginFailurePolicy(previous);
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.loginFailurePolicy'), error: error?.message || error}), type: 'error'});
+        }
+    };
+
     const optionMap = [
         {
             name: t('settings.sectionNetwork'),
@@ -555,6 +668,51 @@ function Settings() {
                             {httpPort}
                             <svg viewBox="0 0 24 24" width="16" height="16" style={{fill:'none',stroke:'currentColor',strokeWidth:2}}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </Button>
+                    ),
+                },
+            ]
+        },
+        {
+            id: 'settings-security',
+            name: t('settings.sectionSecurity'),
+            icon: 'shield',
+            options: [
+                {
+                    name: t('settings.option.passwordProtect'),
+                    desc: t('settings.option.passwordProtectDesc'),
+                    content: (<Switch checked={passwordEnabled} onChange={handlePasswordToggle} />),
+                },
+                {
+                    name: t('settings.option.setPassword'),
+                    desc: passwordSet ? t('settings.option.setPasswordDesc') : t('settings.option.setPasswordNotSetDesc'),
+                    content: (
+                        <div style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end'}}>
+                            {passwordEnabled && !passwordSet && (
+                                <Typography variant="caption" sx={{color: 'var(--danger)'}}>{t('settings.option.passwordNotSetWarning')}</Typography>
+                            )}
+                            <Button variant="outlined" size="small" onClick={() => setPasswordDialogOpen(true)} sx={{'&:hover': {backgroundColor: 'var(--surface-container-highest)'}}}>
+                                {passwordSet ? t('settings.option.changePasswordAction') : t('settings.option.setPasswordAction')}
+                            </Button>
+                        </div>
+                    ),
+                },
+                ...(!passwordEnabled ? [{
+                    name: t('settings.option.clearPassword'),
+                    desc: t('settings.option.clearPasswordDesc'),
+                    content: (
+                        <Button variant="outlined" color="error" size="small" onClick={handleClearPassword} disabled={!passwordSet}>
+                            {t('settings.option.clearPasswordAction')}
+                        </Button>
+                    ),
+                }] : []),
+                {
+                    name: t('settings.option.loginFailurePolicy'),
+                    desc: t('settings.option.loginFailurePolicyDesc'),
+                    content: (
+                        <Select value={loginFailurePolicy} onChange={handleLoginFailurePolicyChange} size="small" sx={{minWidth: 160, fontSize: '0.875rem'}}>
+                            <MenuItem value="lockout">{t('settings.option.loginFailurePolicyLockout')}</MenuItem>
+                            <MenuItem value="delay">{t('settings.option.loginFailurePolicyDelay')}</MenuItem>
+                        </Select>
                     ),
                 },
             ]
@@ -765,6 +923,7 @@ function Settings() {
         'palette': <svg viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="10.5" r="1.5"/><circle cx="6.5" cy="13.5" r="1.5"/><path d="M12 2a10 10 0 0 0-6.88 17.26A9.7 9.7 0 0 0 10 21a2 2 0 0 0 2-2 2 2 0 0 1 2-2h4a2 2 0 0 0 2-2 10 10 0 0 0-8-13z"/></svg>,
         'folder': <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>,
         'clock': <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+        'shield': <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>,
     };
 
     return (
@@ -772,8 +931,13 @@ function Settings() {
             <div className="page-header">
                 <Typography variant="h4" sx={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--on-surface)' }}>{t('settings.pageTitle') || 'Settings'}</Typography>
             </div>
+            <PasswordDialog
+                open={passwordDialogOpen}
+                onClose={() => setPasswordDialogOpen(false)}
+                onSubmit={handleSavePassword}
+            />
             {optionMap.map((section, si) => (
-                <div className="section-card" key={si}>
+                <div className="section-card" key={si} id={section.id}>
                     <div className="section-header">
                         <div className="section-header-top">
                             {sectionIcons[section.icon]}
