@@ -1,7 +1,8 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import HomeStyle from "./style.js";
 import {invoke} from "@tauri-apps/api/core";
 import {listen} from "@tauri-apps/api/event";
+import {getCurrentWindow} from "@tauri-apps/api/window";
 import {QRCodeSVG} from "qrcode.react";
 import {open} from '@tauri-apps/plugin-dialog';
 import {useDialog} from "@/components/dialog/index.jsx";
@@ -75,16 +76,23 @@ function Home() {
         }
     };
 
+    // 用于丢弃过期请求的响应，避免旧 IP 覆盖新 IP
+    const fetchSeqRef = useRef(0);
+
     const fetchServerStatus = async () => {
+        const seq = ++fetchSeqRef.current;
+        console.log(`[home] 开始获取服务器状态与本机 IP（seq=${seq}）`);
         try {
             const status = await invoke("get_server_status");
             const ip = await invoke("get_local_ip");
+            console.log(`[home] 获取本机 IP 成功（seq=${seq}）: ${ip}:${status.port}`);
+            if (seq !== fetchSeqRef.current) return;
             setServerStatus(status);
             setWebUrl(`http://${ip}:${status.port}/web`);
         } catch (err) {
             console.error("获取服务器状态失败：", err);
         } finally {
-            setStatusLoading(false);
+            if (seq === fetchSeqRef.current) setStatusLoading(false);
         }
     }
 
@@ -101,6 +109,43 @@ function Home() {
         let cleanup;
         setup().then(fn => { cleanup = fn; });
         return () => { if (cleanup) cleanup(); };
+    }, []);
+
+    // 窗口从托盘/最小化恢复或被重新聚焦时刷新 IP 与端口。
+    // 页面在窗口隐藏期间保持挂载，仅靠首次加载无法感知网络变化。
+    useEffect(() => {
+        let unlistenFocus;
+        let disposed = false;
+        // 与首次加载错开，避免同一时刻重复请求
+        let lastRefresh = Date.now();
+        const refresh = () => {
+            const now = Date.now();
+            if (now - lastRefresh < 800) return;
+            lastRefresh = now;
+            fetchServerStatus().catch(e => {
+                console.error("刷新服务器状态失败：", e);
+            });
+        };
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') refresh();
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        getCurrentWindow().onFocusChanged(({payload: focused}) => {
+            if (focused) refresh();
+        }).then(fn => {
+            if (disposed) {
+                fn();
+            } else {
+                unlistenFocus = fn;
+            }
+        }).catch(e => {
+            console.error("监听窗口焦点变化失败：", e);
+        });
+        return () => {
+            disposed = true;
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            if (unlistenFocus) unlistenFocus();
+        };
     }, []);
 
     const [deviceName, setDeviceName] = useState("");
