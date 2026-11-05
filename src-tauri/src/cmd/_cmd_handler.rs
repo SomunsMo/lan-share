@@ -76,6 +76,8 @@ pub fn get_cmd_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
         system::clear_password,
         system::get_login_failure_policy,
         system::set_login_failure_policy,
+        system::get_login_failure_delay,
+        system::set_login_failure_delay,
         system::restart_http_server
     ]
 }

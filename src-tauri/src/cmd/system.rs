@@ -44,6 +44,7 @@ pub struct AllSettings {
     pub password_enabled: bool,
     pub password_set: bool,
     pub login_failure_policy: String,
+    pub login_failure_delay_ms: u64,
 }
 
 #[derive(Serialize)]
@@ -1666,6 +1667,18 @@ pub async fn set_login_failure_policy(policy: String) -> Result<(), String> {
     auth::set_failure_policy(FailurePolicy::from_str(&policy)).await
 }
 
+/// 获取固定延迟时长（毫秒）
+#[tauri::command]
+pub fn get_login_failure_delay() -> u64 {
+    auth::get_delay_ms()
+}
+
+/// 设置固定延迟时长（毫秒）
+#[tauri::command]
+pub async fn set_login_failure_delay(delay_ms: u64) -> Result<(), String> {
+    auth::set_delay_ms(delay_ms).await
+}
+
 /// 重启 HTTP 服务并断开现有连接（正在下载/SSE 会立即失败）
 #[tauri::command]
 pub async fn restart_http_server() -> Result<(), String> {
@@ -1893,6 +1906,7 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
 
     let password_status = auth::get_status();
     let login_failure_policy = auth::get_failure_policy().as_str().to_string();
+    let login_failure_delay_ms = auth::get_delay_ms();
 
     let result = AllSettings {
         sharing_directory,
@@ -1918,6 +1932,7 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
         password_enabled: password_status.enabled,
         password_set: password_status.password_set,
         login_failure_policy,
+        login_failure_delay_ms,
     };
 
     log::debug!(

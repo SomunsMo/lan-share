@@ -26,7 +26,9 @@ pub const MIN_PASSWORD_LEN: usize = 6;
 const LOCKOUT_THRESHOLD: u32 = 5;
 const LOCKOUT_DURATION: Duration = Duration::from_secs(30);
 const FAILURE_WINDOW: Duration = Duration::from_secs(10 * 60);
-const DELAY_DURATION: Duration = Duration::from_millis(1000);
+const DEFAULT_DELAY_MS: u64 = 1000;
+pub const MIN_DELAY_MS: u64 = 500;
+pub const MAX_DELAY_MS: u64 = 30_000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FailurePolicy {
@@ -61,6 +63,7 @@ struct AuthConfig {
     enabled: bool,
     password_hash: Option<String>,
     failure_policy: FailurePolicy,
+    delay_ms: u64,
 }
 
 #[derive(Clone)]
@@ -70,7 +73,12 @@ struct FailureState {
     locked_until: Option<Instant>,
 }
 
-static AUTH: LazyLock<RwLock<AuthConfig>> = LazyLock::new(|| RwLock::new(AuthConfig::default()));
+static AUTH: LazyLock<RwLock<AuthConfig>> = LazyLock::new(|| {
+    RwLock::new(AuthConfig {
+        delay_ms: DEFAULT_DELAY_MS,
+        ..Default::default()
+    })
+});
 static SESSIONS: LazyLock<Mutex<HashMap<String, ()>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 static FAILURES: LazyLock<Mutex<HashMap<IpAddr, FailureState>>> =
@@ -104,6 +112,7 @@ pub async fn init_from_config() {
         "password_enabled",
         "password_hash",
         "login_failure_policy",
+        "login_failure_delay_ms",
     ])
     .await;
 
@@ -121,17 +130,24 @@ pub async fn init_from_config() {
             .map(|v| v.as_str())
             .unwrap_or("lockout"),
     );
+    let delay_ms = configs
+        .get("login_failure_delay_ms")
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(DEFAULT_DELAY_MS)
+        .clamp(MIN_DELAY_MS, MAX_DELAY_MS);
 
     let mut guard = AUTH.write().unwrap();
     guard.enabled = enabled;
     guard.password_hash = password_hash;
     guard.failure_policy = failure_policy;
+    guard.delay_ms = delay_ms;
 
     info!(
-        "访问密码初始化完成: enabled={}, password_set={}, failure_policy={}",
+        "访问密码初始化完成: enabled={}, password_set={}, failure_policy={}, delay_ms={}",
         enabled,
         guard.password_hash.is_some(),
-        failure_policy.as_str()
+        failure_policy.as_str(),
+        delay_ms
     );
 }
 
@@ -205,6 +221,28 @@ pub async fn set_failure_policy(policy: FailurePolicy) -> Result<(), String> {
 
     AUTH.write().unwrap().failure_policy = policy;
     info!("登录失败处理策略已更新为: {}", policy.as_str());
+    Ok(())
+}
+
+/// 固定延迟时长（毫秒），仅 `delay` 策略生效
+pub fn get_delay_ms() -> u64 {
+    AUTH.read().unwrap().delay_ms
+}
+
+pub async fn set_delay_ms(delay_ms: u64) -> Result<(), String> {
+    if !(MIN_DELAY_MS..=MAX_DELAY_MS).contains(&delay_ms) {
+        return Err(format!(
+            "延迟时长必须在 {} 到 {} 毫秒之间",
+            MIN_DELAY_MS, MAX_DELAY_MS
+        ));
+    }
+
+    config_dao::set_config("login_failure_delay_ms", &delay_ms.to_string())
+        .await
+        .map_err(|e| format!("保存固定延迟时长失败: {}", e))?;
+
+    AUTH.write().unwrap().delay_ms = delay_ms;
+    info!("登录失败固定延迟已更新为: {}ms", delay_ms);
     Ok(())
 }
 
@@ -472,12 +510,13 @@ pub fn status(req: &Request<Incoming>) -> AuthStatus {
 }
 
 pub async fn login(password: &str, ip: IpAddr, ua: &str) -> LoginResult {
-    let (enabled, password_set, policy) = {
+    let (enabled, password_set, policy, delay_ms) = {
         let guard = AUTH.read().unwrap();
         (
             guard.enabled,
             guard.password_hash.is_some(),
             guard.failure_policy,
+            guard.delay_ms,
         )
     };
 
@@ -499,7 +538,7 @@ pub async fn login(password: &str, ip: IpAddr, ua: &str) -> LoginResult {
         record_login_failure(ip);
         warn!("登录失败 ip={} ua={}", ip, ua);
         if policy == FailurePolicy::Delay {
-            tokio::time::sleep(DELAY_DURATION).await;
+            tokio::time::sleep(Duration::from_millis(delay_ms)).await;
         }
         return LoginResult::Invalid;
     }

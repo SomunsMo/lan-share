@@ -160,7 +160,7 @@ lan-share/
 │   │   ├── macos.rs                  # macOS Dock icon control
 │   │   ├── cmd/
 │   │   │   ├── _cmd_handler.rs       # generate_handler![] command registry
-│   │   │   └── system.rs             # 68 IPC commands
+│   │   │   └── system.rs             # 70 IPC commands
 │   │   ├── config/config.rs          # Global runtime state (OnceLock / RwLock)
 │   │   ├── auth/mod.rs               # Access password: hash, sessions, guard, failure policy
 │   │   ├── db/
@@ -261,7 +261,7 @@ Web UI stays in sync with the desktop without polling, via a Server-Sent Events 
 
 **System**: `get/set_autostart`, `get/set_autostart_minimized`, `get/set_exclude_system_files`, `get/set_exclude_patterns`, `open_file_location`, `open_folder`, `update_tray_menu`
 
-**Access Password**: `get_password_status`, `set_password_enabled`, `set_password`, `clear_password`, `get/set_login_failure_policy`, `restart_http_server`
+**Access Password**: `get_password_status`, `set_password_enabled`, `set_password`, `clear_password`, `get/set_login_failure_policy`, `get/set_login_failure_delay`, `restart_http_server`
 
 ## Database
 
