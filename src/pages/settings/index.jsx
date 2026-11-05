@@ -61,6 +61,7 @@ function Settings() {
     const [passwordEnabled, setPasswordEnabled] = useState(false);
     const [passwordSet, setPasswordSet] = useState(false);
     const [loginFailurePolicy, setLoginFailurePolicy] = useState('lockout');
+    const [loginFailureDelay, setLoginFailureDelay] = useState(1000);
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
     const isMac = navigator.platform.includes('Mac');
 
@@ -123,6 +124,7 @@ function Settings() {
                 setPasswordEnabled(!!s.password_enabled);
                 setPasswordSet(!!s.password_set);
                 setLoginFailurePolicy(s.login_failure_policy || 'lockout');
+                setLoginFailureDelay(s.login_failure_delay_ms || 1000);
 
                 const { h, s: sat, l } = JSON.parse(s.theme_color);
                 setHuePrimary(h);
@@ -655,6 +657,19 @@ function Settings() {
         }
     };
 
+    const handleLoginFailureDelayChange = async (event) => {
+        const newDelay = Number(event.target.value);
+        const previous = loginFailureDelay;
+        setLoginFailureDelay(newDelay);
+
+        try {
+            await invoke('set_login_failure_delay', {delayMs: newDelay});
+        } catch (error) {
+            setLoginFailureDelay(previous);
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.loginFailureDelay'), error: error?.message || error}), type: 'error'});
+        }
+    };
+
     const optionMap = [
         {
             name: t('settings.sectionNetwork'),
@@ -668,51 +683,6 @@ function Settings() {
                             {httpPort}
                             <svg viewBox="0 0 24 24" width="16" height="16" style={{fill:'none',stroke:'currentColor',strokeWidth:2}}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </Button>
-                    ),
-                },
-            ]
-        },
-        {
-            id: 'settings-security',
-            name: t('settings.sectionSecurity'),
-            icon: 'shield',
-            options: [
-                {
-                    name: t('settings.option.passwordProtect'),
-                    desc: t('settings.option.passwordProtectDesc'),
-                    content: (<Switch checked={passwordEnabled} onChange={handlePasswordToggle} />),
-                },
-                {
-                    name: t('settings.option.setPassword'),
-                    desc: passwordSet ? t('settings.option.setPasswordDesc') : t('settings.option.setPasswordNotSetDesc'),
-                    content: (
-                        <div style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end'}}>
-                            {passwordEnabled && !passwordSet && (
-                                <Typography variant="caption" sx={{color: 'var(--danger)'}}>{t('settings.option.passwordNotSetWarning')}</Typography>
-                            )}
-                            <Button variant="outlined" size="small" onClick={() => setPasswordDialogOpen(true)} sx={{'&:hover': {backgroundColor: 'var(--surface-container-highest)'}}}>
-                                {passwordSet ? t('settings.option.changePasswordAction') : t('settings.option.setPasswordAction')}
-                            </Button>
-                        </div>
-                    ),
-                },
-                ...(!passwordEnabled ? [{
-                    name: t('settings.option.clearPassword'),
-                    desc: t('settings.option.clearPasswordDesc'),
-                    content: (
-                        <Button variant="outlined" color="error" size="small" onClick={handleClearPassword} disabled={!passwordSet}>
-                            {t('settings.option.clearPasswordAction')}
-                        </Button>
-                    ),
-                }] : []),
-                {
-                    name: t('settings.option.loginFailurePolicy'),
-                    desc: t('settings.option.loginFailurePolicyDesc'),
-                    content: (
-                        <Select value={loginFailurePolicy} onChange={handleLoginFailurePolicyChange} size="small" sx={{minWidth: 160, fontSize: '0.875rem'}}>
-                            <MenuItem value="lockout">{t('settings.option.loginFailurePolicyLockout')}</MenuItem>
-                            <MenuItem value="delay">{t('settings.option.loginFailurePolicyDelay')}</MenuItem>
-                        </Select>
                     ),
                 },
             ]
@@ -782,6 +752,63 @@ function Settings() {
                         <Select value={trayIconMode} onChange={handleTrayIconModeChange} size="small" sx={{ minWidth: 120, fontSize: '0.875rem' }}>
                             <MenuItem value="template">{t('settings.option.trayIconModeTemplate')}</MenuItem>
                             <MenuItem value="color">{t('settings.option.trayIconModeColor')}</MenuItem>
+                        </Select>
+                    ),
+                }] : []),
+            ]
+        },
+        {
+            id: 'settings-security',
+            name: t('settings.sectionSecurity'),
+            icon: 'shield',
+            options: [
+                {
+                    name: t('settings.option.passwordProtect'),
+                    desc: t('settings.option.passwordProtectDesc'),
+                    content: (<Switch checked={passwordEnabled} onChange={handlePasswordToggle} />),
+                },
+                {
+                    name: t('settings.option.setPassword'),
+                    desc: passwordSet ? t('settings.option.setPasswordDesc') : t('settings.option.setPasswordNotSetDesc'),
+                    content: (
+                        <div style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end'}}>
+                            {passwordEnabled && !passwordSet && (
+                                <Typography variant="caption" sx={{color: 'var(--danger)'}}>{t('settings.option.passwordNotSetWarning')}</Typography>
+                            )}
+                            <Button variant="outlined" size="small" onClick={() => setPasswordDialogOpen(true)} sx={{'&:hover': {backgroundColor: 'var(--surface-container-highest)'}}}>
+                                {passwordSet ? t('settings.option.changePasswordAction') : t('settings.option.setPasswordAction')}
+                            </Button>
+                        </div>
+                    ),
+                },
+                ...(!passwordEnabled ? [{
+                    name: t('settings.option.clearPassword'),
+                    desc: t('settings.option.clearPasswordDesc'),
+                    content: (
+                        <Button variant="outlined" color="error" size="small" onClick={handleClearPassword} disabled={!passwordSet}>
+                            {t('settings.option.clearPasswordAction')}
+                        </Button>
+                    ),
+                }] : []),
+                {
+                    name: t('settings.option.loginFailurePolicy'),
+                    desc: t('settings.option.loginFailurePolicyDesc'),
+                    content: (
+                        <Select value={loginFailurePolicy} onChange={handleLoginFailurePolicyChange} size="small" sx={{minWidth: 160, fontSize: '0.875rem'}}>
+                            <MenuItem value="lockout">{t('settings.option.loginFailurePolicyLockout')}</MenuItem>
+                            <MenuItem value="delay">{t('settings.option.loginFailurePolicyDelay')}</MenuItem>
+                        </Select>
+                    ),
+                },
+                ...(loginFailurePolicy === 'delay' ? [{
+                    name: t('settings.option.loginFailureDelay'),
+                    desc: t('settings.option.loginFailureDelayDesc'),
+                    content: (
+                        <Select value={loginFailureDelay} onChange={handleLoginFailureDelayChange} size="small" sx={{minWidth: 160, fontSize: '0.875rem'}}>
+                            <MenuItem value={1000}>{t('settings.option.loginFailureDelayOption', {seconds: 1})}</MenuItem>
+                            <MenuItem value={2000}>{t('settings.option.loginFailureDelayOption', {seconds: 2})}</MenuItem>
+                            <MenuItem value={3000}>{t('settings.option.loginFailureDelayOption', {seconds: 3})}</MenuItem>
+                            <MenuItem value={5000}>{t('settings.option.loginFailureDelayOption', {seconds: 5})}</MenuItem>
                         </Select>
                     ),
                 }] : []),
