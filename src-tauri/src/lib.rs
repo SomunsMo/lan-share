@@ -391,7 +391,9 @@ use cmd::_cmd_handler::get_cmd_handler;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let is_silent = std::env::args().any(|a| a == "--silent");
+
+    let mut app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             crate::tray::show_window(app, None);
         }))
@@ -402,24 +404,19 @@ pub fn run() {
             None,
         ))
         .invoke_handler(get_cmd_handler())
-        .setup(|app| {
-            let is_silent = std::env::args().any(|a| a == "--silent");
+        .setup(move |app| {
             if let Some(window) = app.get_webview_window("main") {
                 restore_window_state(&window);
                 if !is_silent {
                     let _ = window.show();
                     #[cfg(any(target_os = "windows", target_os = "linux"))]
                     fix_normal_rect_after_show(&window);
-                } else {
-                    // --silent: 窗口保持隐藏，首次托盘打开时自然显示/重建
-                    // 用 tauri 的 API 设置 Accessory，让 tao 在 launched() 读到的是 Accessory，
-                    // 避免母体调用 objc 时被 tao 默认的 Regular 覆盖，导致后台应用被隐性激活、
-                    // macOS 首次打开托盘菜单即被顶掉。
-                    #[cfg(target_os = "macos")]
-                    app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-                    #[cfg(not(target_os = "macos"))]
-                    macos::set_dock_icon(false);
                 }
+                // --silent: 窗口保持隐藏，首次托盘打开时自然显示/重建。
+                // macOS 的初始激活策略必须在 run() 之前设置（见下方 set_activation_policy），
+                // 否则 tao 会在 launched() 里先按 Regular 激活应用，再在 setup 切到 Accessory。
+                // 这次运行时的 Regular→Accessory 切换会让系统在第一次点击托盘时重新激活应用，
+                // 正在追踪的托盘菜单被顶掉（表现为首次点击菜单一闪而过），后续点击才正常。
             }
 
             tray::create_tray_menu(app.handle());
@@ -469,12 +466,23 @@ pub fn run() {
             _ => {}
         })
         .build(tauri::generate_context!())
-        .expect("error while building tauri application")
-        .run(|_app_handle, _event| {
-            if let tauri::RunEvent::ExitRequested { api, .. } = _event {
-                if !QUITTING.load(Ordering::Relaxed) {
-                    api.prevent_exit();
-                }
+        .expect("error while building tauri application");
+
+    // 必须在 app.run() 之前设置：此时传给 tao 的是"启动时激活策略"，
+    // 会在 applicationDidFinishLaunching（launched）里、任何激活/窗口显示之前生效。
+    // 放到 setup 里设置只是运行中的 NSApp.setActivationPolicy，无法阻止启动阶段先按 Regular 激活。
+    #[cfg(target_os = "macos")]
+    app.set_activation_policy(if is_silent {
+        tauri::ActivationPolicy::Accessory
+    } else {
+        tauri::ActivationPolicy::Regular
+    });
+
+    app.run(|_app_handle, _event| {
+        if let tauri::RunEvent::ExitRequested { api, .. } = _event {
+            if !QUITTING.load(Ordering::Relaxed) {
+                api.prevent_exit();
             }
-        });
+        }
+    });
 }

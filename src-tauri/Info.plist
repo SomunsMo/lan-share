@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!--
+    以“菜单栏应用/代理进程”身份启动，避免 LaunchServices 先按普通前台应用
+    注册进程。非 --silent 启动时会在 app.run() 前显式切回 Regular 显示 Dock 图标。
+  -->
+  <key>LSUIElement</key>
+  <true/>
+</dict>
+</plist>
