@@ -243,32 +243,65 @@ function Home() {
                         >
                             {t('home.detailsTitle') || 'Local Device Details'}
                         </Typography>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid var(--border)' }}>
+                        <Box
+                            onClick={() => copyValue(deviceName)}
+                            title={t('home.copyTooltip')}
+                            sx={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                py: 1,
+                                borderBottom: '1px solid var(--border)',
+                                cursor: 'pointer',
+                                '&:hover .detailValue': { color: 'var(--primary)' },
+                            }}
+                        >
                             <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.deviceName') || 'Device Name'}</Typography>
                             <Typography
-                                title={t('home.copyTooltip')}
-                                onClick={() => copyValue(deviceName)}
-                                sx={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--on-surface)', cursor: 'pointer', '&:hover': { color: 'var(--primary)' } }}
+                                className="detailValue"
+                                sx={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--on-surface)', transition: 'color 0.2s' }}
                             >{deviceName}</Typography>
                         </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid var(--border)' }}>
+                        <Box
+                            onClick={() => copyValue(ipAddr)}
+                            title={t('home.copyTooltip')}
+                            sx={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                py: 1,
+                                borderBottom: '1px solid var(--border)',
+                                cursor: 'pointer',
+                                '&:hover .detailValue': { color: 'var(--primary)' },
+                            }}
+                        >
                             <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.localIp') || 'Local IP'}</Typography>
                             <Box
                                 component="code"
-                                title={t('home.copyTooltip')}
-                                onClick={() => copyValue(ipAddr)}
-                                sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--on-surface)', bgcolor: 'var(--surface-container)', px: 1, py: 0.5, borderRadius: 'var(--radius)', fontFamily: 'var(--font-family-label)', cursor: 'pointer', transition: 'color 0.2s', '&:hover': { color: 'var(--primary)' } }}
+                                className="detailValue"
+                                sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--on-surface)', fontFamily: 'var(--font-family-label)', transition: 'color 0.2s' }}
                             >
                                 {ipAddr}
                             </Box>
                         </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1, borderBottom: '1px solid var(--border)' }}>
+                        <Box
+                            onClick={() => copyValue(portNum)}
+                            title={t('home.copyTooltip')}
+                            sx={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                py: 1,
+                                borderBottom: '1px solid var(--border)',
+                                cursor: 'pointer',
+                                '&:hover .detailValue': { color: 'var(--primary)' },
+                            }}
+                        >
                             <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.port') || 'Port'}</Typography>
                             <Box
                                 component="code"
-                                title={t('home.copyTooltip')}
-                                onClick={() => copyValue(portNum)}
-                                sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--on-surface)', bgcolor: 'var(--surface-container)', px: 1, py: 0.5, borderRadius: 'var(--radius)', fontFamily: 'var(--font-family-label)', cursor: 'pointer', transition: 'color 0.2s', '&:hover': { color: 'var(--primary)' } }}
+                                className="detailValue"
+                                sx={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--on-surface)', fontFamily: 'var(--font-family-label)', transition: 'color 0.2s' }}
                             >
                                 {portNum}
                             </Box>
