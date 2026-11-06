@@ -28,6 +28,8 @@ const syncTrayMenu = () => {
   invoke('update_tray_menu', {
     show: i18n.t('tray.show'),
     settings: i18n.t('tray.settings'),
+    copyIp: i18n.t('tray.copyIp'),
+    copyWeb: i18n.t('tray.copyWeb'),
     quit: i18n.t('tray.quit'),
   }).catch((e) => console.warn('Failed to update tray menu:', e));
 };

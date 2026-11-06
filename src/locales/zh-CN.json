@@ -296,6 +296,8 @@
   "tray": {
     "show": "显示窗口",
     "settings": "设置",
+    "copyIp": "复制本机内网IP",
+    "copyWeb": "复制Web地址",
     "quit": "退出"
   },
   "textSharing": {

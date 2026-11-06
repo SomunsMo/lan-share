@@ -296,6 +296,8 @@
   "tray": {
     "show": "Show Window",
     "settings": "Settings",
+    "copyIp": "Copy LAN IP",
+    "copyWeb": "Copy Web Address",
     "quit": "Quit"
   },
   "textSharing": {
