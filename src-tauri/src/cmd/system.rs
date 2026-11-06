@@ -1572,9 +1572,11 @@ pub async fn set_tray_icon_mode(app: tauri::AppHandle, mode: String) -> Result<(
 pub fn update_tray_menu(
     show: String,
     settings: String,
+    copy_ip: String,
+    copy_web: String,
     quit: String,
 ) -> Result<(), String> {
-    crate::tray::update_tray_menu_texts(&show, &settings, &quit)
+    crate::tray::update_tray_menu_texts(&show, &settings, &copy_ip, &copy_web, &quit)
 }
 
 /// 获取主题色设置（JSON: {"h":218,"s":100,"l":39}）

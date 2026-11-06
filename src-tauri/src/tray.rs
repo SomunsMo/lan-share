@@ -1,12 +1,14 @@
 use std::sync::{atomic::Ordering, OnceLock};
 use tauri::{
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
     AppHandle, Emitter, Manager, WebviewWindow,
 };
 
 static SHOW_ITEM: OnceLock<MenuItem<tauri::Wry>> = OnceLock::new();
 static SETTINGS_ITEM: OnceLock<MenuItem<tauri::Wry>> = OnceLock::new();
+static COPY_IP_ITEM: OnceLock<MenuItem<tauri::Wry>> = OnceLock::new();
+static COPY_WEB_ITEM: OnceLock<MenuItem<tauri::Wry>> = OnceLock::new();
 static QUIT_ITEM: OnceLock<MenuItem<tauri::Wry>> = OnceLock::new();
 
 fn make_tray_icon(app_handle: &AppHandle, is_template: bool) -> tauri::image::Image<'_> {
@@ -25,9 +27,27 @@ fn make_tray_icon(app_handle: &AppHandle, is_template: bool) -> tauri::image::Im
 pub fn create_tray_menu(app_handle: &AppHandle) {
     let show_item = MenuItem::with_id(app_handle, "show", "显示窗口", true, None::<&str>).expect("创建菜单项失败");
     let settings_item = MenuItem::with_id(app_handle, "settings", "设置", true, None::<&str>).expect("创建菜单项失败");
+    let copy_ip_item = MenuItem::with_id(app_handle, "copy-ip", "复制本机内网IP", true, None::<&str>).expect("创建菜单项失败");
+    let copy_web_item = MenuItem::with_id(app_handle, "copy-web", "复制Web访问地址", true, None::<&str>).expect("创建菜单项失败");
     let quit_item = MenuItem::with_id(app_handle, "quit", "退出", true, None::<&str>).expect("创建菜单项失败");
 
-    let tray_menu = Menu::with_items(app_handle, &[&show_item, &settings_item, &quit_item]).expect("创建托盘菜单失败");
+    // 按功能分组：窗口操作 / 信息复制 / 退出
+    let window_sep = PredefinedMenuItem::separator(app_handle).expect("创建分隔符失败");
+    let copy_sep = PredefinedMenuItem::separator(app_handle).expect("创建分隔符失败");
+
+    let tray_menu = Menu::with_items(
+        app_handle,
+        &[
+            &show_item,
+            &settings_item,
+            &window_sep,
+            &copy_web_item,
+            &copy_ip_item,
+            &copy_sep,
+            &quit_item,
+        ],
+    )
+    .expect("创建托盘菜单失败");
 
     #[cfg(target_os = "macos")]
     let is_template = crate::config::config::TRAY_ICON_MODE
@@ -58,6 +78,8 @@ pub fn create_tray_menu(app_handle: &AppHandle) {
 
     let _ = SHOW_ITEM.set(show_item);
     let _ = SETTINGS_ITEM.set(settings_item);
+    let _ = COPY_IP_ITEM.set(copy_ip_item);
+    let _ = COPY_WEB_ITEM.set(copy_web_item);
     let _ = QUIT_ITEM.set(quit_item);
 }
 
@@ -78,17 +100,58 @@ pub fn update_tray_icon(app_handle: &AppHandle, mode: &str) -> Result<(), String
 }
 
 /// 更新托盘菜单项文本（由 IPC 命令在语言切换时调用）
-pub fn update_tray_menu_texts(show: &str, settings: &str, quit: &str) -> Result<(), String> {
+pub fn update_tray_menu_texts(
+    show: &str,
+    settings: &str,
+    copy_ip: &str,
+    copy_web: &str,
+    quit: &str,
+) -> Result<(), String> {
     if let Some(item) = SHOW_ITEM.get() {
         item.set_text(show).map_err(|e| format!("更新托盘菜单项失败: {}", e))?;
     }
     if let Some(item) = SETTINGS_ITEM.get() {
         item.set_text(settings).map_err(|e| format!("更新托盘菜单项失败: {}", e))?;
     }
+    if let Some(item) = COPY_IP_ITEM.get() {
+        item.set_text(copy_ip).map_err(|e| format!("更新托盘菜单项失败: {}", e))?;
+    }
+    if let Some(item) = COPY_WEB_ITEM.get() {
+        item.set_text(copy_web).map_err(|e| format!("更新托盘菜单项失败: {}", e))?;
+    }
     if let Some(item) = QUIT_ITEM.get() {
         item.set_text(quit).map_err(|e| format!("更新托盘菜单项失败: {}", e))?;
     }
     Ok(())
+}
+
+/// 写入文本到系统剪贴板
+fn write_clipboard_text(text: &str) -> Result<(), String> {
+    let mut clipboard =
+        arboard::Clipboard::new().map_err(|e| format!("无法访问剪贴板: {}", e))?;
+    clipboard
+        .set_text(text)
+        .map_err(|e| format!("设置剪贴板文本失败: {}", e))
+}
+
+/// 复制局域网 IP 到剪贴板
+fn copy_lan_ip() {
+    let ip = crate::cmd::system::get_local_ip_with_retry();
+    match write_clipboard_text(&ip) {
+        Ok(()) => log::info!("[tray] 局域网 IP 已复制: {}", ip),
+        Err(e) => log::error!("[tray] 复制局域网 IP 失败: {}", e),
+    }
+}
+
+/// 复制 Web 访问地址到剪贴板
+fn copy_web_address() {
+    let ip = crate::cmd::system::get_local_ip_with_retry();
+    let port = crate::config::config::get_running_http_port();
+    let url = format!("http://{}:{}/web", ip, port);
+    match write_clipboard_text(&url) {
+        Ok(()) => log::info!("[tray] Web 地址已复制: {}", url),
+        Err(e) => log::error!("[tray] 复制 Web 地址失败: {}", e),
+    }
 }
 
 /// 切换窗口显示/隐藏（双击托盘图标）
@@ -119,6 +182,8 @@ pub fn handle_system_tray_menu_event(app: &AppHandle, id: &str) {
                 show_window(app, Some("/settings".to_string()));
             }
         }
+        "copy-ip" => copy_lan_ip(),
+        "copy-web" => copy_web_address(),
         "quit" => {
             crate::QUITTING.store(true, Ordering::Relaxed);
             app.exit(0);
