@@ -550,7 +550,9 @@ function History() {
                     <div></div>
                     <div className="item-time sortable" onClick={handleSortToggle}>
                         {t('history.tableHeader.time')}
-                        <span className="sort-indicator">{sortOrder === 'desc' ? ' ↓' : ' ↑'}</span>
+                        <svg className={'sort-indicator' + (sortOrder === 'asc' ? ' asc' : '')} viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
                     </div>
                 </div>
                 <div className="list-body" ref={listBodyRef}>

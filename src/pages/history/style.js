@@ -170,6 +170,7 @@ const HistoryStyle = styled.div`
     }
 
     .list-row {
+        position: relative;
         display: grid;
         grid-template-columns: 48px 1fr 200px 140px;
         gap: 16px;
@@ -177,7 +178,36 @@ const HistoryStyle = styled.div`
         padding: 14px 20px;
         border-bottom: var(--glass-border);
         cursor: pointer;
-        transition: background-color var(--dur-fast) var(--ease);
+        transition: background-color var(--dur-fast) var(--ease-standard);
+        animation: row-enter var(--dur-mid) var(--ease-enter) backwards;
+    }
+
+    /* 首次加载/筛选后前 8 行错峰进入，追加分页的行不延迟 */
+    .list-row:nth-of-type(2) { animation-delay: var(--motion-stagger); }
+    .list-row:nth-of-type(3) { animation-delay: calc(var(--motion-stagger) * 2); }
+    .list-row:nth-of-type(4) { animation-delay: calc(var(--motion-stagger) * 3); }
+    .list-row:nth-of-type(5) { animation-delay: calc(var(--motion-stagger) * 4); }
+    .list-row:nth-of-type(6) { animation-delay: calc(var(--motion-stagger) * 5); }
+    .list-row:nth-of-type(7) { animation-delay: calc(var(--motion-stagger) * 6); }
+    .list-row:nth-of-type(8) { animation-delay: calc(var(--motion-stagger) * 7); }
+    .list-row:nth-of-type(9) { animation-delay: calc(var(--motion-stagger) * 8); }
+
+    .list-row::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 10px;
+        bottom: 10px;
+        width: 2px;
+        border-radius: 2px;
+        background: var(--primary);
+        transform: scaleY(0);
+        transform-origin: center;
+        transition: transform var(--dur-fast) var(--ease-standard);
+    }
+
+    .list-row:hover::before {
+        transform: scaleY(1);
     }
 
     .list-row:last-child {
@@ -286,7 +316,19 @@ const HistoryStyle = styled.div`
     }
 
     .sort-indicator {
-        font-size: 11px;
+        display: inline-block;
+        vertical-align: middle;
+        margin-left: 2px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        transition: transform var(--dur-fast) var(--ease-enter);
+    }
+
+    .sort-indicator.asc {
+        transform: rotate(180deg);
     }
 
     .list-loading {
@@ -294,6 +336,7 @@ const HistoryStyle = styled.div`
         padding: 16px;
         font-size: 13px;
         color: var(--on-surface-variant);
+        animation: fade-in var(--dur-mid) var(--ease-standard);
     }
 
     .list-end {
@@ -317,6 +360,8 @@ const HistoryStyle = styled.div`
         -webkit-backdrop-filter: blur(24px);
         padding: 4px;
         min-width: 160px;
+        animation: menu-enter var(--dur-fast) var(--ease-enter);
+        transform-origin: top left;
     }
 
     .context-menu-item {
