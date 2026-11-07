@@ -33,7 +33,7 @@ export const ToastContainerWrapper = styled.div`
 
 export const ToastItemOuter = styled.div`
   overflow: ${props => props.$exiting ? 'hidden' : 'visible'};
-  transition: height 0.25s ease, margin 0.25s ease;
+  transition: height var(--dur-mid) var(--ease-exit), margin var(--dur-mid) var(--ease-exit);
   height: ${props => props.$exiting ? '0px' : props.$height ? `${props.$height}px` : 'auto'};
   margin-bottom: ${props => props.$exiting ? '0px' : '0'};
   pointer-events: auto;
@@ -51,7 +51,7 @@ export const ToastItemInner = styled.div`
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   min-width: 300px;
-  animation: ${props => props.$exiting ? toastOut : toastIn} 0.2s ease forwards;
+  animation: ${props => props.$exiting ? toastOut : toastIn} var(--dur-mid) ${props => props.$exiting ? 'var(--ease-exit)' : 'var(--ease-enter)'} forwards;
 `;
 
 export const ToastBar = styled.div`

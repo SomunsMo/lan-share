@@ -12,6 +12,9 @@ const ToastContext = createContext(null);
 
 let nextId = 0;
 
+// 与 --dur-mid 保持一致，确保退出动画播完再卸载
+const EXIT_DURATION = 260;
+
 
 export function ToastProvider({ children }) {
     const [toasts, setToasts] = useState([]);
@@ -47,7 +50,7 @@ export function ToastProvider({ children }) {
         if (exitingToasts.length === 0) return;
 
         const timers = exitingToasts.map(t =>
-            setTimeout(() => removeToast(t.id), 300)
+            setTimeout(() => removeToast(t.id), EXIT_DURATION)
         );
         return () => timers.forEach(clearTimeout);
     }, [toasts, removeToast]);
