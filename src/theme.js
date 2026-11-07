@@ -29,6 +29,11 @@ const theme = createTheme({
     fontSize: 15,
   },
   components: {
+    MuiDialog: {
+      defaultProps: {
+        transitionDuration: { enter: 260, exit: 200 },
+      },
+    },
     MuiTextField: {
       defaultProps: {
         size: 'small',

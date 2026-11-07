@@ -59,7 +59,6 @@ function PasswordDialog({open, onClose, onSubmit}) {
         <Dialog
             open={open}
             onClose={submitting ? undefined : onClose}
-            transitionDuration={0}
             maxWidth={false}
             slotProps={{backdrop: {sx: {zIndex: 9000}}}}
             sx={{'& .MuiDialog-paper': {zIndex: 9001, width: {xs: 'calc(100vw - 32px)', sm: 460}, maxWidth: '90vw'}}}

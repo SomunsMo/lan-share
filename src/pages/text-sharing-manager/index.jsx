@@ -636,7 +636,6 @@ function TextSharingManager(props) {
                 <Dialog
                     open={true}
                     onClose={() => setPasteDialog(null)}
-                    transitionDuration={0}
                     maxWidth={false}
                     sx={{ '& .MuiDialog-paper': { width: { xs: 'calc(100vw - 32px)', sm: '60vw', md: '50vw', lg: '45vw' }, minWidth: { xs: 0, sm: 500 }, maxWidth: '900px' } }}
                 >

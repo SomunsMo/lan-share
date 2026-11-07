@@ -24,6 +24,7 @@ export function DialogProvider({ children }) {
                 id,
                 title,
                 content,
+                closing: false,
                 input: input || null,
                 buttons: buttons || (input
                     ? [
@@ -45,6 +46,11 @@ export function DialogProvider({ children }) {
             resolver(value);
             resolversRef.current.delete(id);
         }
+        // 保留组件直到退出动画结束，避免关闭时瞬间消失
+        setDialogs(prev => prev.map(d => d.id === id ? { ...d, closing: true } : d));
+    }, []);
+
+    const removeDialog = useCallback((id) => {
         setDialogs(prev => prev.filter(d => d.id !== id));
     }, []);
 
@@ -57,13 +63,14 @@ export function DialogProvider({ children }) {
                     dialog={dialog}
                     index={index}
                     closeDialog={closeDialog}
+                    onExited={removeDialog}
                 />
             ))}
         </DialogContext.Provider>
     );
 }
 
-function DialogItem({ dialog, index, closeDialog }) {
+function DialogItem({ dialog, index, closeDialog, onExited }) {
     const { t } = useTranslation();
     const [inputValue, setInputValue] = useState(dialog.input?.defaultValue || '');
     const [loading, setLoading] = useState(false);
@@ -103,14 +110,16 @@ function DialogItem({ dialog, index, closeDialog }) {
 
     return (
         <Dialog
-            open={true}
-            onClose={loading ? undefined : () => handleClose(false)}
-            transitionDuration={0}
+            open={!dialog.closing}
+            onClose={loading || dialog.closing ? undefined : () => handleClose(false)}
             maxWidth={false}
             slotProps={{
                 backdrop: {
                     sx: { zIndex: 9000 + index }
-                }
+                },
+                transition: {
+                    onExited: () => onExited(dialog.id),
+                },
             }}
             sx={{ '& .MuiDialog-paper': { zIndex: 9001 + index, width: { xs: 'calc(100vw - 32px)', sm: '60vw', md: '50vw', lg: '45vw' }, minWidth: { xs: 0, sm: 500 }, maxWidth: '900px' } }}
         >
