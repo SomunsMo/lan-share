@@ -559,7 +559,7 @@ function TextSharingManager(props) {
                             {item.action_type === 5 ? (
                                 <>
                                     <div className="card-image-preview" onClick={(e) => { e.stopPropagation(); viewDetail(item); }}>
-                                        <img src={'http://' + ipAddr + ':' + portNum + '/shared-image/' + item.id} alt="shared image" />
+                                        <img src={'http://' + ipAddr + ':' + portNum + '/shared-image/' + item.id} alt="shared image" onLoad={(e) => e.currentTarget.classList.add('is-loaded')} />
                                     </div>
                                     <div className="card-actions">
                                         <Button variant="outlined" size="small" onClick={(e) => { e.stopPropagation(); copyImageToClipboard(item); }}>

@@ -124,10 +124,18 @@ const TextSharingManagerStyle = styled.div`
         flex-direction: column;
         gap: 12px;
         box-shadow: var(--shadow-sm);
-        transition: box-shadow var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+        transition: box-shadow var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard);
         position: relative;
         cursor: pointer;
+        animation: card-enter var(--dur-slow) var(--ease-enter) backwards;
     }
+
+    /* 首次加载前 6 张卡片错峰进入 */
+    .history-card:nth-of-type(2) { animation-delay: var(--motion-stagger); }
+    .history-card:nth-of-type(3) { animation-delay: calc(var(--motion-stagger) * 2); }
+    .history-card:nth-of-type(4) { animation-delay: calc(var(--motion-stagger) * 3); }
+    .history-card:nth-of-type(5) { animation-delay: calc(var(--motion-stagger) * 4); }
+    .history-card:nth-of-type(6) { animation-delay: calc(var(--motion-stagger) * 5); }
 
     .history-card:hover {
         box-shadow: var(--shadow-md);
@@ -187,12 +195,14 @@ const TextSharingManagerStyle = styled.div`
         gap: 8px;
         margin-top: auto;
         opacity: 0;
-        transition: opacity var(--dur-fast) var(--ease);
+        transform: translateY(2px);
+        transition: opacity var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
     }
 
     .history-card:hover .card-actions,
     .history-card:focus-within .card-actions {
         opacity: 1;
+        transform: none;
     }
 
     .card-action-btn {
@@ -245,6 +255,12 @@ const TextSharingManagerStyle = styled.div`
         max-height: 200px;
         object-fit: contain;
         border-radius: 4px;
+        opacity: 0;
+        transition: opacity var(--dur-mid) var(--ease-standard);
+    }
+
+    .history-card.image-card .card-image-preview img.is-loaded {
+        opacity: 1;
     }
 
     .paste-dialog-overlay {
@@ -288,6 +304,8 @@ const TextSharingManagerStyle = styled.div`
         -webkit-backdrop-filter: blur(24px);
         padding: 4px;
         min-width: 160px;
+        animation: menu-enter var(--dur-fast) var(--ease-enter);
+        transform-origin: top left;
     }
 
     .context-menu-item {
