@@ -28,10 +28,26 @@ const HomeStyle = styled.div`
         gap: 24px;
     }
 
+    .qr-panel > * {
+        animation: fade-up var(--dur-slow) var(--ease-enter) backwards;
+    }
+
+    .qr-panel > *:nth-of-type(2) {
+        animation-delay: 40ms;
+    }
+
     .details-panel {
         display: flex;
         flex-direction: column;
         gap: 12px;
+    }
+
+    .details-panel.details-ready > * {
+        animation: fade-up var(--dur-mid) var(--ease-enter) backwards;
+    }
+
+    .details-panel.details-ready > *:nth-of-type(2) {
+        animation-delay: 40ms;
     }
 
     .placeholder-panel {

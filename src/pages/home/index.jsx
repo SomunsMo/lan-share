@@ -236,7 +236,7 @@ function Home() {
                     )}
                 </div>
 
-                <div className="details-panel">
+                <div className={"details-panel" + (statusLoading ? "" : " details-ready")}>
                     <div>
                         <Typography
                             sx={{ fontSize: '0.75rem', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--secondary)', fontFamily: 'var(--font-family-label)', mb: 2 }}
@@ -321,7 +321,7 @@ function Home() {
                         >
                             <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.accessAuth') || 'Access Auth'}</Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: authInfo.color, boxShadow: authInfo.glow ? `0 0 6px ${authInfo.color}` : 'none' }} />
+                                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: authInfo.color, boxShadow: authInfo.glow ? `0 0 6px ${authInfo.color}` : 'none', transition: 'background-color var(--dur-mid) var(--ease-standard), box-shadow var(--dur-mid) var(--ease-standard)' }} />
                                 <Typography className="authValue" sx={{ fontSize: '0.875rem', fontWeight: 500, color: passwordStatus?.enabled ? (passwordStatus?.password_set ? 'var(--on-surface)' : '#f59e0b') : 'var(--on-surface-variant)', fontFamily: 'var(--font-family-label)', transition: 'color 0.2s' }}>
                                     {authInfo.label}
                                 </Typography>
@@ -330,8 +330,12 @@ function Home() {
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1 }}>
                             <Typography sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)' }}>{t('home.status') || 'Running Status'}</Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: serverStatus?.running ? '#22c55e' : 'var(--error)', boxShadow: serverStatus?.running ? '0 0 6px #22c55e' : 'none' }} />
-                                <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: serverStatus?.running ? 'var(--on-surface)' : 'var(--error)', fontFamily: 'var(--font-family-label)' }}>
+                                <Box
+                                    key={serverStatus?.running ? 'running' : 'stopped'}
+                                    className={serverStatus?.running ? 'status-dot-live' : undefined}
+                                    sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: serverStatus?.running ? '#22c55e' : 'var(--error)', boxShadow: serverStatus?.running ? '0 0 6px #22c55e' : 'none', transition: 'background-color var(--dur-mid) var(--ease-standard), box-shadow var(--dur-mid) var(--ease-standard)' }}
+                                />
+                                <Typography sx={{ fontSize: '0.875rem', fontWeight: 500, color: serverStatus?.running ? 'var(--on-surface)' : 'var(--error)', fontFamily: 'var(--font-family-label)', transition: 'color var(--dur-fast) var(--ease-standard)' }}>
                                     {serverStatus?.running ? (t('home.listening') || 'Listening') : (t('home.notRunning') || 'Not Running')}
                                 </Typography>
                             </Box>
