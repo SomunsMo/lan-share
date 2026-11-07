@@ -51,6 +51,10 @@ function Navbar() {
     py: 1,
     mb: 0.5,
     color: 'var(--secondary)',
+    transition: 'background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard), transform var(--dur-instant) var(--ease-standard)',
+    '&:active': {
+      transform: 'scale(0.985)',
+    },
     '&:hover': {
       bgcolor: 'var(--surface-container-highest)',
     },
