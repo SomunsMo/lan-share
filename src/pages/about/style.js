@@ -14,6 +14,7 @@ const AboutStyle = styled.div`
         align-items: center;
         text-align: center;
         gap: 16px;
+        animation: fade-up var(--dur-slow) var(--ease-enter) backwards;
     }
 
     .hero-icon {
@@ -70,11 +71,18 @@ const AboutStyle = styled.div`
         border-radius: var(--radius-md);
         padding: 24px;
         box-shadow: var(--shadow-sm);
-        transition: border-color var(--dur-fast) var(--ease);
+        transition: border-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
+        animation: card-enter var(--dur-slow) var(--ease-enter) backwards;
+    }
+
+    .info-card:nth-of-type(2) {
+        animation-delay: var(--motion-stagger);
     }
 
     .info-card:hover {
         border-color: var(--primary);
+        box-shadow: var(--shadow-md);
+        transform: translateY(var(--motion-lift));
     }
 
     .info-card-header {
