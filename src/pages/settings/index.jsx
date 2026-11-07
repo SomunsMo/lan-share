@@ -964,7 +964,7 @@ function Settings() {
                 onSubmit={handleSavePassword}
             />
             {optionMap.map((section, si) => (
-                <div className="section-card" key={si} id={section.id}>
+                <div className="section-card" key={si} id={section.id} style={{ animationDelay: `${Math.min(si, 4) * 32}ms` }}>
                     <div className="section-header">
                         <div className="section-header-top">
                             {sectionIcons[section.icon]}

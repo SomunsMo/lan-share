@@ -13,10 +13,13 @@ const SettingsStyle = styled.div`
         border-radius: var(--radius-md);
         overflow: hidden;
         box-shadow: var(--shadow-sm);
+        transition: border-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard);
+        animation: card-enter var(--dur-slow) var(--ease-enter) backwards;
     }
 
     .section-card:hover {
         border-color: var(--primary);
+        box-shadow: var(--shadow-md);
     }
 
     .section-header {
@@ -137,6 +140,7 @@ const SettingsStyle = styled.div`
         border-radius: 12px;
         font-size: 0.8rem;
         font-family: 'Consolas', 'Monaco', monospace;
+        animation: menu-enter var(--dur-fast) var(--ease-enter);
     }
 
     .pattern-chip-remove {
