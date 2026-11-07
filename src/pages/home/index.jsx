@@ -23,21 +23,7 @@ function Home() {
     const [serverStatus, setServerStatus] = useState(null);
     const [statusLoading, setStatusLoading] = useState(true);
     const [passwordStatus, setPasswordStatus] = useState(null);
-    const [qrFgColor, setQrFgColor] = useState("#213547");
     const {showDialog} = useDialog();
-
-    useEffect(() => {
-        const updateColor = () => {
-            const html = document.documentElement;
-            if (html.classList.contains('dark')) setQrFgColor('#f6f6f6');
-            else if (html.classList.contains('light')) setQrFgColor('#213547');
-            else setQrFgColor(window.matchMedia('(prefers-color-scheme: dark)').matches ? '#f6f6f6' : '#213547');
-        };
-        updateColor();
-        const observer = new MutationObserver(updateColor);
-        observer.observe(document.documentElement, {attributes: true, attributeFilter: ['class']});
-        return () => observer.disconnect();
-    }, []);
 
     useEffect(() => {
         fetchServerStatus().catch(e => {
@@ -208,8 +194,8 @@ function Home() {
                         </div>
                     ) : serverStatus?.running ? (
                         <>
-                            <Paper elevation={1} sx={{ p: '24px', bgcolor: 'var(--surface-container-lowest)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', width: 'fit-content', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <QRCodeSVG value={webUrl} fgColor={qrFgColor} bgColor={"transparent"} size={180} />
+                            <Paper elevation={1} sx={{ p: '24px', bgcolor: 'var(--bg-page)', border: '1px solid var(--outline-variant)', borderRadius: 'var(--radius-md)', width: 'fit-content', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-surface-variant)' }}>
+                                <QRCodeSVG value={webUrl} fgColor="currentColor" bgColor={"transparent"} size={180} />
                             </Paper>
                             <Box sx={{ textAlign: 'center' }}>
                                 <Typography
