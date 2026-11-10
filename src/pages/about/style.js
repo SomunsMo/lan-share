@@ -41,6 +41,8 @@ const AboutStyle = styled.div`
 
     .hero-version {
         display: inline-block;
+        /* 版本号是异步 invoke 回来的，先占住行高，避免返回时把整页撑高导致跳动 */
+        min-height: 1.5em;
         padding: 4px 12px;
         background: var(--surface-container);
         color: var(--on-surface-variant);
