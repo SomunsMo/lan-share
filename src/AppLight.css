@@ -292,6 +292,22 @@ html.vt-ready .content > * {
 }
 
 /*
+ * 过渡 API 展示的是切换瞬间的静态快照，页内的入场动画在快照之下继续运行，
+ * 过渡结束/被打断时再露出实时 DOM，就会出现“动画没播完又被拉回原位”的跳动。
+ * 所以一旦启用方向过渡，页内入场动画就不再播放，运动感统一交给整页过渡。
+ */
+html.vt-nav .qr-panel > *,
+html.vt-nav .details-panel.details-ready > *,
+html.vt-nav .hero,
+html.vt-nav .info-card,
+html.vt-nav .history-card,
+html.vt-nav .list-row,
+html.vt-nav .list-loading,
+html.vt-nav .section-card {
+    animation: none;
+}
+
+/*
  * 过渡期间让快照层不拦截指针事件，否则整个界面在 440ms 内无法点击。
  * 同理，只让 .content 参与过渡：若根元素也被捕获，整页的命中测试都会失效。
  * 这样动画过程中仍可随时点击侧边栏切换到其它页面。
@@ -302,6 +318,15 @@ html.vt-ready .content > * {
 
 :root {
     view-transition-name: none;
+}
+
+/*
+ * 只做位移与淡入淡出，不让浏览器按旧/新元素尺寸做缩放补间。
+ * 两页高度不同时，默认的 group 动画会把快照拉伸，过渡结束再弹回真实尺寸，
+ * 看起来就是整页元素一起跳动。
+ */
+::view-transition-group(page) {
+    animation: none;
 }
 
 ::view-transition-old(page),
@@ -353,6 +378,9 @@ html[data-nav-dir="down"]::view-transition-new(page) { animation-name: page-in-b
     padding: 32px;
     overflow-y: auto;
     overflow-x: hidden;
+    /* 始终预留滚动条槽位：长短页面互相切换时内容宽度不变，
+       否则滚动条出现/消失会让整页元素横向位移一次 */
+    scrollbar-gutter: stable;
     view-transition-name: page;
 }
 

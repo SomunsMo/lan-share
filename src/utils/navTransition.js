@@ -80,6 +80,9 @@ export function useAppNavigate() {
         const root = document.documentElement;
         const seq = ++transitionSeq;
         root.dataset.navDir = direction;
+        // 页面切换交给过渡 API 后，页内的入场动画会和快照对不上（过渡结束时元素“归位”跳动），
+        // 因此首次方向切换后就不再播放页内入场动画，由整页过渡承担运动感
+        root.classList.add("vt-nav");
 
         // 上一次过渡还没播完就再次切页：让它立即结束，接着播新方向的过渡
         if (activeTransition) {
