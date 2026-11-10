@@ -353,7 +353,7 @@ input[type="checkbox"].toggle:disabled { opacity: 0.5; cursor: not-allowed; }
 ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
 
-/* 尊重系统“减弱动态效果”设置 */
+/* 尊重系统“减弱动态效果”设置：去掉位移与缩放，只保留纯透明度淡入 */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: 0.01ms !important;
@@ -364,8 +364,17 @@ input[type="checkbox"].toggle:disabled { opacity: 0.5; cursor: not-allowed; }
         scroll-behavior: auto !important;
     }
 
-    .content > * {
-        animation: none;
+    /* 入场类动效降级为淡入：不产生位移，也不会让界面看起来“死掉” */
+    .content > *,
+    .qr-panel > *,
+    .details-panel.details-ready > *,
+    .hero,
+    .info-card,
+    .history-card,
+    .list-row,
+    .section-card,
+    .MuiDialog-paper {
+        animation: fade-in var(--dur-mid) linear !important;
     }
 
     /* 加载指示器属于状态信息，保留可感知的旋转 */
