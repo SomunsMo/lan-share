@@ -3,7 +3,7 @@ import HomeStyle from "./style.js";
 import {invoke} from "@tauri-apps/api/core";
 import {listen} from "@tauri-apps/api/event";
 import {getCurrentWindow} from "@tauri-apps/api/window";
-import {useNavigate} from "react-router";
+import {useAppNavigate} from "../../utils/navTransition.js";
 import {QRCodeSVG} from "qrcode.react";
 import {open} from '@tauri-apps/plugin-dialog';
 import {useDialog} from "@/components/dialog/index.jsx";
@@ -18,7 +18,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 function Home() {
     const { t } = useTranslation();
     const {showToast} = useToast();
-    const navigate = useNavigate();
+    const navigate = useAppNavigate();
     const [webUrl, setWebUrl] = useState("");
     const [serverStatus, setServerStatus] = useState(null);
     const [statusLoading, setStatusLoading] = useState(true);

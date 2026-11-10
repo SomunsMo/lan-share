@@ -88,9 +88,14 @@
     --dur-mid: 260ms;
     --dur-slow: 340ms;
     --dur-page: 440ms;
+    /* 页面切换的位移量：进入与滑出共用同一距离，保证交接时两页位移对称 */
+    --page-shift: 24px;
     --ease-standard: cubic-bezier(0.2, 0, 0, 1);
     --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
     --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+    /* 整页滑动用两端都收的曲线：起步与收尾速度都接近 0，
+       不会出现「开头一下子窜出去」的跳动感 */
+    --ease-page: cubic-bezier(0.65, 0, 0.35, 1);
     --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
     /* 兼容旧引用 */
     --ease: var(--ease-standard);
@@ -224,6 +229,13 @@ button:active { transform: scale(0.97); }
     to   { opacity: 1; transform: none; }
 }
 
+/* View Transitions：按标签顺序决定新旧页面的运动方向。
+   进入端永远从「原位置上方/下方 x」滑回原位，x 与滑出端距离相同。 */
+@keyframes page-out-down  { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(var(--page-shift)); } }
+@keyframes page-out-up    { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(calc(var(--page-shift) * -1)); } }
+@keyframes page-in-top    { from { opacity: 0; transform: translateY(calc(var(--page-shift) * -1)); } to { opacity: 1; transform: translateY(0); } }
+@keyframes page-in-bottom { from { opacity: 0; transform: translateY(var(--page-shift)); } to { opacity: 1; transform: translateY(0); } }
+
 @keyframes fade-up {
     from { opacity: 0; transform: translateY(var(--motion-enter-y)); }
     to   { opacity: 1; transform: none; }
@@ -265,10 +277,48 @@ button:active { transform: scale(0.97); }
     100% { opacity: 1; transform: scale(1); }
 }
 
-/* 路由切换：页面根节点重新挂载时自然播放 */
+/* 路由切换：页面根节点重新挂载时自然播放（无 View Transitions 时的兜底） */
 .content > * {
-    animation: page-enter var(--dur-page) var(--ease-enter) backwards;
+    animation: page-enter var(--dur-page) var(--ease-page) backwards;
 }
+
+/*
+ * 支持 View Transitions 时改由过渡 API 驱动，关闭兜底动画避免叠加。
+ * vt-ready 只表示“浏览器具备该能力”；若过渡在运行期抛错，
+ * navTransition 会移除该标记，让这里的兜底动画重新生效。
+ */
+html.vt-ready .content > * {
+    animation: none;
+}
+
+/*
+ * 过渡期间让快照层不拦截指针事件，否则整个界面在 440ms 内无法点击。
+ * 同理，只让 .content 参与过渡：若根元素也被捕获，整页的命中测试都会失效。
+ * 这样动画过程中仍可随时点击侧边栏切换到其它页面。
+ */
+::view-transition {
+    pointer-events: none;
+}
+
+:root {
+    view-transition-name: none;
+}
+
+::view-transition-old(page),
+::view-transition-new(page) {
+    animation-duration: var(--dur-page);
+    animation-timing-function: var(--ease-page);
+    animation-fill-mode: both;
+    mix-blend-mode: normal;
+}
+
+/* 切到更靠上的标签：旧页向下淡出，新页从上方落入 */
+html[data-nav-dir="up"]::view-transition-old(page) { animation-name: page-out-down; }
+html[data-nav-dir="up"]::view-transition-new(page) { animation-name: page-in-top; }
+
+/* 切到更靠下的标签：旧页向上淡出，新页从下方升起 */
+html[data-nav-dir="down"]::view-transition-old(page) { animation-name: page-out-up; }
+html[data-nav-dir="down"]::view-transition-new(page) { animation-name: page-in-bottom; }
 
 /* 对话框纸面：进入时轻微缩放，退出由 MUI Fade 负责 */
 .MuiDialog-paper {
@@ -297,7 +347,14 @@ button:active { transform: scale(0.97); }
 
 
 .container { box-sizing: border-box; display: flex; flex-direction: row; height: 100vh; overflow: hidden; }
-.content { box-sizing: border-box; flex-grow: 1; padding: 32px; overflow-y: auto; overflow-x: hidden; }
+.content {
+    box-sizing: border-box;
+    flex-grow: 1;
+    padding: 32px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    view-transition-name: page;
+}
 
 @media (max-width: 768px) {
     .content { padding: 24px 16px; }

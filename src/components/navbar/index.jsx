@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import Drawer from '@mui/material/Drawer';
 import List from '@mui/material/List';
@@ -9,6 +9,7 @@ import ListItemText from '@mui/material/ListItemText';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { routes } from "../../pages/_router-map.jsx";
+import { useAppNavigate } from "../../utils/navTransition.js";
 
 const icons = {
   home: (
@@ -30,7 +31,7 @@ const icons = {
 
 function Navbar() {
   const location = useLocation();
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
   const { t } = useTranslation();
 
   const topItems = [];

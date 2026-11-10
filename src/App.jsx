@@ -1,15 +1,16 @@
 import React, { useEffect } from "react";
 import "./AppLight.css";
 import Navbar from "./components/navbar/index.jsx";
-import {useRoutes, useNavigate} from "react-router";
+import {useRoutes} from "react-router";
 import {routes} from "./pages/_router-map.jsx";
 import { DialogProvider } from "./components/dialog/index.jsx";
 import { ToastProvider } from "./components/toast/index.jsx";
 import {invoke} from "@tauri-apps/api/core";
 import {listen} from "@tauri-apps/api/event";
+import {useAppNavigate} from "./utils/navTransition.js";
 
 function App() {
-    const navigate = useNavigate();
+    const navigate = useAppNavigate();
     window.__tauriNavigate = navigate;
 
     // 应用主题设置
