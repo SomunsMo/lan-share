@@ -446,7 +446,7 @@ function TextSharingManager(props) {
                         <span style={{ color: 'var(--on-surface-variant)', opacity: 0.6, whiteSpace: 'nowrap' }}>{t('imageSharing.detailSize')}</span>
                         <span style={{ color: 'var(--on-surface-variant)', userSelect: 'text' }}>{formatFileSize(content.size)}</span>
                     </div>
-                    <DialogImage src={imgUrl} alt={content.original_name} />
+                    <DialogImage src={imgUrl} alt={content.original_name} zoomable />
                 </div>
             ),
             buttons: [

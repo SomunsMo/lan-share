@@ -343,6 +343,7 @@
     "detailFileName": "File Name",
     "detailSha256": "SHA256",
     "detailSize": "Size",
+    "previewReset": "Reset",
     "copyImageButton": "Copy Image",
     "contextMenu": {
       "copyImage": "Copy Image",

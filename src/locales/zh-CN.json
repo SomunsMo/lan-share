@@ -343,6 +343,7 @@
     "detailFileName": "文件名",
     "detailSha256": "SHA256",
     "detailSize": "大小",
+    "previewReset": "重置",
     "copyImageButton": "复制图片",
     "contextMenu": {
       "copyImage": "复制图片",
