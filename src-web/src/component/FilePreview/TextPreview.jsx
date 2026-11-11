@@ -10,9 +10,10 @@ const LINE_HEIGHT = 22;
 const OVERSCAN = 30;
 const isTouchDevice = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
-function TextPreview({url}) {
+function TextPreview({url, text: textProp = null, reloadKey}) {
     const {t} = useTranslation();
-    const [text, setText] = useState(null);
+    // 直接传入文本（如文本共享记录）时无需请求，避免创建 Blob URL
+    const [text, setText] = useState(textProp != null ? textProp : null);
     const [error, setError] = useState('');
     const [scrollTop, setScrollTop] = useState(0);
     const [viewportHeight, setViewportHeight] = useState(0);
@@ -21,8 +22,12 @@ function TextPreview({url}) {
     const scrollerRef = useRef(null);
 
     const reload = useCallback(() => {
-        setText(null);
         setError('');
+        if (textProp != null) {
+            setText(textProp);
+            return;
+        }
+        setText(null);
         fetch(url)
             .then(res => {
                 if (!res.ok) throw new Error(String(res.status));
@@ -30,9 +35,9 @@ function TextPreview({url}) {
             })
             .then(body => setText(body))
             .catch(err => setError(err.message || '加载失败'));
-    }, [url]);
+    }, [url, textProp]);
 
-    useEffect(() => { reload(); }, [reload]);
+    useEffect(() => { reload(); }, [reload, reloadKey]);
 
     const lines = useMemo(() => (text == null ? [] : text.split('\n')), [text]);
 

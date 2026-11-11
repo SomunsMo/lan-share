@@ -6,9 +6,11 @@ import ImagePreview from './ImagePreview';
 import AudioPreview from './AudioPreview';
 import ExcelPreview from './ExcelPreview';
 
-function FilePreview({url, title, type = 'pdf', onClose}) {
+function FilePreview({url, title, type = 'pdf', text = null, onClose}) {
     const {t} = useTranslation();
     const [reloadKey, setReloadKey] = useState(0);
+    // 内联文本（无 URL）没有可刷新的远端资源，隐藏刷新按钮
+    const canRefresh = !!url;
 
     // Esc 关闭
     useEffect(() => {
@@ -39,7 +41,7 @@ function FilePreview({url, title, type = 'pdf', onClose}) {
     const renderBody = () => {
         switch (type) {
             case 'text':
-                return <TextPreview url={url} />;
+                return <TextPreview url={url} text={text} reloadKey={reloadKey} />;
             case 'image':
                 return <ImagePreview url={url} reloadKey={reloadKey} />;
             case 'audio':
@@ -58,8 +60,10 @@ function FilePreview({url, title, type = 'pdf', onClose}) {
                 <PreviewToolbar>
                     <PreviewTitle title={title}>{title}</PreviewTitle>
                     <PreviewActions>
-                        <PreviewButton data-testid="preview-refresh"
-                                       onClick={() => setReloadKey(k => k + 1)}>{t('fileSharing.preview.refresh')}</PreviewButton>
+                        {canRefresh && (
+                            <PreviewButton data-testid="preview-refresh"
+                                           onClick={() => setReloadKey(k => k + 1)}>{t('fileSharing.preview.refresh')}</PreviewButton>
+                        )}
                         <PreviewButton onClick={onClose}>{t('fileSharing.preview.close')}</PreviewButton>
                     </PreviewActions>
                 </PreviewToolbar>
