@@ -56,6 +56,8 @@ function TextSharing() {
 
     // 预览浮层 URL（null 表示关闭）
     const [previewUrl, setPreviewUrl] = useState(null);
+    // 内联文本预览内容（与 previewUrl 二选一）
+    const [previewText, setPreviewText] = useState(null);
     // 正在预览的文件名
     const [previewTitle, setPreviewTitle] = useState('');
     // 当前预览类型（image/text/pdf/audio），用于 FilePreview 渲染分支
@@ -324,6 +326,22 @@ function TextSharing() {
         showToast({message: t('textSharing.toast.copied'), type: 'success'});
     }
 
+    // 打开文本记录预览：直接复用 FilePreview 的文本分支，无需请求后端
+    const openTextPreview = (content) => {
+        const firstLine = (content || '').split('\n').find(line => line.trim()) || '';
+        setPreviewUrl(null);
+        setPreviewText(content ?? '');
+        setPreviewTitle(firstLine.trim().slice(0, 40) || t('fileSharing.action.preview'));
+        setPreviewType('text');
+    }
+
+    const closePreview = () => {
+        setPreviewUrl(null);
+        setPreviewText(null);
+        setPreviewTitle('');
+        setPreviewType(null);
+    }
+
     return (
         <TextSharingStyle>
             <Card className="textCard">
@@ -392,6 +410,7 @@ function TextSharing() {
                                         onClick={(e) => {
                                             // 仅左键（event.button === 0）触发预览，右键仍走 li 的 contextmenu 下载/复制
                                             if (e.button !== 0 || !canPreview) return;
+                                            setPreviewText(null);
                                             setPreviewUrl(`/shared-image/${v.id}`);
                                             setPreviewTitle(originalName || v.content || '');
                                             setPreviewType('image');
@@ -412,6 +431,12 @@ function TextSharing() {
             {contextMenu.visible && (
                 <div className="context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}
                      onClick={(e) => e.stopPropagation()}>
+                    {contextMenu.actionType === 1 && (
+                        <div className="context-menu-item" onClick={() => {
+                            openTextPreview(contextMenu.content);
+                            hideContextMenu();
+                        }}>{t('fileSharing.action.preview')}</div>
+                    )}
                     <div className="context-menu-item" onClick={() => {
                         copyText(contextMenu.content, contextMenu.id);
                         hideContextMenu();
@@ -423,6 +448,7 @@ function TextSharing() {
                 <div className="context-menu" style={{left: imageMenu.x, top: imageMenu.y}} onClick={(e) => e.stopPropagation()}>
                     {imageMenu.canPreview ? (
                         <div className="context-menu-item" onClick={() => {
+                            setPreviewText(null);
                             setPreviewUrl(`/shared-image/${imageMenu.id}`);
                             setPreviewTitle(imageMenu.name || '');
                             setPreviewType('image');
@@ -437,12 +463,9 @@ function TextSharing() {
                 </div>
             )}
 
-            {previewUrl && (
-                <FilePreview url={previewUrl} title={previewTitle} type={previewType} onClose={() => {
-                    setPreviewUrl(null);
-                    setPreviewTitle('');
-                    setPreviewType(null);
-                }} />
+            {(previewUrl || previewText != null) && (
+                <FilePreview url={previewUrl} title={previewTitle} type={previewType} text={previewText}
+                             onClose={closePreview} />
             )}
         </TextSharingStyle>
     );
