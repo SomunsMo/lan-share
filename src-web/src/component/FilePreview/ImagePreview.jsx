@@ -144,6 +144,8 @@ function ImagePreview({url, reloadKey}) {
     // 指针交互：单指/左键拖动平移（松手带惯性），双指捏合缩放（以两指中点锚定）
     const handlePointerDown = useCallback((e) => {
         if (e.pointerType === 'mouse' && e.button !== 0) return;
+        // 点击重置按钮等交互元素时不进入拖动，避免指针捕获把 click 改派到容器导致按钮失效
+        if (e.target?.closest?.('button')) return;
         stopInertia();
         samples.current = [];
         const el = rootRef.current;
@@ -208,12 +210,19 @@ function ImagePreview({url, reloadKey}) {
         if (pointers.current.size < 2) pinchInfo.current = null;
     }, [startInertia, stopInertia]);
 
-    const handleDoubleClick = useCallback(() => {
+    const handleDoubleClick = useCallback((e) => {
+        if (e.target?.closest?.('button')) return;
         const el = rootRef.current;
         if (!el) return;
-        const target = state.current.scale === 1 ? 2 : 1;
-        zoomAt(el.clientWidth / 2, el.clientHeight / 2, target, false);
-    }, [zoomAt]);
+        // 已缩放/平移时双击还原到初始居中状态，避免只复位倍率而位置仍偏移
+        if (state.current.scale !== 1) {
+            stopInertia();
+            state.current = {scale: 1, x: 0, y: 0};
+            applyTransform(false);
+            return;
+        }
+        zoomAt(el.clientWidth / 2, el.clientHeight / 2, 2, false);
+    }, [applyTransform, stopInertia, zoomAt]);
 
     const handleReset = useCallback(() => {
         stopInertia();
@@ -243,7 +252,8 @@ function ImagePreview({url, reloadKey}) {
                 <ImagePreviewStatus>{t('fileSharing.preview.loading')}</ImagePreviewStatus>
             ) : (
                 <>
-                    <ImagePreviewReset type="button" onClick={handleReset}>{t('fileSharing.preview.reset')}</ImagePreviewReset>
+                    <ImagePreviewReset type="button" onPointerDown={(e) => e.stopPropagation()}
+                                       onClick={handleReset}>{t('fileSharing.preview.reset')}</ImagePreviewReset>
                     {/* left/top 50% + margin 负半实现静态居中；transform 相对居中位置进行平移缩放 */}
                     <ImagePreviewImg
                         key={reloadKey}
