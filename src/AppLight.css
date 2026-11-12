@@ -454,7 +454,14 @@ html[data-motion="reduced"] *::after {
     scroll-behavior: auto !important;
 }
 
-/* 入场类动效降级为淡入：不产生位移，也不会让界面看起来“死掉” */
+/*
+ * 减弱动效：页面切换不走 View Transitions（由 navTransition 判断），
+ * 入口动效一律不播放。
+ *
+ * 这里刻意不做「淡入」降级：整页从 0 透明度淡入时，下面没有任何内容，
+ * 会先闪出一片底色再显字。减弱动效下直接瞬时切换更干净，
+ * 需要感知的加载指示器仍保留旋转（见下）。
+ */
 html[data-motion="reduced"] .content > *,
 html[data-motion="reduced"] .qr-panel > *,
 html[data-motion="reduced"] .details-panel.details-ready > *,
@@ -464,7 +471,7 @@ html[data-motion="reduced"] .history-card,
 html[data-motion="reduced"] .list-row,
 html[data-motion="reduced"] .section-card,
 html[data-motion="reduced"] .MuiDialog-paper {
-    animation: fade-in var(--dur-mid) linear !important;
+    animation: none !important;
 }
 
 /* 加载指示器属于状态信息，保留可感知的旋转 */
