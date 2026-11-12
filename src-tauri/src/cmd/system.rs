@@ -662,6 +662,11 @@ pub async fn migrate_image_sharing_dir(from: String, to: String) -> Result<(), S
 /// 分享文本到局域网
 #[tauri::command]
 pub async fn share_text_to_lan(text_data: String) -> Result<(), String> {
+    // 禁止共享空文本（"" 或纯空白）
+    if text_data.trim().is_empty() {
+        return Err("文本内容不能为空".to_string());
+    }
+
     // 获取本地IP地址作为客户端IP
     let local_ip = get_local_ip_with_retry();
 

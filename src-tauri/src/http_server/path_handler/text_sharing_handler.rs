@@ -50,6 +50,11 @@ pub async fn upload_text(
         }
     };
 
+    // 禁止共享空文本（"" 或纯空白）
+    if req_body.text_data.trim().is_empty() {
+        return error(StatusCode::BAD_REQUEST, "文本内容不能为空");
+    }
+
     log::info!("来自[{}]的文本：{}", client_ip, req_body.text_data);
 
     // 检查是否存在内容完全一致的文本记录，存在则刷新时间、递增共享次数并记录共享历史
