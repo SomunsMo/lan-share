@@ -91,6 +91,9 @@
       "themeColorDesc": "Click the swatch to pick a custom color",
       "language": "Language",
       "languageDesc": "Select interface language",
+      "motion": "Animations",
+      "motionDesc": "\"Follow System\" honors the system reduce-motion setting",
+      "motionSystemHint": "Reduce motion is enabled in the system; this setting overrides it",
       "shareRoot": "Sharing Root",
       "shareRootDesc": "Root directory for providing file sharing services",
       "imageShareDir": "Image Sharing Directory",
@@ -133,12 +136,18 @@
       "light": "Light",
       "dark": "Dark"
     },
+    "motionOption": {
+      "system": "Follow System",
+      "full": "Full Animations",
+      "reduced": "Reduced Animations"
+    },
     "languageOption": {
       "zh-CN": "中文",
       "en": "English"
     },
     "toast": {
       "themeSwitched": "Theme switched",
+      "motionSwitched": "Animation setting changed",
       "themeFailed": "Failed to save theme: {{error}}",
       "portInvalid": "Invalid port number, please enter a number between 1-65535",
       "portSaved": "Port changed, applied immediately",

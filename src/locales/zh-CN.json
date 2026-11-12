@@ -91,6 +91,9 @@
       "themeColorDesc": "点击色块选择自定义主题色",
       "language": "语言",
       "languageDesc": "选择界面语言",
+      "motion": "动画效果",
+      "motionDesc": "「跟随系统」会遵循系统的减弱动效设置",
+      "motionSystemHint": "系统当前已开启减弱动效，此设置将忽略它",
       "shareRoot": "共享根目录",
       "shareRootDesc": "对外提供文件共享服务的根目录",
       "imageShareDir": "图片共享暂存目录",
@@ -133,12 +136,18 @@
       "light": "浅色",
       "dark": "深色"
     },
+    "motionOption": {
+      "system": "跟随系统",
+      "full": "完整动画",
+      "reduced": "减弱动画"
+    },
     "languageOption": {
       "zh-CN": "中文",
       "en": "English"
     },
     "toast": {
       "themeSwitched": "主题已切换",
+      "motionSwitched": "动画效果已切换",
       "themeFailed": "保存主题设置失败: {{error}}",
       "portInvalid": "端口号无效，请输入 1-65535 之间的数字",
       "portSaved": "端口已切换，立即生效",

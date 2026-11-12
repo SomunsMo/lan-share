@@ -1,6 +1,7 @@
 import { useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { flushSync } from "react-dom";
+import { resolveReducedMotion } from "./motion.js";
 import { routes } from "@/pages/_router-map.jsx";
 
 // 侧边栏标签的展示顺序，决定页面切换动画的方向。
@@ -64,7 +65,8 @@ export function useAppNavigate() {
 
     return useCallback((to, options = {}) => {
         const direction = getNavDirection(pathnameRef.current, to);
-        const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+        // 是否减弱动效由「系统偏好 + 设置项」共同决定，不能直接读媒体查询
+        const prefersReducedMotion = resolveReducedMotion();
         // 窗口不可见时 startViewTransition 的回调会被挂起，导致跳转被延后
         const isVisible = document.visibilityState === "visible";
 

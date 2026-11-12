@@ -438,33 +438,37 @@ input[type="checkbox"].toggle:disabled { opacity: 0.5; cursor: not-allowed; }
 ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
 
-/* 尊重系统“减弱动态效果”设置：去掉位移与缩放，只保留纯透明度淡入 */
-@media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        animation-delay: 0ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        transition-delay: 0ms !important;
-        scroll-behavior: auto !important;
-    }
+/*
+ * 减弱动效：去掉位移与缩放，只保留纯透明度淡入。
+ * 是否减弱由 utils/motion.js 统一计算（系统偏好 + 设置项）后写到
+ * <html data-motion="reduced">，因此 CSS 只认这一个标记，不再直接读媒体查询。
+ */
+html[data-motion="reduced"] *,
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+}
 
-    /* 入场类动效降级为淡入：不产生位移，也不会让界面看起来“死掉” */
-    .content > *,
-    .qr-panel > *,
-    .details-panel.details-ready > *,
-    .hero,
-    .info-card,
-    .history-card,
-    .list-row,
-    .section-card,
-    .MuiDialog-paper {
-        animation: fade-in var(--dur-mid) linear !important;
-    }
+/* 入场类动效降级为淡入：不产生位移，也不会让界面看起来“死掉” */
+html[data-motion="reduced"] .content > *,
+html[data-motion="reduced"] .qr-panel > *,
+html[data-motion="reduced"] .details-panel.details-ready > *,
+html[data-motion="reduced"] .hero,
+html[data-motion="reduced"] .info-card,
+html[data-motion="reduced"] .history-card,
+html[data-motion="reduced"] .list-row,
+html[data-motion="reduced"] .section-card,
+html[data-motion="reduced"] .MuiDialog-paper {
+    animation: fade-in var(--dur-mid) linear !important;
+}
 
-    /* 加载指示器属于状态信息，保留可感知的旋转 */
-    .MuiCircularProgress-root {
-        animation-duration: 1.4s !important;
-        animation-iteration-count: infinite !important;
-    }
+/* 加载指示器属于状态信息，保留可感知的旋转 */
+html[data-motion="reduced"] .MuiCircularProgress-root {
+    animation-duration: 1.4s !important;
+    animation-iteration-count: infinite !important;
 }

@@ -5,6 +5,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import App from "./App";
 import {BrowserRouter} from "react-router";
 import initI18n from "./i18n";
+import { initMotion } from "./utils/motion.js";
 import theme from "./theme";
 
 // 支持 View Transitions 的平台由过渡 API 负责页面切换动画，
@@ -15,8 +16,8 @@ if (typeof document.startViewTransition === "function") {
     document.documentElement.classList.add("vt-ready");
 }
 
-// Initialize i18n before rendering
-initI18n().then(() => {
+// 语言与动效偏好都就绪后再渲染：动效偏好决定首屏是否播放完整动画
+Promise.all([initI18n(), initMotion()]).then(() => {
     ReactDOM.createRoot(document.getElementById("root")).render(
         <React.StrictMode>
             <ThemeProvider theme={theme}>

@@ -15,6 +15,7 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import PasswordDialog from "./PasswordDialog.jsx";
+import { isSystemReducedMotion, setMotionPreference } from "../../utils/motion.js";
 
 function Settings() {
     const { t, i18n } = useTranslation();
@@ -38,6 +39,9 @@ function Settings() {
     const [patternInput, setPatternInput] = useState('');
     const [httpPort, setHttpPort] = useState(3000);
     const [themeSetting, setThemeSetting] = useState("system");
+    const [motionSetting, setMotionSetting] = useState("system");
+    // 系统「减弱动效」开关的实时状态：仅用于在设置项下方提示
+    const [systemReducedMotion, setSystemReducedMotion] = useState(() => isSystemReducedMotion());
     const [huePrimary, setHuePrimary] = useState(() => {
         try {
             const val = getComputedStyle(document.documentElement).getPropertyValue('--hue-primary').trim();
@@ -119,6 +123,10 @@ function Settings() {
                 setExcludeSystemFiles(s.exclude_system_files);
                 setExcludePatterns(s.exclude_patterns);
                 setThemeSetting(s.theme_setting);
+                // 以数据库为准同步一次，避免首屏读取失败后与界面显示不一致
+                const savedMotion = ['system', 'full', 'reduced'].includes(s.motion_setting) ? s.motion_setting : 'system';
+                setMotionSetting(savedMotion);
+                setMotionPreference(savedMotion);
                 setHttpPort(s.http_port);
                 setTrayIconMode(s.tray_icon_mode || 'template');
                 setPasswordEnabled(!!s.password_enabled);
@@ -148,6 +156,15 @@ function Settings() {
             }
         };
         fetchAllSettings();
+    }, []);
+
+    // 系统「减弱动效」开关可能在本页停留期间被修改，实时更新提示
+    useEffect(() => {
+        const mql = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+        if (!mql) return;
+        const onChange = (event) => setSystemReducedMotion(event.matches);
+        mql.addEventListener('change', onChange);
+        return () => mql.removeEventListener('change', onChange);
     }, []);
 
     // 从首页「访问认证-未开启」跳转过来时，滚动到安全分组
@@ -182,6 +199,26 @@ function Settings() {
         } catch (error) {
             console.error('保存主题设置失败:', error);
             showToast({message: t('settings.toast.themeFailed', {error}), type: 'error'});
+        }
+    };
+
+    const handleMotionChange = async (event) => {
+        const newValue = event.target.value;
+        if (newValue === motionSetting) return;
+
+        const previous = motionSetting;
+        setMotionSetting(newValue);
+        // 先立即生效，用户切换后马上能感受到效果；落库失败再回滚
+        setMotionPreference(newValue);
+
+        try {
+            await invoke('set_motion_setting', {motion: newValue});
+            showToast({message: t('settings.toast.motionSwitched'), type: 'success'});
+        } catch (error) {
+            console.error('保存动效设置失败:', error);
+            setMotionSetting(previous);
+            setMotionPreference(previous);
+            showToast({message: t('settings.toast.saveFailed', {name: t('settings.option.motion'), error: error.message}), type: 'error'});
         }
     };
 
@@ -720,6 +757,24 @@ function Settings() {
                             <MenuItem value="light">{t('settings.themeOption.light')}</MenuItem>
                             <MenuItem value="dark">{t('settings.themeOption.dark')}</MenuItem>
                         </Select>
+                    ),
+                },
+                {
+                    name: t('settings.option.motion'),
+                    desc: t('settings.option.motionDesc'),
+                    content: (
+                        <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4}}>
+                            <Select value={motionSetting} onChange={handleMotionChange} size="small" sx={{ minWidth: 120, fontSize: '0.875rem' }}>
+                                <MenuItem value="system">{t('settings.motionOption.system')}</MenuItem>
+                                <MenuItem value="full">{t('settings.motionOption.full')}</MenuItem>
+                                <MenuItem value="reduced">{t('settings.motionOption.reduced')}</MenuItem>
+                            </Select>
+                            {motionSetting === 'full' && systemReducedMotion && (
+                                <Typography variant="caption" sx={{fontSize: '0.75rem', color: 'var(--on-surface-variant)', maxWidth: 240, textAlign: 'right'}}>
+                                    {t('settings.option.motionSystemHint')}
+                                </Typography>
+                            )}
+                        </div>
                     ),
                 },
                 {
