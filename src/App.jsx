@@ -1,7 +1,7 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useLayoutEffect, useRef } from "react";
 import "./AppLight.css";
 import Navbar from "./components/navbar/index.jsx";
-import {useRoutes} from "react-router";
+import {useLocation, useRoutes} from "react-router";
 import {routes} from "./pages/_router-map.jsx";
 import { DialogProvider } from "./components/dialog/index.jsx";
 import { ToastProvider } from "./components/toast/index.jsx";
@@ -12,6 +12,19 @@ import {useAppNavigate} from "./utils/navTransition.js";
 function App() {
     const navigate = useAppNavigate();
     window.__tauriNavigate = navigate;
+
+    const { pathname } = useLocation();
+    const contentRef = useRef(null);
+
+    // 切换页面时回到顶部：.content 是跨路由复用的滚动容器，
+    // 不重置的话从长页面（传输日志、设置）切到短页面会带着旧的滚动位置。
+    // 用 useLayoutEffect 而不是 useEffect：它在 React 提交阶段同步执行，
+    // 能赶在 startViewTransition 拍摄新页面快照之前完成。
+    useLayoutEffect(() => {
+        if (contentRef.current) {
+            contentRef.current.scrollTop = 0;
+        }
+    }, [pathname]);
 
     // 应用主题设置
     const applyTheme = (theme) => {
@@ -99,7 +112,7 @@ function App() {
             <DialogProvider>
                 <div className="container">
                     <Navbar/>
-                    <main className={"content"}>
+                    <main className={"content"} ref={contentRef}>
                         {useRoutes(routes)}
                     </main>
                 </div>
