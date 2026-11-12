@@ -82,20 +82,22 @@
     --radius-lg: 16px;
     --radius-full: 9999px;
     --navbar-width: 256px;
-    /* 动效令牌：微反馈 120-180ms，进入 260-340ms，页面切换 440ms */
+    /* 动效令牌：微反馈 120-180ms，进入 260-340ms，页面切换 360ms */
     --dur-instant: 120ms;
     --dur-fast: 180ms;
     --dur-mid: 260ms;
     --dur-slow: 340ms;
-    --dur-page: 440ms;
-    /* 页面切换的位移量：进入与滑出共用同一距离，保证交接时两页位移对称 */
-    --page-shift: 24px;
+    --dur-page: 360ms;
+    /* 页面切换：整页平移一屏，进入端与滑出端距离相同 */
+    --page-push: 100%;
     --ease-standard: cubic-bezier(0.2, 0, 0, 1);
     --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
     --ease-exit: cubic-bezier(0.4, 0, 1, 1);
-    /* 整页滑动用两端都收的曲线：起步与收尾速度都接近 0，
-       不会出现「开头一下子窜出去」的跳动感 */
+    /* 整页推动的缓动：明显的「慢起 → 加速 → 慢收」。
+       不能用「快起慢收」那类曲线 —— 它前 25% 时间就走完 78% 的位移，
+       剩下四分之三的时间只在慢慢蹭最后几像素，看起来就像掉帧。 */
     --ease-page: cubic-bezier(0.65, 0, 0.35, 1);
+    --ease-push: cubic-bezier(0.55, 0, 0.15, 1);
     --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
     /* 兼容旧引用 */
     --ease: var(--ease-standard);
@@ -230,11 +232,16 @@ button:active { transform: scale(0.97); }
 }
 
 /* View Transitions：按标签顺序决定新旧页面的运动方向。
-   进入端永远从「原位置上方/下方 x」滑回原位，x 与滑出端距离相同。 */
-@keyframes page-out-down  { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(var(--page-shift)); } }
-@keyframes page-out-up    { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(calc(var(--page-shift) * -1)); } }
-@keyframes page-in-top    { from { opacity: 0; transform: translateY(calc(var(--page-shift) * -1)); } to { opacity: 1; transform: translateY(0); } }
-@keyframes page-in-bottom { from { opacity: 0; transform: translateY(var(--page-shift)); } to { opacity: 1; transform: translateY(0); } }
+   采用「整页推动」：两页同向平移整整一屏，首尾相接。
+
+   为什么不用淡入淡出：快照只包含页面内容（背景在 :root 上，不在快照里），
+   两页交叉淡化时上下两层文字会互相透出来；改成先后淡入淡出，
+   又会出现中途整块内容「突然消失」的空档。推动模式下任何时刻
+   画面都由其中一页铺满，两页互不重叠，所以既没有重影也没有空档。 */
+@keyframes page-out-down  { from { transform: translateY(0); } to { transform: translateY(var(--page-push)); } }
+@keyframes page-out-up    { from { transform: translateY(0); } to { transform: translateY(calc(var(--page-push) * -1)); } }
+@keyframes page-in-top    { from { transform: translateY(calc(var(--page-push) * -1)); } to { transform: translateY(0); } }
+@keyframes page-in-bottom { from { transform: translateY(var(--page-push)); } to { transform: translateY(0); } }
 
 @keyframes fade-up {
     from { opacity: 0; transform: translateY(var(--motion-enter-y)); }
@@ -332,9 +339,11 @@ html.vt-nav .section-card {
 ::view-transition-old(page),
 ::view-transition-new(page) {
     animation-duration: var(--dur-page);
-    animation-timing-function: var(--ease-page);
+    animation-timing-function: var(--ease-push);
     animation-fill-mode: both;
     mix-blend-mode: normal;
+    /* 快照是整屏大图，提前提升为合成层，避免每帧重新栅格化 */
+    will-change: transform;
 }
 
 /* 切到更靠上的标签：旧页向下淡出，新页从上方落入 */
