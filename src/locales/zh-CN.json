@@ -326,6 +326,9 @@
     "detailContent": "内容",
     "placeholder": "输入文本或粘贴图片",
     "shareButton": "共享",
+    "toast": {
+      "emptyText": "文本内容不能为空"
+    },
     "contextMenu": {
       "viewDetail": "查看详情",
       "copyContent": "复制内容",

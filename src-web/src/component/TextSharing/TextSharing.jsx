@@ -242,6 +242,11 @@ function TextSharing() {
     }
 
     const sendText = () => {
+        // 禁止共享空文本（"" 或纯空白）
+        if (!uploadText.trim()) {
+            showToast({message: t('textSharing.toast.emptyText'), type: 'info'});
+            return;
+        }
         uploadTextAPI(uploadText)
             .then(res => {
                 if (res.code !== 200) {

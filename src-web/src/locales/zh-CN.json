@@ -161,6 +161,7 @@
     "toast": {
       "loadFailed": "获取历史文本失败: {{error}}",
       "sendFailed": "发送文本失败: {{error}}",
+      "emptyText": "文本内容不能为空",
       "draftCleared": "已清空待共享文本",
       "copied": "文本已复制"
     }

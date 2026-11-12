@@ -326,6 +326,9 @@
     "detailContent": "Content",
     "placeholder": "Type text or paste image",
     "shareButton": "Share",
+    "toast": {
+      "emptyText": "Text content cannot be empty"
+    },
     "contextMenu": {
       "viewDetail": "View Detail",
       "copyContent": "Copy Content",

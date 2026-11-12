@@ -234,6 +234,7 @@ function TextSharingManager(props) {
 
     const shareTextViaTauri = async () => {
         if (!textValue.trim()) {
+            showToast({message: t('textSharing.toast.emptyText'), type: 'info'});
             return;
         }
 

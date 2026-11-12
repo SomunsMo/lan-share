@@ -161,6 +161,7 @@
     "toast": {
       "loadFailed": "Failed to load text history: {{error}}",
       "sendFailed": "Failed to send text: {{error}}",
+      "emptyText": "Text content cannot be empty",
       "draftCleared": "Draft text cleared",
       "copied": "Text copied"
     }
