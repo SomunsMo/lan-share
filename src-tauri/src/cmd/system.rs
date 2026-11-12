@@ -34,6 +34,7 @@ pub struct AllSettings {
     pub autostart_minimized: bool,
     pub http_port: u16,
     pub theme_setting: String,
+    pub motion_setting: String,
     pub theme_color: String,
     pub language: String,
     pub exclude_system_files: bool,
@@ -1631,6 +1632,33 @@ pub async fn set_theme_setting(theme: String) -> Result<(), String> {
     Ok(())
 }
 
+/// 获取动效设置
+#[tauri::command]
+pub async fn get_motion_setting() -> Result<String, String> {
+    match config_dao::get_config_value("motion_setting").await {
+        Ok(Some(value)) => Ok(value),
+        Ok(None) => Ok("system".to_string()),
+        Err(e) => {
+            log::warn!("获取动效设置失败: {}", e);
+            Ok("system".to_string())
+        }
+    }
+}
+
+/// 设置动效：system 跟随系统 / full 完整动画 / reduced 减弱动画
+#[tauri::command]
+pub async fn set_motion_setting(motion: String) -> Result<(), String> {
+    if motion != "system" && motion != "full" && motion != "reduced" {
+        return Err("无效的动效设置".to_string());
+    }
+    if let Err(e) = config_dao::set_config("motion_setting", &motion).await {
+        log::error!("保存动效设置到数据库失败: {}", e);
+        return Err(format!("保存配置失败: {}", e));
+    }
+    log::info!("动效设置已更新为: {}", motion);
+    Ok(())
+}
+
 // ===== 访问密码 =====
 
 /// 获取访问密码状态（是否开启、是否已设置）
@@ -1873,6 +1901,7 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
         "http_port",
         "theme_setting",
         "theme_color",
+        "motion_setting",
         "language",
         "exclude_system_files",
         "exclude_patterns",
@@ -1924,6 +1953,7 @@ pub async fn get_all_settings(app: tauri::AppHandle) -> AllSettings {
         autostart_minimized: configs.get("autostart_minimized").map(|v| v == "true").unwrap_or(false),
         http_port: configs.get("http_port").and_then(|v| v.parse::<u16>().ok()).unwrap_or(6633),
         theme_setting: configs.get("theme_setting").cloned().unwrap_or_else(|| "system".to_string()),
+        motion_setting: configs.get("motion_setting").cloned().unwrap_or_else(|| "system".to_string()),
         theme_color: configs.get("theme_color").cloned().unwrap_or_else(|| "{\"h\":210,\"s\":100,\"l\":40}".to_string()),
         language: configs.get("language").cloned().unwrap_or_default(),
         exclude_system_files: configs.get("exclude_system_files").map(|v| v == "true").unwrap_or(true),

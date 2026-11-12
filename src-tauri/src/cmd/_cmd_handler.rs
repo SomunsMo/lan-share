@@ -43,6 +43,8 @@ pub fn get_cmd_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Se
         system::get_transfer_log,
         system::get_theme_setting,
         system::set_theme_setting,
+        system::get_motion_setting,
+        system::set_motion_setting,
         system::get_language,
         system::set_language,
         system::is_sharing_root_configured,
