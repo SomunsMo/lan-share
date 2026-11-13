@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, {useState, useEffect, useRef, startTransition} from 'react';
 import SettingsStyle from "./style.js";
 import {invoke} from "@tauri-apps/api/core";
 import {useLocation, useNavigate} from "react-router";
@@ -15,7 +15,7 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import PasswordDialog from "./PasswordDialog.jsx";
-import { isSystemReducedMotion, setMotionPreference } from "../../utils/motion.js";
+import { isSystemReducedMotion, setMotionPreference, resolveReducedMotion } from "../../utils/motion.js";
 
 function Settings() {
     const { t, i18n } = useTranslation();
@@ -107,38 +107,47 @@ function Settings() {
         const fetchAllSettings = async () => {
             try {
                 const s = await invoke('get_all_settings');
-                setSelectedDirectory(s.sharing_directory);
-                setImageSharingDir(s.image_sharing_dir);
-                setUploadEnabled(s.upload_enabled);
-                setRenameFileEnabled(s.rename_file_enabled);
-                setRenameFolderEnabled(s.rename_folder_enabled);
-                setDeleteFileEnabled(s.delete_file_enabled);
-                setDeleteFolderEnabled(s.delete_folder_enabled);
-                setUploadOverwriteEnabled(s.upload_overwrite_enabled);
-                setRecordCopyEnabled(s.record_copy_enabled);
-                setRecordDownloadEnabled(s.record_download_enabled);
-                setAutostartEnabled(s.autostart);
-                setAutostartMinimized(s.autostart_minimized);
-                setDeleteToTrash(s.delete_to_trash);
-                setExcludeSystemFiles(s.exclude_system_files);
-                setExcludePatterns(s.exclude_patterns);
-                setThemeSetting(s.theme_setting);
+                const { h, s: sat, l } = JSON.parse(s.theme_color);
                 // 以数据库为准同步一次，避免首屏读取失败后与界面显示不一致
                 const savedMotion = ['system', 'full', 'reduced'].includes(s.motion_setting) ? s.motion_setting : 'system';
-                setMotionSetting(savedMotion);
-                setMotionPreference(savedMotion);
-                setHttpPort(s.http_port);
-                setTrayIconMode(s.tray_icon_mode || 'template');
-                setPasswordEnabled(!!s.password_enabled);
-                setPasswordSet(!!s.password_set);
-                setLoginFailurePolicy(s.login_failure_policy || 'lockout');
-                setLoginFailureDelay(s.login_failure_delay_ms || 1000);
 
-                const { h, s: sat, l } = JSON.parse(s.theme_color);
-                setHuePrimary(h);
-                setSatPrimary(sat);
-                setLigPrimary(l);
-                setPrimaryColorHex(hslToHex(h, sat, l));
+                // 这些更新会重渲染整页（几十个控件）。数据通常在页面切换动画刚起播时回来，
+                // 一次性同步渲染会把主线程占住百毫秒级，侧边栏滑块（每帧 JS 驱动）就会卡住。
+                // 放进 transition 让 React 分片渲染，帧与帧之间能把控制权还给浏览器。
+                startTransition(() => {
+                    setSelectedDirectory(s.sharing_directory);
+                    setImageSharingDir(s.image_sharing_dir);
+                    setUploadEnabled(s.upload_enabled);
+                    setRenameFileEnabled(s.rename_file_enabled);
+                    setRenameFolderEnabled(s.rename_folder_enabled);
+                    setDeleteFileEnabled(s.delete_file_enabled);
+                    setDeleteFolderEnabled(s.delete_folder_enabled);
+                    setUploadOverwriteEnabled(s.upload_overwrite_enabled);
+                    setRecordCopyEnabled(s.record_copy_enabled);
+                    setRecordDownloadEnabled(s.record_download_enabled);
+                    setAutostartEnabled(s.autostart);
+                    setAutostartMinimized(s.autostart_minimized);
+                    setDeleteToTrash(s.delete_to_trash);
+                    setExcludeSystemFiles(s.exclude_system_files);
+                    setExcludePatterns(s.exclude_patterns);
+                    setThemeSetting(s.theme_setting);
+                    setMotionSetting(savedMotion);
+                    setHttpPort(s.http_port);
+                    setTrayIconMode(s.tray_icon_mode || 'template');
+                    setPasswordEnabled(!!s.password_enabled);
+                    setPasswordSet(!!s.password_set);
+                    setLoginFailurePolicy(s.login_failure_policy || 'lockout');
+                    setLoginFailureDelay(s.login_failure_delay_ms || 1000);
+                    setHuePrimary(h);
+                    setSatPrimary(sat);
+                    setLigPrimary(l);
+                    setPrimaryColorHex(hslToHex(h, sat, l));
+                });
+
+                // 动效偏好要立刻生效，不能跟着 transition 一起延后
+                setMotionPreference(savedMotion);
+
+                // 主题变量写入是幂等的（值没变时浏览器直接忽略），放在渲染之外避免额外重排
                 document.documentElement.style.setProperty('--hue-primary', h);
                 document.documentElement.style.setProperty('--sat-primary', `${sat}%`);
                 document.documentElement.style.setProperty('--lig-primary', `${l}%`);
@@ -172,7 +181,10 @@ function Settings() {
         if (location.state?.scrollTo !== 'security') return;
         const el = document.getElementById('settings-security');
         if (el) {
-            requestAnimationFrame(() => el.scrollIntoView({behavior: 'smooth', block: 'start'}));
+            requestAnimationFrame(() => el.scrollIntoView({
+                behavior: resolveReducedMotion() ? 'auto' : 'smooth',
+                block: 'start',
+            }));
         }
         // 清除 state，避免返回该历史记录时重复滚动
         navigate(location.pathname, {replace: true, state: null});
