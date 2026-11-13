@@ -10,6 +10,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { routes } from "../../pages/_router-map.jsx";
 import { useAppNavigate } from "../../utils/navTransition.js";
+import { useSlidingIndicator, SlidingLabel } from "../slidingIndicator/index.jsx";
 
 const icons = {
   home: (
@@ -46,26 +47,32 @@ function Navbar() {
 
   const drawerWidth = 'var(--navbar-width, 256px)';
 
+  const isRouteActive = (path) =>
+    location.pathname === path || (path === "/home" && location.pathname === "/");
+  // 上下两组共用一个滑块：切换「设置/关于」时，滑块会从上方一组一路拖下来。
+  const activeKey =
+    topItems.find(item => isRouteActive(item.path))?.path ??
+    bottomItems.find(item => location.pathname === item.path)?.path ??
+    null;
+  const slider = useSlidingIndicator({ activeKey, orientation: "vertical" });
+
   const itemSx = {
     borderRadius: 'var(--radius-md)',
     px: 1.5,
     py: 1,
     mb: 0.5,
     color: 'var(--secondary)',
-    transition: 'background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard), transform var(--dur-instant) var(--ease-standard)',
-    '&:active': {
-      transform: 'scale(0.985)',
-    },
+    // 悬停只改文字颜色，不出现背景块（背景由滑块承担）
     '&:hover': {
-      bgcolor: 'var(--surface-container-highest)',
+      bgcolor: 'transparent',
+      color: 'var(--on-surface)',
     },
+    // 选中态的颜色由滑块上的反色副本提供，这里只保留字重与透明背景
     '&.Mui-selected': {
-      bgcolor: 'var(--primary)',
-      color: 'var(--on-primary)',
-      '& .MuiListItemIcon-root': { color: 'var(--on-primary)' },
+      bgcolor: 'transparent',
       '& .MuiListItemText-primary': { fontWeight: 700 },
       '&:hover': {
-        bgcolor: 'var(--primary-hover)',
+        bgcolor: 'transparent',
       },
     },
   };
@@ -94,39 +101,56 @@ function Navbar() {
         </Typography>
       </Box>
 
-      <List sx={{ flex: 1, px: 1.5, py: 0 }}>
-        {topItems.map((item, index) => (
-          <ListItemButton
-            key={index}
-            selected={location.pathname === item.path || (item.path === "/home" && location.pathname === "/")}
-            onClick={() => navigate(item.path)}
-            sx={itemSx}
-          >
-            <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>
-              {icons[item.icon]}
-            </ListItemIcon>
-            <ListItemText primary={t(item.name)} slotProps={{ primary: { fontSize: '0.875rem', fontWeight: 500 } }} />
-          </ListItemButton>
-        ))}
-      </List>
+      <Box
+        ref={slider.containerRef}
+        className="sliding-group nav-sliding-group"
+        sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
+      >
+        {slider.indicator}
+        <List sx={{ px: 1.5, py: 0, flex: 1, minHeight: 0 }}>
+          {topItems.map((item, index) => (
+            <ListItemButton
+              key={index}
+              disableRipple
+              data-sliding-key={item.path}
+              selected={location.pathname === item.path || (item.path === "/home" && location.pathname === "/")}
+              onClick={() => navigate(item.path)}
+              sx={itemSx}
+            >
+              <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>
+                <SlidingLabel>{icons[item.icon]}</SlidingLabel>
+              </ListItemIcon>
+              <ListItemText
+                primary={<SlidingLabel>{t(item.name)}</SlidingLabel>}
+                slotProps={{ primary: { fontSize: '0.875rem', fontWeight: 500 } }}
+              />
+            </ListItemButton>
+          ))}
+        </List>
 
-      <Box sx={{ mx: 2.5, borderTop: '1px solid var(--border)' }} />
+        <Box sx={{ mx: 2.5, borderTop: '1px solid var(--border)' }} />
 
-      <List sx={{ px: 1.5, py: 0.5 }}>
-        {bottomItems.map((item, index) => (
-          <ListItemButton
-            key={index}
-            selected={location.pathname === item.path}
-            onClick={() => navigate(item.path)}
-            sx={itemSx}
-          >
-            <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>
-              {icons[item.icon]}
-            </ListItemIcon>
-            <ListItemText primary={t(item.name)} slotProps={{ primary: { fontSize: '0.875rem', fontWeight: 500 } }} />
-          </ListItemButton>
-        ))}
-      </List>
+        <List sx={{ px: 1.5, py: 0.5 }}>
+          {bottomItems.map((item, index) => (
+            <ListItemButton
+              key={index}
+              disableRipple
+              data-sliding-key={item.path}
+              selected={location.pathname === item.path}
+              onClick={() => navigate(item.path)}
+              sx={itemSx}
+            >
+              <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>
+                <SlidingLabel>{icons[item.icon]}</SlidingLabel>
+              </ListItemIcon>
+              <ListItemText
+                primary={<SlidingLabel>{t(item.name)}</SlidingLabel>}
+                slotProps={{ primary: { fontSize: '0.875rem', fontWeight: 500 } }}
+              />
+            </ListItemButton>
+          ))}
+        </List>
+      </Box>
     </Drawer>
   );
 }
