@@ -7,6 +7,7 @@ import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import {useTranslation} from "react-i18next";
+import {afterPressFeedback} from "../../utils/clickPop.js";
 
 const MIN_PASSWORD_LEN = 6;
 
@@ -47,7 +48,8 @@ function PasswordDialog({open, onClose, onSubmit}) {
         setError('');
         try {
             await onSubmit(password);
-            onClose();
+            // 等按钮回弹可见再关闭，避免弹窗淡出盖住按下反馈
+            afterPressFeedback(onClose);
         } catch (e) {
             setError(e?.message || e?.toString() || t('common.toast.operationFailed'));
         } finally {
@@ -93,7 +95,7 @@ function PasswordDialog({open, onClose, onSubmit}) {
                 )}
             </DialogContent>
             <DialogActions>
-                <Button onClick={onClose} disabled={submitting}>{t('common.button.cancel')}</Button>
+                <Button onClick={() => afterPressFeedback(onClose)} disabled={submitting}>{t('common.button.cancel')}</Button>
                 <Button variant="contained" onClick={handleSubmit} loading={submitting}>
                     {t('common.button.confirm')}
                 </Button>

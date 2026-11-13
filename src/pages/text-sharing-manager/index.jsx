@@ -8,6 +8,7 @@ import {useToast} from "@/components/toast/index.jsx";
 import {calcMenuPosition} from "../../utils/menu.js";
 import {copySharedImage} from "../../utils/copyImage.js";
 import {copyText} from "../../utils/copyText.js";
+import {afterPressFeedback} from "../../utils/clickPop.js";
 import CopyButton from "../../components/copyButton/index.jsx";
 import DialogImage from "./DialogImage.jsx";
 import Typography from '@mui/material/Typography';
@@ -656,7 +657,7 @@ function TextSharingManager(props) {
                         )}
                     </DialogContent>
                     <DialogActions>
-                        <Button onClick={() => setPasteDialog(null)}>{t('common.button.cancel')}</Button>
+                        <Button onClick={() => afterPressFeedback(() => setPasteDialog(null))}>{t('common.button.cancel')}</Button>
                         <Button
                             variant="contained"
                             disabled={pasteDialog.status === 'loading'}
@@ -672,7 +673,8 @@ function TextSharingManager(props) {
                                     console.error('保存图片失败:', error);
                                     showToast({message: t('common.toast.operationFailed'), type: 'error'});
                                 }
-                                setPasteDialog(null);
+                                // 等按钮回弹可见再关闭，避免弹窗淡出盖住按下反馈
+                                afterPressFeedback(() => setPasteDialog(null));
                             }}
                         >
                             {t('imageSharing.shareButton')}

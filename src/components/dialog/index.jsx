@@ -7,6 +7,7 @@ import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import DialogContentText from '@mui/material/DialogContentText';
+import { afterPressFeedback } from '../../utils/clickPop.js';
 
 const DialogContext = createContext(null);
 
@@ -42,12 +43,15 @@ export function DialogProvider({ children }) {
 
     const closeDialog = useCallback((id, value) => {
         const resolver = resolversRef.current.get(id);
-        if (resolver) {
+        if (!resolver) return;
+        resolversRef.current.delete(id);
+        // 等按钮回弹可见后再返回结果并开始淡出，
+        // 否则关闭动画会把按下反馈整个盖住
+        afterPressFeedback(() => {
             resolver(value);
-            resolversRef.current.delete(id);
-        }
-        // 保留组件直到退出动画结束，避免关闭时瞬间消失
-        setDialogs(prev => prev.map(d => d.id === id ? { ...d, closing: true } : d));
+            // 保留组件直到退出动画结束，避免关闭时瞬间消失
+            setDialogs(prev => prev.map(d => d.id === id ? { ...d, closing: true } : d));
+        });
     }, []);
 
     const removeDialog = useCallback((id) => {

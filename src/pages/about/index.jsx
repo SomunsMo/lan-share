@@ -10,6 +10,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import {useToast} from "@/components/toast/index.jsx";
+import {afterPressFeedback} from "@/utils/clickPop.js";
 
 function About() {
     const { t } = useTranslation();
@@ -50,7 +51,8 @@ function About() {
         if (updateResult?.download_url) {
             openUrl(updateResult.download_url);
         }
-        setShowUpdateDialog(false);
+        // 等按钮回弹可见再关闭，避免弹窗淡出盖住按下反馈
+        afterPressFeedback(() => setShowUpdateDialog(false));
     };
 
     return (
@@ -101,7 +103,7 @@ function About() {
                     </Typography>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setShowUpdateDialog(false)}>{t('about.update.later')}</Button>
+                    <Button onClick={() => afterPressFeedback(() => setShowUpdateDialog(false))}>{t('about.update.later')}</Button>
                     <Button variant="contained" onClick={handleDownload}>{t('about.update.download')}</Button>
                 </DialogActions>
             </Dialog>
