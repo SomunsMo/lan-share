@@ -10,6 +10,7 @@ import {formatFileSize} from "../../utils/formatFileSize.js";
 import {copySharedImage} from "../../utils/copyImage.js";
 import {copyText} from "../../utils/copyText.js";
 import CopyButton from "../../components/copyButton/index.jsx";
+import DialogImage from "../text-sharing-manager/DialogImage.jsx";
 import Typography from '@mui/material/Typography';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -317,13 +318,12 @@ function History() {
                     </div>
                     <hr style={{ border: 'none', borderTop: '1px solid var(--outline-variant)', margin: '12px 0' }} />
                     {item.type === 5 && imgMeta ? (
-                        <div style={{ textAlign: 'center' }}>
-                            <img
-                                src={'http://' + ipAddr + ':' + portNum + '/shared-image/' + item.id}
-                                alt={imgMeta.original_name}
-                                style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain', borderRadius: '4px' }}
-                            />
-                        </div>
+                        // 与文图共享记录的图片查看一致：支持滚轮/捏合缩放、拖动平移、双击放大与重置
+                        <DialogImage
+                            src={'http://' + ipAddr + ':' + portNum + '/shared-image/' + item.id}
+                            alt={imgMeta.original_name}
+                            zoomable
+                        />
                     ) : (
                         <div style={{ maxHeight: '40vh', overflowY: 'auto', fontSize: '14px', lineHeight: 1.6, color: 'var(--on-surface)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', userSelect: 'text' }}>{item.type === 2 ? t('history.noPreview') : item.content}</div>
                     )}
