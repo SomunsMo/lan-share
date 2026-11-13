@@ -379,6 +379,82 @@ html[data-nav-dir="down"]::view-transition-new(page) { animation-name: page-in-b
     animation: status-ring 700ms var(--ease-enter) 1;
 }
 
+/* ===== 同级控件液体滑块 ===== */
+.sliding-group {
+    position: relative;
+}
+
+.sliding-group [data-sliding-key] {
+    position: relative;
+    z-index: 2;
+}
+
+/* 位置、尺寸、圆角、反色裁剪范围都由 JS 每帧写入，这里只负责静态外观 */
+.sliding-fluid {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.sliding-blob {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    background: var(--indicator-bg, var(--surface));
+    box-shadow: var(--indicator-shadow, none);
+    will-change: transform, width, height, border-radius;
+}
+
+/* 文字/图标渲染两份，反色副本按滑块几何实时裁剪，形成“液体漫过文字”的效果 */
+.sliding-label {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.sliding-label-base {
+    display: inline-flex;
+    align-items: center;
+}
+
+.sliding-label-invert {
+    position: absolute;
+    inset: 0;
+    display: inline-flex;
+    align-items: center;
+    color: var(--sliding-invert-color, var(--on-primary));
+    clip-path: inset(100% 0 0 0);
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+/* 侧边栏：主色滑块，文字与图标在滑块覆盖处反白 */
+.nav-sliding-group {
+    --indicator-bg: var(--primary);
+    --sliding-invert-color: var(--on-primary);
+}
+
+/* 减弱动效下不渲染滑块，选中态回到各控件原有的背景方案 */
+html[data-motion="reduced"] .sliding-fluid,
+html[data-motion="reduced"] .sliding-label-invert {
+    display: none !important;
+}
+
+html[data-motion="reduced"] .nav-sliding-group .MuiListItemButton-root.Mui-selected {
+    background-color: var(--primary);
+    color: var(--on-primary);
+}
+
+html[data-motion="reduced"] .nav-sliding-group .MuiListItemButton-root.Mui-selected:hover {
+    background-color: var(--primary);
+    color: var(--on-primary);
+}
+
 
 .container { box-sizing: border-box; display: flex; flex-direction: row; height: 100vh; overflow: hidden; }
 .content {
