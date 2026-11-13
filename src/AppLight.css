@@ -204,7 +204,8 @@ input, textarea, button {
     font-weight: 500;
     font-family: inherit;
     outline: none;
-    transition: background-color var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard), transform var(--dur-instant) var(--ease-standard);
+    /* 输入框不需要 transform 过渡；按钮的 transform 在下方单独声明 */
+    transition: background-color var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
 }
 
 input, textarea {
@@ -221,8 +222,16 @@ button {
     padding: 10px 20px;
     border: none;
     font-size: 0.88rem;
+    transition:
+        background-color var(--dur-fast) var(--ease-standard),
+        border-color var(--dur-fast) var(--ease-standard),
+        color var(--dur-fast) var(--ease-standard),
+        box-shadow var(--dur-fast) var(--ease-standard),
+        transform var(--dur-instant) var(--ease-standard);
 }
-button:active { transform: scale(0.97); }
+button:active { transform: scale(0.985); }
+/* MUI 按钮自带 Ripple，再叠加全局缩放会显得发软 */
+.MuiButtonBase-root:active { transform: none; }
 
 
 /* ===== 全局动效 ===== */
@@ -269,8 +278,9 @@ button:active { transform: scale(0.97); }
 }
 
 @keyframes dialog-paper-enter {
-    from { opacity: 0.96; transform: scale(0.97) translateY(4px); }
-    to   { opacity: 1; transform: none; }
+    /* 透明度交给 MUI 的 Fade，这里只补一点缩放和位移，避免双重淡入 */
+    from { transform: scale(0.97) translateY(4px); }
+    to   { transform: none; }
 }
 
 @keyframes status-ring {
