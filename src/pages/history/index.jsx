@@ -10,6 +10,7 @@ import {formatFileSize} from "../../utils/formatFileSize.js";
 import {copySharedImage} from "../../utils/copyImage.js";
 import {copyText} from "../../utils/copyText.js";
 import CopyButton from "../../components/copyButton/index.jsx";
+import { useSlidingIndicator, SlidingLabel } from "../../components/slidingIndicator/index.jsx";
 import DialogImage from "../text-sharing-manager/DialogImage.jsx";
 import Typography from '@mui/material/Typography';
 import Table from '@mui/material/Table';
@@ -43,6 +44,7 @@ function History() {
     const [webUrl, setWebUrl] = useState("");
     const ipAddr = useMemo(() => webUrl ? webUrl.split('/')[2].split(':')[0] : '', [webUrl]);
     const portNum = useMemo(() => webUrl ? webUrl.split('/')[2].split(':')[1] : '', [webUrl]);
+    const filterSlider = useSlidingIndicator({ activeKey: activeFilter, orientation: "horizontal" });
 
     useEffect(() => {
         const fetchServerInfo = async () => {
@@ -515,14 +517,16 @@ function History() {
             </div>
 
             <div className="header-actions">
-                <div className="filter-tabs">
+                <div className="filter-tabs sliding-group" ref={filterSlider.containerRef}>
+                    {filterSlider.indicator}
                     {["all", "files", "text", "images"].map(filter => (
                         <button
                             key={filter}
+                            data-sliding-key={filter}
                             className={"filter-tab" + (activeFilter === filter ? " active" : "")}
                             onClick={() => setActiveFilter(filter)}
                         >
-                            {t(`history.filter${filter.charAt(0).toUpperCase() + filter.slice(1)}`)}
+                            <SlidingLabel>{t(`history.filter${filter.charAt(0).toUpperCase() + filter.slice(1)}`)}</SlidingLabel>
                         </button>
                     ))}
                 </div>

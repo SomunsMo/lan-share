@@ -36,6 +36,9 @@ const HistoryStyle = styled.div`
     }
 
     .filter-tabs {
+        --indicator-bg: var(--surface);
+        --indicator-shadow: var(--shadow-sm);
+        --sliding-invert-color: var(--primary);
         display: inline-flex;
         background: var(--surface-container-low);
         border-radius: var(--radius);
@@ -53,16 +56,26 @@ const HistoryStyle = styled.div`
         letter-spacing: 0.02em;
         color: var(--on-surface-variant);
         background: transparent;
-        transition: all var(--dur-fast) var(--ease);
+        transition:
+            background-color var(--dur-fast) var(--ease-standard),
+            color var(--dur-fast) var(--ease-standard);
         white-space: nowrap;
     }
 
     .filter-tab:hover {
         color: var(--on-surface);
-        background: var(--surface-container-highest);
+        background: transparent;
     }
 
-    .filter-tab.active {
+    /* 完整动效下选中配色由滑块与反色副本承担，悬停也不能盖住滑块 */
+    html:not([data-motion="reduced"]) & .filter-tab.active,
+    html:not([data-motion="reduced"]) & .filter-tab.active:hover {
+        color: var(--on-surface-variant);
+        background: transparent;
+        box-shadow: none;
+    }
+
+    html[data-motion="reduced"] & .filter-tab.active {
         background: var(--surface);
         color: var(--primary);
         box-shadow: var(--shadow-sm);
