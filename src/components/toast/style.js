@@ -2,13 +2,13 @@ import styled from "@emotion/styled";
 import { keyframes } from "@emotion/react";
 
 const toastIn = keyframes`
-  from { opacity: 0; transform: translateX(100%); }
-  to   { opacity: 1; transform: translateX(0); }
+  from { opacity: 0; transform: translate3d(100%, 0, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
 `;
 
 const toastOut = keyframes`
-  from { opacity: 1; transform: translateX(0); }
-  to   { opacity: 0; transform: translateX(100%); }
+  from { opacity: 1; transform: translate3d(0, 0, 0); }
+  to   { opacity: 0; transform: translate3d(100%, 0, 0); }
 `;
 
 const BAR_COLORS = {
@@ -26,16 +26,17 @@ export const ToastContainerWrapper = styled.div`
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
+  gap: 0;
   pointer-events: none;
   max-width: 90vw;
 `;
 
 export const ToastItemOuter = styled.div`
   overflow: ${props => props.$exiting ? 'hidden' : 'visible'};
-  transition: height var(--dur-mid) var(--ease-exit), margin var(--dur-mid) var(--ease-exit);
+  transition: height var(--dur-mid) var(--ease-exit), margin-bottom var(--dur-mid) var(--ease-exit);
   height: ${props => props.$exiting ? '0px' : props.$height ? `${props.$height}px` : 'auto'};
-  margin-bottom: ${props => props.$exiting ? '0px' : '0'};
+  /* 容器不再用 gap：退场时 margin 一起收，剩余 toast 不会在卸载瞬间跳一下 */
+  margin-bottom: ${props => props.$exiting ? '0px' : '8px'};
   pointer-events: auto;
 `;
 
@@ -52,6 +53,8 @@ export const ToastItemInner = styled.div`
   -webkit-backdrop-filter: blur(12px);
   min-width: 300px;
   animation: ${props => props.$exiting ? toastOut : toastIn} var(--dur-mid) ${props => props.$exiting ? 'var(--ease-exit)' : 'var(--ease-enter)'} forwards;
+  backface-visibility: hidden;
+  will-change: transform;
 `;
 
 export const ToastBar = styled.div`

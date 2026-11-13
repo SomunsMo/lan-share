@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react';
+import { resolveReducedMotion } from "../../utils/motion.js";
 import {
     ToastContainerWrapper,
     ToastItemOuter,
@@ -49,8 +50,10 @@ export function ToastProvider({ children }) {
         const exitingToasts = toasts.filter(t => t.phase === 'exiting');
         if (exitingToasts.length === 0) return;
 
+        // 减弱动效下 CSS 已把动画压到 0.01ms，不必再为不可见的退场占 260ms
+        const exitDuration = resolveReducedMotion() ? 0 : EXIT_DURATION;
         const timers = exitingToasts.map(t =>
-            setTimeout(() => removeToast(t.id), EXIT_DURATION)
+            setTimeout(() => removeToast(t.id), exitDuration)
         );
         return () => timers.forEach(clearTimeout);
     }, [toasts, removeToast]);
@@ -84,9 +87,16 @@ function ToastItem({ toast, onClose }) {
     const innerRef = useRef(null);
 
     useLayoutEffect(() => {
-        if (innerRef.current && toast.phase === 'visible') {
-            setHeight(innerRef.current.scrollHeight);
-        }
+        const inner = innerRef.current;
+        if (!inner || toast.phase !== 'visible') return;
+
+        const updateHeight = () => setHeight(inner.scrollHeight);
+        updateHeight();
+
+        if (typeof ResizeObserver === 'undefined') return;
+        const observer = new ResizeObserver(updateHeight);
+        observer.observe(inner);
+        return () => observer.disconnect();
     }, [toast.phase]);
 
     const isExiting = toast.phase === 'exiting';
