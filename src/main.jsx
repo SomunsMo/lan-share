@@ -6,6 +6,7 @@ import App from "./App";
 import {BrowserRouter} from "react-router";
 import initI18n from "./i18n";
 import { initMotion } from "./utils/motion.js";
+import { installClickPop } from "./utils/clickPop.js";
 import theme from "./theme";
 
 // 支持 View Transitions 的平台由过渡 API 负责页面切换动画，
@@ -15,6 +16,9 @@ import theme from "./theme";
 if (typeof document.startViewTransition === "function") {
     document.documentElement.classList.add("vt-ready");
 }
+
+// 全局点击回弹（只在完整动效模式下生效）
+installClickPop();
 
 // 语言与动效偏好都就绪后再渲染：动效偏好决定首屏是否播放完整动画
 Promise.all([initI18n(), initMotion()]).then(() => {
