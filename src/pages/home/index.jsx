@@ -181,45 +181,49 @@ function Home() {
         return {label: t('home.authEnabledNoPassword'), color: '#f59e0b', glow: false};
     }, [passwordStatus, t]);
 
+    const qrState = statusLoading ? 'loading' : serverStatus?.running ? 'ready' : 'offline';
+
     return (
         <HomeStyle>
             <div className="dual-panel">
                 <div className="qr-panel">
-                    {statusLoading ? (
-                        <div className="placeholder-panel">
-                            <CircularProgress size={56} thickness={4} sx={{ color: 'var(--primary)' }} />
-                            <Typography variant="body1" color="var(--on-surface-variant)" sx={{ textAlign: 'center' }}>
-                                {t('common.loading') || 'Loading...'}
-                            </Typography>
-                        </div>
-                    ) : serverStatus?.running ? (
-                        <>
-                            <Paper elevation={1} sx={{ p: '24px', bgcolor: 'var(--bg-page)', border: '1px solid var(--outline-variant)', borderRadius: 'var(--radius-md)', width: 'fit-content', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-surface-variant)' }}>
-                                <QRCodeSVG value={webUrl} fgColor="currentColor" bgColor={"transparent"} size={180} />
-                            </Paper>
-                            <Box sx={{ textAlign: 'center' }}>
-                                <Typography
-                                    sx={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--on-surface)', fontFamily: 'var(--font-family-heading)' }}
-                                >
-                                    {t('home.scanTips')}
+                    <div className="qr-state" key={qrState}>
+                        {statusLoading ? (
+                            <div className="placeholder-panel">
+                                <CircularProgress size={56} thickness={4} sx={{ color: 'var(--primary)' }} />
+                                <Typography variant="body1" color="var(--on-surface-variant)" sx={{ textAlign: 'center' }}>
+                                    {t('common.loading') || 'Loading...'}
                                 </Typography>
-                                <Typography
-                                    sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)', mt: 0.5, whiteSpace: 'pre-line' }}
-                                >
-                                    {t('home.scanTipsDesc')}
-                                </Typography>
-                            </Box>
-                        </>
-                    ) : (
-                        <div className="placeholder-panel">
-                            <div className="placeholder-icon">
-                                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                             </div>
-                            <Typography variant="body1" color="var(--on-surface-variant)" sx={{ textAlign: 'center' }}>
-                                {t('home.serviceUnavailable') || 'Service Unavailable'}
-                            </Typography>
-                        </div>
-                    )}
+                        ) : serverStatus?.running ? (
+                            <>
+                                <Paper elevation={1} sx={{ p: '24px', bgcolor: 'var(--bg-page)', border: '1px solid var(--outline-variant)', borderRadius: 'var(--radius-md)', width: 'fit-content', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--on-surface-variant)' }}>
+                                    <QRCodeSVG value={webUrl} fgColor="currentColor" bgColor={"transparent"} size={180} />
+                                </Paper>
+                                <Box sx={{ textAlign: 'center' }}>
+                                    <Typography
+                                        sx={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--on-surface)', fontFamily: 'var(--font-family-heading)' }}
+                                    >
+                                        {t('home.scanTips')}
+                                    </Typography>
+                                    <Typography
+                                        sx={{ fontSize: '1rem', color: 'var(--on-surface-variant)', mt: 0.5, whiteSpace: 'pre-line' }}
+                                    >
+                                        {t('home.scanTipsDesc')}
+                                    </Typography>
+                                </Box>
+                            </>
+                        ) : (
+                            <div className="placeholder-panel">
+                                <div className="placeholder-icon">
+                                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                </div>
+                                <Typography variant="body1" color="var(--on-surface-variant)" sx={{ textAlign: 'center' }}>
+                                    {t('home.serviceUnavailable') || 'Service Unavailable'}
+                                </Typography>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className={"details-panel" + (statusLoading ? "" : " details-ready")}>

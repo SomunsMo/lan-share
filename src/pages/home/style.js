@@ -25,11 +25,29 @@ const HomeStyle = styled.div`
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: center;
         gap: 24px;
+        /* 加载态、二维码、服务不可用三种状态高度不同，先占住空间避免切换时整块跳动 */
+        min-height: 320px;
     }
 
     .qr-panel > * {
         animation: fade-up var(--dur-slow) var(--ease-enter) backwards;
+    }
+
+    /* 状态切换时只做淡入，不再叠加位移，避免和高度变化一起抖 */
+    .qr-panel > .qr-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 24px;
+        width: 100%;
+        animation: fade-in var(--dur-mid) var(--ease-standard);
+    }
+
+    /* vt-nav 会关闭页内入场动画；状态切换的淡入仍保留，避免加载完成后硬切 */
+    html.vt-nav & .qr-panel > .qr-state {
+        animation: fade-in var(--dur-mid) var(--ease-standard);
     }
 
     .qr-panel > *:nth-of-type(2) {
